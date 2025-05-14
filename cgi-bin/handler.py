@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import cgi
 import json
-import html
 import os
 
 # Mock server-side device state
@@ -14,9 +13,12 @@ DEVICE_STATE = {
     }
 }
 
-print("Content-Type: application/json\n" if 'vr_status=1' in os.environ.get("QUERY_STRING", "") else "Content-Type: text/plain\n")
+print("Content-Type: application/json\n")
+
+# Fetch the form data from the POST request
 form = cgi.FieldStorage()
 
+# Get query string vr_status=1 to fetch all devices
 if 'vr_status=1' in os.environ.get("QUERY_STRING", ""):
     # Just return all system states
     devices = []
@@ -25,21 +27,35 @@ if 'vr_status=1' in os.environ.get("QUERY_STRING", ""):
     print(json.dumps(devices))
 
 else:
+    # Handle command to update a specific device state
     command = form.getfirst("command", "").strip()
     target = form.getfirst("target", "").strip()
 
     if target in DEVICE_STATE:
         state = DEVICE_STATE[target]
 
+        # Handle specific commands
         if command == "power":
             state["connected"] = True
-            state["headset"] = 90
+            state["headset"] = 90  # Set to a higher value to simulate power-on
         elif command == "connect":
             state["left"] = 80
             state["right"] = 85
         elif command == "run":
             pass  # Simulate running something
 
-        print(f"✔ Command '{command}' applied to '{target}'")
+        # Return a success message
+        response = {
+            "status": "success",
+            "message": f"✔ Command '{command}' applied to '{target}'",
+            "deviceState": state
+        }
     else:
-        print(f"❌ Target '{target}' not found")
+        # Return an error if the target device doesn't exist
+        response = {
+            "status": "error",
+            "message": f"❌ Target '{target}' not found"
+        }
+
+    # Send the response back to the client
+    print(json.dumps(response))

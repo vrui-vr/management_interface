@@ -335,15 +335,73 @@
       function send(command) {
         const device = allDevices.find((d) => d.name === currentSystem);
         if (!device) return;
-        if (command === "power") {
-          device.connected = true;
-          device.headset = 80;
-        } else if (command === "connect") {
-          if (device.connected) {
-            device.left = 75;
-            device.right = 70;
-          }
+
+        // Send a POST request to the server with the command and target device
+        fetch("/cgi-bin/handler.py", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            command: command,
+            target: device.name,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              console.log(data.message);
+              const updatedDevice = data.deviceState;
+              updateDeviceUI(updatedDevice);
+            } else {
+              console.error(data.message);
+            }
+          })
+          .catch((error) => {
+            console.error("Error communicating with the server:", error);
+          });
+      }
+
+      function updateDeviceUI(updatedDevice) {
+        // This function should update the UI based on the updated device state
+        const deviceCard = document
+          .querySelector(
+            `.device-card .device-name:contains(${updatedDevice.name})`
+          )
+          .closest(".device-card");
+        const batteryRows = deviceCard.querySelectorAll(".battery-row");
+
+        // Update battery percentages
+        batteryRows[0].querySelector(
+          ".battery-percent"
+        ).textContent = `${updatedDevice.headset}%`;
+        batteryRows[1].querySelector(
+          ".battery-percent"
+        ).textContent = `${updatedDevice.left}%`;
+        batteryRows[2].querySelector(
+          ".battery-percent"
+        ).textContent = `${updatedDevice.right}%`;
+
+        // Update connected state
+        if (updatedDevice.connected) {
+          deviceCard.classList.remove("disconnected");
+        } else {
+          deviceCard.classList.add("disconnected");
         }
+
+        // Optionally, you can also update the target label color
+        changeTargetColor(updatedDevice.name);
+      }
+
+      function autoUpdateConsole(device, command, message) {
+        const consoleBox = document.getElementById("consoleOutput");
+
+        // Save the current scroll position before adding new content
+        const isAtBottom =
+          consoleBox.scrollHeight - consoleBox.clientHeight <=
+          consoleBox.scrollTop + 1;
+
+        // Create a new log entry
         const logEntry = document.createElement("div");
         const colorClass = getColorClass(device.name);
         logEntry.className = `log-entry ${colorClass}`;
@@ -352,27 +410,21 @@
         const offlineNote = isOffline
           ? ` <span class="offline">(offline)</span>`
           : "";
-        const message =
-          command === "run"
-            ? `Launching VR app on ${device.name}...`
-            : command === "connect"
-            ? `Connecting controllers for ${device.name}...`
-            : `Powering on ${device.name}...`;
         logEntry.innerHTML = `${systemName}${offlineNote} - ${command}<br>${message}`;
-        document.getElementById("consoleOutput").appendChild(logEntry);
+
+        // Append the log entry to the console
+        consoleBox.appendChild(logEntry);
+
+        // If the user was at the bottom, scroll after the content is added
+        if (isAtBottom) {
+          setTimeout(() => {
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+          }, 100); // Delay for rendering to complete
+        }
+
+        // Update dropdown and render devices
         updateDropdown();
         renderDevices(allDevices);
-        autoScrollConsole();
-      }
-
-      function autoScrollConsole() {
-        const consoleBox = document.getElementById("consoleOutput");
-        if (
-          consoleBox.scrollHeight - consoleBox.clientHeight <=
-          consoleBox.scrollTop + 1
-        ) {
-          consoleBox.scrollTop = consoleBox.scrollHeight;
-        }
       }
 
       function changeTargetColor(rigName) {
