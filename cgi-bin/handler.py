@@ -10,14 +10,15 @@ DECAY_AMOUNT   = 1       # percent per step
 
 DEFAULT_STATE = {
     "devices": {
-        "Workstation A": {
+        "Rig A": {
             "connected": False,
-            "headset": 100,
-            "left": 100,
-            "right": 100,
+            "headset": 0,
+            "left": 0,
+            "right": 0,
             "headset_connected": False,
             "left_connected": False,
-            "right_connected": False
+            "right_connected": False,
+            "headset_model": "Valve Index"
         },
         "Rig B": {
             "connected": False,
@@ -26,12 +27,12 @@ DEFAULT_STATE = {
             "right": 0,
             "headset_connected": False,
             "left_connected": False,
-            "right_connected": False
+            "right_connected": False,
+            "headset_model": "HTC Vive Pro"
         }
     },
     "last_update": time.time()
 }
-
 
 def reset_state():
     with open(STATE_FILE, "w") as f:
@@ -59,6 +60,16 @@ if os.path.exists(STATE_FILE):
 else:
     DEVICE_STATE = DEFAULT_STATE["devices"]
     last_update = DEFAULT_STATE["last_update"]
+    with open(STATE_FILE, "w") as f:
+        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
+
+# ✅ Always check vr_status=1 here
+if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
+    print(json.dumps([
+        {"name": name, **info}
+        for name, info in DEVICE_STATE.items()
+    ]))
+    exit()
 
 # Handle reset
 if command == "reset":
@@ -68,13 +79,14 @@ if command == "reset":
         "message": "System state has been reset.",
         "devices": [
             {"name": name, **info}
-            for name, info in new_state["devices"].items()
+            for name, info in new_state.items()
         ]
     }))
     exit()
 
 # Handle add device
 if command == "add":
+    model = form.getfirst("model", "Unknown")
     if not target:
         print(json.dumps({
             "status": "error",
@@ -104,7 +116,8 @@ if command == "add":
     "right": 0,
     "headset_connected": False,
     "left_connected": False,
-    "right_connected": False
+    "right_connected": False,
+    "headset_model": model
 }
 
     with open(STATE_FILE, "w") as f:
@@ -134,7 +147,7 @@ if steps > 0:
 
 # If it's a GET for status (vr_status=1)
 if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
-    # Return device list directly
+    print("Content-Type: application/json\n")
     print(json.dumps([
         {"name": name, **info}
         for name, info in DEVICE_STATE.items()
@@ -161,7 +174,7 @@ if command and target in DEVICE_STATE:
     elif command == "headset":
         state["headset_connected"] = True
         state["headset"] = get_batteries()  # e.g., return 100
-        messages.append("Headset turned on.")
+        messages.append("Connected to Headset via VR Compositor.")
 
     elif command == "connect":
         state["left_connected"] = True

@@ -13,6 +13,7 @@ function normalizeDevices(rawDevices) {
     headset_connected: d.headset_connected,
     left_connected: d.left_connected,
     right_connected: d.right_connected,
+    headset_model: d.headset_model || "Unknown",
   }));
 }
 
@@ -26,41 +27,39 @@ function createDevice(name) {
   };
 }
 
-// Updated addDevice() with prompt for custom name
 function addDevice() {
-  // default suggestion: Rig A, B, C, etc.
   const defaultName = `Rig ${String.fromCharCode(65 + deviceCounter)}`;
-  // prompt user for device name, with default pre-filled
-  const input = window.prompt("Enter device name:", defaultName);
-  // if user pressed Cancel or entered empty string, use defaultName
-  const newName = input && input.trim() !== "" ? input.trim() : defaultName;
+  const nameInput = window.prompt("Enter device name:", defaultName);
+  const newName =
+    nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
 
-  // send to server to create the device
+  const headsetModel = window.prompt(
+    "Enter headset model (e.g., HTC Vive Pro, Valve Index):",
+    "HTC Vive Pro"
+  );
+  const model =
+    headsetModel && headsetModel.trim() !== ""
+      ? headsetModel.trim()
+      : "Unknown";
+
   fetch("/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "add", target: newName }),
+    body: new URLSearchParams({ command: "add", target: newName, model }),
   })
     .then((r) => r.json())
     .then((data) => {
       if (data.status === "success") {
-        // 1) update local device list
         allDevices = normalizeDevices(data.devices);
-
         deviceCounter = allDevices.length;
-
-        // 2) switch focus to the new device
         currentSystem = newName;
+
         document.getElementById(
           "targetLabel"
         ).textContent = `Target: ${currentSystem}`;
         changeTargetColor(currentSystem);
         changeDeviceNameColor(currentSystem);
-
-        // 3) refresh UI
         updateInterface();
-
-        // 4) log the addition
         autoUpdateConsole({ name: newName }, "add", data.message);
       } else {
         console.error(data.message);
@@ -165,7 +164,8 @@ function updateButtonStatesFor(device) {
     headsetConnected || device.left_connected || device.right_connected;
 
   document.getElementById("btn-vrtracker").disabled = connected;
-  document.getElementById("btn-headset").disabled = !connected || headsetConnected;
+  document.getElementById("btn-headset").disabled =
+    !connected || headsetConnected;
   document.getElementById("btn-connect").disabled =
     !headsetConnected || (device.left_connected && device.right_connected);
   document.getElementById("btn-disconnect").disabled = !anythingConnected;
@@ -336,7 +336,7 @@ function renderDevices(devices) {
     // Headset row
     batteryColumn.appendChild(
       createBattery(
-        "Headset",
+        `Headset (${device.headset_model})`,
         device.headset,
         colorClass,
         device.headset_connected
@@ -421,6 +421,8 @@ function sendCustomCommand() {
   const rawCommand = input.value.trim();
   if (!rawCommand) return;
 
+  const isReset = rawCommand.toLowerCase() === "reset";
+
   fetch("/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -436,22 +438,25 @@ function sendCustomCommand() {
         right: 0,
       };
 
-      autoUpdateConsole(fakeDevice, rawCommand, data.message || "No response");
-
       if (Array.isArray(data.devices)) {
         allDevices = normalizeDevices(data.devices);
+        currentSystem = allDevices[0]?.name || "";
 
-        // If currentSystem no longer exists, reset it
-        if (!allDevices.find((d) => d.name === currentSystem)) {
-          currentSystem = allDevices[0]?.name || "";
-          document.getElementById(
-            "targetLabel"
-          ).textContent = `Target: ${currentSystem}`;
-          changeTargetColor(currentSystem);
-          changeDeviceNameColor(currentSystem);
+        document.getElementById("targetLabel").textContent = `Target: ${currentSystem}`;
+        changeTargetColor(currentSystem);
+        changeDeviceNameColor(currentSystem);
+
+        if (isReset) {
+          clearConsoleMessages();           // ✅ 1. clear first
+          resetFilterCheckboxes(allDevices);
         }
 
-        updateInterface();
+        updateInterface();                  // ✅ 2. update after clearing
+      }
+
+      // ✅ Don't log reset message to console
+      if (!isReset) {
+        autoUpdateConsole(fakeDevice, rawCommand, data.message || "No response");
       }
     })
     .catch((err) => {
@@ -460,6 +465,7 @@ function sendCustomCommand() {
 
   input.value = "";
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("commandInput");
@@ -493,6 +499,26 @@ document.addEventListener("DOMContentLoaded", () => {
       applyConsoleFilter(); // Ensure proper visibility if console starts empty
     });
 });
+
+function clearConsoleMessages() {
+  const consoleBox = document.getElementById("consoleOutput");
+  if (consoleBox) {
+    consoleBox.innerHTML = ""; // Full wipe
+    const emptyMsg = document.createElement("div");
+    emptyMsg.className = "log-empty";
+    emptyMsg.textContent = "Nothing here yet...";
+    emptyMsg.style.color = "var(--text-muted)";
+    emptyMsg.style.fontStyle = "italic";
+    emptyMsg.style.padding = "0.25rem 0";
+    consoleBox.appendChild(emptyMsg);
+  }
+}
+
+function resetFilterCheckboxes(devices) {
+  filterState.clear();
+  devices.forEach((d) => filterState.add(d.name));
+  updateFilterMenu();
+}
 
 const filterState = new Set(); // Active filter names
 
@@ -587,22 +613,6 @@ function updateInterface() {
   updateFilterMenu();
   applyConsoleFilter();
 }
-
-// Initialize with 1 device
-fetch("/cgi-bin/handler.py?vr_status=1")
-  .then((r) => r.json())
-  .then((devicesFromServer) => {
-    allDevices = normalizeDevices(devicesFromServer);
-
-    if (allDevices.length) {
-      currentSystem = allDevices[0].name;
-      document.getElementById(
-        "targetLabel"
-      ).textContent = `Target: ${currentSystem}`;
-      changeTargetColor(currentSystem);
-    }
-    updateInterface();
-  });
 
 // poll every 10s for the decayed battery levels
 setInterval(() => {
