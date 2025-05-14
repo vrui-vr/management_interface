@@ -58,8 +58,7 @@ function addDevice() {
         changeDeviceNameColor(currentSystem);
 
         // 3) refresh UI
-        updateDropdown();
-        renderDevices(allDevices);
+        updateInterface();
 
         // 4) log the addition
         autoUpdateConsole({ name: newName }, "add", data.message);
@@ -72,8 +71,7 @@ function addDevice() {
 
 function changeSystem(name) {
   currentSystem = name;
-  updateDropdown();
-  renderDevices(allDevices);
+  updateInterface();
   document.getElementById("targetLabel").textContent = `Target: ${name}`;
   changeTargetColor(name); // Update target color when system changes
   changeDeviceNameColor(name); // Update device name color
@@ -199,6 +197,9 @@ function autoUpdateConsole(device, command, message) {
   // Append the log entry to the console
   consoleBox.appendChild(logEntry);
 
+  // Update filters in the console
+  applyConsoleFilter();
+
   // If the user was at the bottom, scroll after the content is added
   if (isAtBottom) {
     setTimeout(() => {
@@ -207,8 +208,7 @@ function autoUpdateConsole(device, command, message) {
   }
 
   // Update dropdown and render devices
-  updateDropdown();
-  renderDevices(allDevices);
+  updateInterface();
 }
 
 function changeTargetColor(rigName) {
@@ -256,9 +256,13 @@ function renderDevices(devices) {
       card.style.boxShadow = `0 0 6px ${cssVar.trim()}`;
     }
 
+    card.onclick = () => {
+      changeSystem(device.name);
+    };
+
     const name = document.createElement("div");
     name.className = "device-name";
-    name.textContent = device.name;
+    name.textContent = device.name + (device.connected ? "" : " (not online)");
     card.appendChild(name);
 
     const batteryColumn = document.createElement("div");
@@ -349,40 +353,6 @@ function createBattery(label, percent, colorClass, isConnected) {
   return row;
 }
 
-// Initialize with 1 device
-fetch("/cgi-bin/handler.py?vr_status=1")
-  .then((r) => r.json())
-  .then((devicesFromServer) => {
-    allDevices = normalizeDevices(devicesFromServer);
-
-    if (allDevices.length) {
-      currentSystem = allDevices[0].name;
-      document.getElementById(
-        "targetLabel"
-      ).textContent = `Target: ${currentSystem}`;
-      changeTargetColor(currentSystem);
-    }
-    updateDropdown();
-    renderDevices(allDevices);
-  });
-
-// poll every 10s for the decayed battery levels
-setInterval(() => {
-  fetch("/cgi-bin/handler.py?vr_status=1")
-    .then((r) => r.json())
-    .then((devs) => {
-      // 1) update your local model
-      allDevices = normalizeDevices(devs);
-
-      // 2) re-render the cards
-      renderDevices(allDevices);
-      // 3) refresh the focused card/detail if needed
-      const focused = allDevices.find((d) => d.name === currentSystem);
-      if (focused) updateDeviceUI(focused);
-    })
-    .catch(console.error);
-}, 1_000);
-
 function sendCustomCommand() {
   const input = document.getElementById("commandInput");
   const rawCommand = input.value.trim();
@@ -418,8 +388,7 @@ function sendCustomCommand() {
           changeDeviceNameColor(currentSystem);
         }
 
-        updateDropdown();
-        renderDevices(allDevices);
+        updateInterface();
       }
     })
     .catch((err) => {
@@ -438,3 +407,137 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+const filterState = new Set(); // Active filter names
+
+document.getElementById("filterToggle").addEventListener("click", () => {
+  const menu = document.getElementById("filterMenu");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+});
+
+function updateFilterMenu() {
+  const menu = document.getElementById("filterMenu");
+  menu.innerHTML = "";
+
+  allDevices.forEach((device) => {
+    const label = document.createElement("label");
+    label.className = `filter-option ${getColorClass(device.name)} ${device.connected ? "connected" : "disconnected"}`;
+
+    const labelText = document.createElement("span");
+    labelText.className = "label-text";
+    labelText.textContent = device.name;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = device.name;
+
+    // ✅ If device not in filter, add it (default ON)
+    if (!filterState.has(device.name)) {
+      filterState.add(device.name);
+    }
+
+    checkbox.checked = filterState.has(device.name);
+
+    checkbox.onchange = () => {
+      if (checkbox.checked) {
+        filterState.add(device.name);
+      } else {
+        filterState.delete(device.name);
+      }
+      applyConsoleFilter();
+    };
+
+    label.appendChild(labelText);
+    label.appendChild(checkbox);
+    menu.appendChild(label);
+  });
+}
+
+function applyConsoleFilter() {
+  const entries = document.querySelectorAll(".log-entry");
+  let visibleCount = 0;
+
+  entries.forEach((entry) => {
+    const label = entry.querySelector(".label");
+    if (!label) return;
+    const name = label.textContent.trim();
+    const shouldShow = filterState.has(name);
+    entry.style.display = shouldShow ? "block" : "none";
+    if (shouldShow) visibleCount++;
+  });
+
+  // ✅ Update empty state message
+  const consoleBox = document.getElementById("consoleOutput");
+  const isEmpty = visibleCount === 0;
+
+  if (isEmpty) {
+    if (!consoleBox.querySelector(".log-empty")) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.className = "log-empty";
+      emptyMsg.textContent = "Nothing here yet...";
+      emptyMsg.style.color = "var(--text-muted)";
+      emptyMsg.style.fontStyle = "italic";
+      emptyMsg.style.padding = "0.25rem 0";
+      consoleBox.appendChild(emptyMsg);
+    }
+  } else {
+    const existing = consoleBox.querySelector(".log-empty");
+    if (existing) existing.remove();
+  }
+}
+
+function updateButtonStates() {
+  const device = allDevices.find(d => d.name === currentSystem);
+  if (!device) return;
+
+  const connected = device.connected;
+  const headsetConnected = device.headset_connected;
+
+  document.getElementById("btn-power").disabled = connected;
+  document.getElementById("btn-shutdown").disabled = !connected;
+  document.getElementById("btn-connect").disabled = !connected;
+  document.getElementById("btn-disconnect").disabled = !connected;
+  document.getElementById("btn-run").disabled = !connected || !headsetConnected;
+}
+
+// Helper that updates all gui
+function updateInterface() {
+  updateDropdown();
+  renderDevices(allDevices);
+  updateButtonStates();
+  updateFilterMenu();
+  applyConsoleFilter();
+}
+
+// Initialize with 1 device
+fetch("/cgi-bin/handler.py?vr_status=1")
+  .then((r) => r.json())
+  .then((devicesFromServer) => {
+    allDevices = normalizeDevices(devicesFromServer);
+
+    if (allDevices.length) {
+      currentSystem = allDevices[0].name;
+      document.getElementById(
+        "targetLabel"
+      ).textContent = `Target: ${currentSystem}`;
+      changeTargetColor(currentSystem);
+    }
+    updateInterface();
+  });
+
+// poll every 10s for the decayed battery levels
+setInterval(() => {
+  fetch("/cgi-bin/handler.py?vr_status=1")
+    .then((r) => r.json())
+    .then((devs) => {
+      // 1) update your local model
+      allDevices = normalizeDevices(devs);
+
+      // 2) re-render the cards
+      renderDevices(allDevices);
+      // 3) refresh the focused card/detail if needed
+      const focused = allDevices.find((d) => d.name === currentSystem);
+      if (focused) updateDeviceUI(focused);
+    })
+    .catch(console.error);
+}, 1_000);

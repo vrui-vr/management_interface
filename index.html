@@ -33,22 +33,47 @@
       </div>
       <div class="button-section">
         <p><strong id="targetLabel"></strong></p>
-        <button class="button" onclick="send('power')">Turn on System</button>
-        <button class="button" onclick="send('connect')">
+
+        <button class="button" id="btn-power" onclick="send('power')">
+          Turn on System
+        </button>
+        <button class="button" id="btn-shutdown" onclick="send('shutdown')">
+          Shutdown System
+        </button>
+
+        <button class="button" id="btn-connect" onclick="send('connect')">
           Connect Controllers
         </button>
-        <button class="button" onclick="send('disconnect')">
+        <button class="button" id="btn-disconnect" onclick="send('disconnect')">
           Disconnect Devices
         </button>
-        <button class="button" onclick="send('run')">Run Program</button>
+
+        <button class="button" id="btn-run" onclick="send('run')">
+          Run Program
+        </button>
       </div>
     </div>
 
     <div class="main">
       <div class="device-section" id="deviceContainer"></div>
       <div class="console-section">
-        <div class="console-title">Console Output</div>
-        <div id="consoleOutput" class="console-box">Waiting for input...</div>
+        <div
+          class="console-title"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <span>Console Output</span>
+          <div class="console-filter">
+            <button id="filterToggle" class="filter-toggle">▼</button>
+            <div id="filterMenu" class="filter-menu">
+              <!-- Dynamically filled with checkboxes -->
+            </div>
+          </div>
+        </div>
+        <div id="consoleOutput" class="console-box"></div>
         <div id="commandPrompt" style="margin-top: 1rem">
           <input
             type="text"

@@ -19,7 +19,7 @@ DEFAULT_STATE = {
             "left_connected": False,
             "right_connected": False
         },
-        "Rig B (offline)": {
+        "Rig B": {
             "connected": False,
             "headset": 0,
             "left": 0,
@@ -37,6 +37,9 @@ def reset_state():
     with open(STATE_FILE, "w") as f:
         json.dump(DEFAULT_STATE, f)
     return DEFAULT_STATE
+
+def get_batteries():
+    return 100
 
 # Parse request
 form = cgi.FieldStorage()
@@ -143,29 +146,47 @@ if command and target in DEVICE_STATE:
     state = DEVICE_STATE[target]
     messages = []
 
+    # If device is not connected and command is not 'power', reject it
+    if not state.get("connected", False) and command != "power":
+        print(json.dumps({
+            "status": "error",
+            "message": f"Cannot execute '{command}' — device is not powered on."
+        }))
+        exit()
+    
     if command == "power":
         state["connected"] = True
         state["headset_connected"] = True
-        messages.append("🔋 Headset powered on and connected.")
+        state["headset"] = get_batteries()
+        messages.append("Headset powered on and connected.")
 
     elif command == "connect":
         state["left_connected"] = True
         state["right_connected"] = True
-        messages.append("🎮 Left controller connected.")
-        messages.append("🎮 Right controller connected.")
+        state["left"] = get_batteries()
+        state["right"] = get_batteries()
+        messages.append("Left controller connected.")
+        messages.append("Right controller connected.")
 
     elif command == "disconnect":
         state["headset_connected"] = False
         state["left_connected"] = False
         state["right_connected"] = False
-        messages.append("🔌 All devices disconnected.")
+        messages.append("All devices disconnected.")
 
     elif command == "run":
         if not state.get("headset_connected"):
-            messages.append("⚠️ Cannot run program — headset is not connected.")
+            messages.append("Cannot run program — headset is not connected.")
         else:
             state["headset"] = min(100, state["headset"] + 5)
-            messages.append("▶️ Program launched on headset.")
+            messages.append("Program launched on headset.")
+
+    elif command == "shutdown":
+        state["connected"] = False
+        state["headset_connected"] = False
+        state["left_connected"] = False
+        state["right_connected"] = False
+        messages.append("System shut down.")
 
     # Save updated state
     with open(STATE_FILE, "w") as f:

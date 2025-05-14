@@ -1,29 +1,32 @@
 :root {
-  --bg-light: #f5f5f5;
+  --bg-light: #f8f9fa;
   --bg-white: #ffffff;
-  --border: #dcdcdc;
-  --text-dark: #222;
-  --text-muted: #aaa;
-  --primary: #00aa00;
-  --rig-a: #0077b6; /* Colorblind-friendly color for Rig A */
-  --rig-b: #ff7f50; /* Colorblind-friendly color for Rig B */
-  --rig-c: #32cd32; /* Colorblind-friendly color for Rig C */
-  --rig-d: #ffd700; /* Colorblind-friendly color for Rig D */
+  --border: #e0e0e0;
+  --text-dark: #212529;
+  --text-muted: #6c757d;
+  --primary: #00b87b;
+  --rig-a: #3b82f6;
+  --rig-b: #f97316;
+  --rig-c: #22c55e;
+  --rig-d: #facc15;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 body {
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   background-color: var(--bg-light);
   display: flex;
   height: 100vh;
+  color: var(--text-dark);
 }
 
 .sidebar {
-  width: 30%;
+  width: 28%;
   min-width: 280px;
   padding: 2rem;
-  background-color: var(--bg-light);
+  background-color: var(--bg-white);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -32,34 +35,37 @@ body {
 .title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .title-row h2 {
   margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
   flex: 1;
 }
 
 #systemSelect {
-  font-size: 0.9rem;
-  padding: 0.3rem;
-  width: 100px;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
 }
 
 .add-btn {
-  font-size: 1.25rem;
-  padding: 0 0.5rem;
-  background: white;
+  font-size: 1.1rem;
+  padding: 0 0.6rem;
+  background: #fff;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s;
 }
 
 .add-btn:hover {
-  background-color: #ebebeb;
+  background-color: #f1f3f5;
 }
 
 .button-section {
@@ -70,24 +76,32 @@ body {
 
 .button {
   width: 100%;
-  margin-bottom: 1rem;
-  padding: 0.75rem 1.25rem;
-  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background-color: white;
+  border-radius: var(--radius);
+  background-color: #fff;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
 
 .button:hover {
-  background-color: #ebebeb;
+  background-color: #f1f3f5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.button:disabled {
+  background-color: #eee;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  border-color: var(--border);
 }
 
 .main {
   flex: 1;
   padding: 2rem;
-  background-color: var(--bg-white);
+  background-color: var(--bg-light);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -103,17 +117,16 @@ body {
 .device-card {
   width: 260px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1rem;
-  background-color: #fafafa;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
-  transition: box-shadow 0.2s ease, border 0.2s ease;
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  background-color: var(--bg-white);
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s, border 0.2s;
 }
 
 .device-card.disconnected {
-  opacity: 0.6;
+  opacity: 0.5;
   filter: grayscale(100%);
-  pointer-events: none;  /* Optional: disables hover/click */
 }
 
 .device-name {
@@ -122,15 +135,10 @@ body {
   margin-bottom: 0.75rem;
 }
 
-.battery-status {
-  font-size: 0.75rem;
-  margin-left: 0.5rem;
-}
-
 .battery-column {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .battery-row {
@@ -154,8 +162,8 @@ body {
 .battery-bar {
   width: 80px;
   height: 10px;
-  background-color: #ddd;
-  border-radius: 5px;
+  background-color: #e5e5e5;
+  border-radius: 6px;
   overflow: hidden;
   position: relative;
 }
@@ -173,7 +181,13 @@ body {
 }
 
 .battery-percent.zero {
-  color: gray;
+  color: var(--text-muted);
+}
+
+.battery-status {
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+  color: var(--text-muted);
 }
 
 .console-section {
@@ -183,15 +197,15 @@ body {
 }
 
 .console-title {
-  font-weight: bold;
+  font-weight: 600;
   font-size: 1rem;
   margin-bottom: 0.5rem;
 }
 
 .console-box {
-  background-color: #f9f9f9;
+  background-color: #fff;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 1rem;
   font-family: monospace;
   font-size: 0.85rem;
@@ -199,27 +213,117 @@ body {
   white-space: pre-wrap;
   overflow-y: auto;
   max-height: 200px;
+  box-shadow: var(--shadow);
+}
+
+.console-filter {
+  position: relative;
+}
+
+.filter-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
+}
+
+.filter-menu {
+  display: none;
+  min-width: 200px;
+  position: absolute;
+  top: 28px;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 0.6rem;
+  z-index: 10;
+}
+
+
+.filter-menu .check-toggle {
+  font-size: 0.8rem;
+  background: #f2f2f2;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.filter-menu label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.filter-menu label.filter-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+  cursor: pointer;
+  gap: 0.5rem;
+}
+
+.filter-menu label.filter-option.connected {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.filter-menu label.filter-option.disconnected {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.filter-option .label-text {
+  flex: 1;
+  text-align: left;
+}
+
+.filter-option input[type="checkbox"] {
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+.filter-option.disconnected input[type="checkbox"] {
+  accent-color: var(--text-muted);
 }
 
 .log-entry {
   margin-bottom: 0.5rem;
 }
 
-.log-entry.rig-a {
-  color: var(--rig-a);
+.filter-option.rig-a .label-text,
+.filter-option.rig-a input { color: var(--rig-a); accent-color: var(--rig-a); }
+
+.filter-option.rig-b .label-text,
+.filter-option.rig-b input { color: var(--rig-b); accent-color: var(--rig-b); }
+
+.filter-option.rig-c .label-text,
+.filter-option.rig-c input { color: var(--rig-c); accent-color: var(--rig-c); }
+
+.filter-option.rig-d .label-text,
+.filter-option.rig-d input { color: var(--rig-d); accent-color: var(--rig-d); }
+
+/* Connected vs Disconnected tweaks */
+.filter-option.connected .label-text {
+  font-weight: 600;
 }
 
-.log-entry.rig-b {
-  color: var(--rig-b);
+.filter-option.disconnected .label-text {
+  color: var(--text-muted) !important;
+  font-weight: 400;
 }
 
-.log-entry.rig-c {
-  color: var(--rig-c);
-}
-
-.log-entry.rig-d {
-  color: var(--rig-d);
-}
+.log-entry.rig-a { color: var(--rig-a); }
+.log-entry.rig-b { color: var(--rig-b); }
+.log-entry.rig-c { color: var(--rig-c); }
+.log-entry.rig-d { color: var(--rig-d); }
 
 .log-entry .label {
   font-weight: bold;
@@ -234,34 +338,32 @@ body {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  margin-top: 0.75rem;
-  padding: 0.4rem 0.5rem;
-  background-color: #f1f1f1;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: #f9f9f9;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: none;
-  font-size: 0.85rem;
+  border-radius: var(--radius);
 }
 
 #commandInput {
   flex-grow: 1;
-  padding: 0.3rem 0.6rem;
+  padding: 0.4rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 0.85rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
 }
 
 #commandPrompt button {
-  padding: 0.3rem 0.75rem;
-  font-size: 0.85rem;
-  background-color: #ccc;
-  color: #222;
-  border: 1px solid #bbb;
-  border-radius: 4px;
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 #commandPrompt button:hover {
-  background-color: #bbb;
+  background-color: #009966;
 }
