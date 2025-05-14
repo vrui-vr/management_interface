@@ -147,7 +147,6 @@ body {
 }
 
 .device-card.disconnected {
-  pointer-events: none;
   background-color: #f9f9f9;
   border-color: var(--border);
 }

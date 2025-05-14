@@ -179,6 +179,21 @@ function updateDeviceUI(updatedDevice) {
 
   // 5) and update the target label color
   changeTargetColor(updatedDevice.name);
+
+  // 6) Update button availability based on current device state
+  if (updatedDevice.name === currentSystem) {
+    document.getElementById("btn-power").disabled = updatedDevice.connected;
+    document.getElementById("btn-headset").disabled =
+      !updatedDevice.connected || updatedDevice.headset_connected;
+    document.getElementById("btn-connect").disabled =
+      !updatedDevice.headset_connected ||
+      (updatedDevice.left_connected && updatedDevice.right_connected);
+    document.getElementById("btn-disconnect").disabled =
+      !updatedDevice.connected;
+    document.getElementById("btn-shutdown").disabled = !updatedDevice.connected;
+    document.getElementById("btn-run").disabled =
+      !updatedDevice.headset_connected;
+  }
 }
 
 function autoUpdateConsole(device, command, message) {
@@ -537,6 +552,7 @@ function updateButtonStates() {
   const headsetConnected = device.headset_connected;
 
   document.getElementById("btn-power").disabled = connected;
+  document.getElementById("btn-headset").disabled = !device.connected;
   document.getElementById("btn-shutdown").disabled = !connected;
   document.getElementById("btn-connect").disabled = !connected;
   document.getElementById("btn-disconnect").disabled = !connected;

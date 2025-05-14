@@ -147,26 +147,28 @@ if command and target in DEVICE_STATE:
     messages = []
 
     # If device is not connected and command is not 'power', reject it
-    if not state.get("connected", False) and command != "power":
+    if not state["connected"] and command != "power":
         print(json.dumps({
             "status": "error",
-            "message": f"Cannot execute '{command}' — device is not powered on."
+            "message": f"Cannot run '{command}' — system is not powered on."
         }))
         exit()
-    
+
     if command == "power":
         state["connected"] = True
+        messages.append("System powered on.")
+
+    elif command == "headset":
         state["headset_connected"] = True
-        state["headset"] = get_batteries()
-        messages.append("Headset powered on and connected.")
+        state["headset"] = get_batteries()  # e.g., return 100
+        messages.append("Headset turned on.")
 
     elif command == "connect":
         state["left_connected"] = True
         state["right_connected"] = True
         state["left"] = get_batteries()
         state["right"] = get_batteries()
-        messages.append("Left controller connected.")
-        messages.append("Right controller connected.")
+        messages.append("Controllers connected.")
 
     elif command == "disconnect":
         state["headset_connected"] = False
