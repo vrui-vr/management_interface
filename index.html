@@ -1,188 +1,372 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Server Command Console</title>
-    <style>
-      :root {
-        --bg-light: #f5f5f5;
-        --bg-white: #ffffff;
-        --border: #dcdcdc;
-        --text-dark: #333;
-        --text-muted: #777;
-        --primary: #0066ff;
-        --primary-hover: #0052cc;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VRUI Interface</title>
+  <style>
+    :root {
+      --bg-light: #f5f5f5;
+      --bg-white: #ffffff;
+      --border: #dcdcdc;
+      --text-dark: #222;
+      --text-muted: #aaa;
+      --primary: #00aa00;
+      --rig-a: #3399ff;
+      --rig-b: #33bb99;
+    }
 
-      * {
-        box-sizing: border-box;
-      }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background-color: var(--bg-light);
+      display: flex;
+      height: 100vh;
+    }
 
-      body {
-        margin: 0;
-        font-family: "Segoe UI", Roboto, system-ui, sans-serif;
-        background-color: var(--bg-light);
-        color: var(--text-dark);
-        display: flex;
-        height: 100vh;
-      }
+    .sidebar {
+      width: 30%;
+      min-width: 280px;
+      padding: 2rem;
+      background-color: var(--bg-light);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
 
-      .sidebar {
-        width: 35%;
-        min-width: 280px;
-        padding: 2rem;
-        background-color: var(--bg-light);
-        border-right: 1px solid var(--border);
-      }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+    }
 
-      .sidebar h2 {
-        margin-bottom: 1.5rem;
-        font-size: 1.4rem;
-      }
+    .title-row h2 {
+      margin: 0;
+      flex: 1;
+    }
 
-      .button {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        background-color: var(--primary);
-        color: white;
-        font-size: 1rem;
-        border: none;
-        border-radius: 0.5rem;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-      }
+    #systemSelect {
+      font-size: 0.9rem;
+      padding: 0.3rem;
+      width: 100px;
+    }
 
-      .button:hover {
-        background-color: var(--primary-hover);
-      }
+    .add-btn {
+      font-size: 1.25rem;
+      padding: 0 0.5rem;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
 
-      .main {
-        flex: 1;
-        padding: 2rem;
-        display: flex;
-        flex-direction: column;
-        background-color: var(--bg-white);
-      }
+    .add-btn:hover {
+      background-color: #ebebeb;
+    }
 
-      .console-header {
-        font-weight: 600;
-        font-size: 1.1rem;
-        margin-bottom: 1rem;
-      }
+    .button-section {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      margin-top: 1rem;
+    }
 
-      .console-box {
-        flex: 1;
-        background-color: #fafafa;
-        border: 1px solid var(--border);
-        border-radius: 0.5rem;
-        padding: 1rem;
-        overflow-y: auto;
-        font-family: "Courier New", monospace;
-        font-size: 0.9rem;
-        white-space: pre-wrap;
-        line-height: 1.5;
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
-      }
+    .button {
+      width: 100%;
+      margin-bottom: 1rem;
+      padding: 0.75rem 1.25rem;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      background-color: white;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
 
-      .vr-status {
-        margin-top: 2rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border);
-      }
+    .button:hover {
+      background-color: #ebebeb;
+    }
 
-      .vr-status h3 {
-        margin-bottom: 1rem;
-        font-size: 1.1rem;
-      }
+    .main {
+      flex: 1;
+      padding: 2rem;
+      background-color: var(--bg-white);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
 
-      .device {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.95rem;
-        margin-bottom: 0.5rem;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="sidebar">
-      <h2>Server Actions</h2>
-      <button class="button" onclick="send('status')">
-        Check Server Status
-      </button>
-      <button class="button" onclick="send('restart')">Restart Service</button>
-      <button class="button" onclick="send('update')">Update System</button>
+    .device-section {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .device-card {
+      width: 260px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      background-color: #fafafa;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+      transition: opacity 0.3s ease;
+    }
+
+    .device-card.disconnected {
+      opacity: 0.5;
+    }
+
+    .device-name {
+      font-weight: 600;
+      font-size: 1.05rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .battery-column {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .battery-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .battery-label {
+      font-size: 0.9rem;
+      color: var(--text-dark);
+      flex: 1;
+    }
+
+    .battery-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .battery-bar {
+      width: 80px;
+      height: 10px;
+      background-color: #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .battery-fill {
+      height: 100%;
+      background-color: var(--primary);
+      transition: width 0.3s ease;
+    }
+
+    .battery-percent {
+      font-size: 0.75rem;
+      width: 2.5ch;
+      text-align: right;
+    }
+
+    .console-section {
+      flex: 1;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+
+    .console-title {
+      font-weight: bold;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .console-box {
+      background-color: #f9f9f9;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      max-height: 200px;
+    }
+
+    .log-entry {
+      margin-bottom: 0.5rem;
+    }
+
+    .log-entry.rig-a {
+      color: var(--rig-a);
+    }
+
+    .log-entry.rig-b {
+      color: var(--rig-b);
+    }
+
+    .log-entry .label {
+      font-weight: bold;
+    }
+
+    .log-entry .offline {
+      font-weight: normal;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="title-row" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+  <div id="logo" style="width: 32px; height: 32px; background-color: #ccc; border-radius: 6px;"></div>
+  <h2 style="margin: 0; font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">VRUI Interface</h2>
+  <select id="systemSelect" onchange="changeSystem(this.value)"></select>
+  <button class="add-btn" onclick="addDevice()">+</button>
+</div>
+    <div class="button-section">
+      <p><strong id="targetLabel"></strong></p>
+      <button class="button" onclick="send('power')">Turn on System</button>
+      <button class="button" onclick="send('connect')">Connect Controllers</button>
+      <button class="button" onclick="send('run')">Run Program</button>
     </div>
+  </div>
 
-    <div class="vr-status">
-      <h3>VR Battery Status</h3>
-      <div class="device">
-        <span>🎧 Headset:</span> <span id="headsetBattery">--%</span>
-      </div>
-      <div class="device">
-        <span>🕹️ Left Controller:</span> <span id="leftBattery">--%</span>
-      </div>
-      <div class="device">
-        <span>🕹️ Right Controller:</span> <span id="rightBattery">--%</span>
-      </div>
-    </div>
-
-    <div class="main">
-      <div class="console-header">Console Output</div>
+  <div class="main">
+    <div class="device-section" id="deviceContainer"></div>
+    <div class="console-section">
+      <div class="console-title">Console Output</div>
       <div id="consoleOutput" class="console-box">Waiting for input...</div>
     </div>
+  </div>
 
-    <script>
-      function send(msg) {
-        const output = document.getElementById("consoleOutput");
+  <script>
+    let deviceCounter = 0;
+    let allDevices = [];
+    let currentSystem = "";
 
-        fetch("cgi-bin/handler.py", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "message=" + encodeURIComponent(msg),
-        })
-          .then((res) => res.text())
-          .then((text) => {
-            const timestamp = new Date().toLocaleTimeString();
-            const existing =
-              output.textContent === "Waiting for input..."
-                ? ""
-                : output.textContent;
-            output.textContent = `${existing}\n[${timestamp}] ${msg}\n${text}`;
-            output.scrollTop = output.scrollHeight;
-          })
-          .catch((err) => {
-            const timestamp = new Date().toLocaleTimeString();
-            output.textContent += `\n[${timestamp}] ❌ ERROR: ${err}`;
-            output.scrollTop = output.scrollHeight;
-          });
+    function createDevice(name) {
+      return {
+        name,
+        connected: false,
+        headset: 0,
+        left: 0,
+        right: 0
+      };
+    }
+
+    function addDevice() {
+      const newName = `Rig ${String.fromCharCode(65 + deviceCounter)}`;
+      allDevices.push(createDevice(newName));
+      deviceCounter++;
+      if (allDevices.length === 1) currentSystem = newName;
+      updateDropdown();
+      renderDevices(allDevices);
+    }
+
+    function changeSystem(name) {
+      currentSystem = name;
+      updateDropdown();
+      renderDevices(allDevices);
+      document.getElementById("targetLabel").textContent = `Target: ${name}`;
+    }
+
+    function getColorClass(name) {
+      return name.includes("A") ? "rig-a" : "rig-b";
+    }
+
+    function updateDropdown() {
+      const dropdown = document.getElementById("systemSelect");
+      dropdown.innerHTML = "";
+      allDevices.forEach(device => {
+        const option = document.createElement("option");
+        option.value = device.name;
+        option.textContent = device.name;
+        if (!device.connected) option.className = "offline";
+        if (device.name === currentSystem) option.selected = true;
+        dropdown.appendChild(option);
+      });
+      document.getElementById("targetLabel").textContent = `Target: ${currentSystem}`;
+    }
+
+    function send(command) {
+      const device = allDevices.find(d => d.name === currentSystem);
+      if (!device) return;
+      if (command === "power") {
+        device.connected = true;
+        device.headset = 80;
+      } else if (command === "connect") {
+        if (device.connected) {
+          device.left = 75;
+          device.right = 70;
+        }
       }
-      function fetchBatteryStatus() {
-        fetch("cgi-bin/handler.py?vr_status=1")
-          .then((res) => res.json())
-          .then((data) => {
-            document.getElementById(
-              "headsetBattery"
-            ).textContent = `${data.headset}%`;
-            document.getElementById(
-              "leftBattery"
-            ).textContent = `${data.left}%`;
-            document.getElementById(
-              "rightBattery"
-            ).textContent = `${data.right}%`;
-          })
-          .catch((err) => {
-            document.getElementById("headsetBattery").textContent = "--%";
-            document.getElementById("leftBattery").textContent = "--%";
-            document.getElementById("rightBattery").textContent = "--%";
-          });
-      }
+      const logEntry = document.createElement("div");
+      const colorClass = getColorClass(device.name);
+      logEntry.className = `log-entry ${colorClass}`;
+      const isOffline = !device.connected;
+      const systemName = `<span class="label">${device.name}</span>`;
+      const offlineNote = isOffline ? ` <span class="offline">(offline)</span>` : "";
+      const message = command === "run"
+        ? `Launching VR app on ${device.name}...`
+        : command === "connect"
+        ? `Connecting controllers for ${device.name}...`
+        : `Powering on ${device.name}...`;
+      logEntry.innerHTML = `${systemName}${offlineNote} - ${command}<br>${message}`;
+      document.getElementById("consoleOutput").appendChild(logEntry);
+      updateDropdown();
+      renderDevices(allDevices);
+    }
 
-      // Call once immediately and every 10 seconds after
-      fetchBatteryStatus();
-      setInterval(fetchBatteryStatus, 10000);
-    </script>
-  </body>
+    function createBattery(label, percent) {
+      const row = document.createElement('div');
+      row.className = 'battery-row';
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'battery-label';
+      labelSpan.textContent = label;
+      const container = document.createElement('div');
+      container.className = 'battery-bar-container';
+      const bar = document.createElement('div');
+      bar.className = 'battery-bar';
+      const fill = document.createElement('div');
+      fill.className = 'battery-fill';
+      fill.style.width = `${percent}%`;
+      const pct = document.createElement('span');
+      pct.className = 'battery-percent';
+      pct.textContent = `${percent}%`;
+      bar.appendChild(fill);
+      container.appendChild(bar);
+      container.appendChild(pct);
+      row.appendChild(labelSpan);
+      row.appendChild(container);
+      return row;
+    }
+
+    function renderDevices(devices) {
+      const container = document.getElementById("deviceContainer");
+      container.innerHTML = '';
+      devices.forEach(device => {
+        const card = document.createElement('div');
+        card.className = 'device-card';
+        if (!device.connected) card.classList.add('disconnected');
+        const name = document.createElement('div');
+        name.className = 'device-name';
+        name.textContent = device.name;
+        card.appendChild(name);
+        const batteryColumn = document.createElement('div');
+        batteryColumn.className = 'battery-column';
+        batteryColumn.appendChild(createBattery("Headset", device.headset));
+        batteryColumn.appendChild(createBattery("Left Controller", device.left));
+        batteryColumn.appendChild(createBattery("Right Controller", device.right));
+        card.appendChild(batteryColumn);
+        container.appendChild(card);
+      });
+    }
+
+    // Initialize with 1 device
+    addDevice();
+  </script>
+</body>
 </html>
