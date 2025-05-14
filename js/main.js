@@ -447,14 +447,13 @@ function sendCustomCommand() {
         changeDeviceNameColor(currentSystem);
 
         if (isReset) {
-          clearConsoleMessages();           // ✅ 1. clear first
+          clearConsoleMessages();
           resetFilterCheckboxes(allDevices);
         }
 
-        updateInterface();                  // ✅ 2. update after clearing
+        updateInterface();                
       }
 
-      // ✅ Don't log reset message to console
       if (!isReset) {
         autoUpdateConsole(fakeDevice, rawCommand, data.message || "No response");
       }

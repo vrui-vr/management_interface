@@ -36,8 +36,8 @@ DEFAULT_STATE = {
 
 def reset_state():
     with open(STATE_FILE, "w") as f:
-        json.dump(DEFAULT_STATE, f)
-    return DEFAULT_STATE
+        json.dump(DEFAULT_STATE, f)  # Don't double-wrap
+    return DEFAULT_STATE["devices"]
 
 def get_batteries():
     return 100
@@ -73,17 +73,16 @@ if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
 
 # Handle reset
 if command == "reset":
-    new_state = reset_state()
+    new_devices = reset_state()
     print(json.dumps({
         "status": "success",
         "message": "System state has been reset.",
         "devices": [
             {"name": name, **info}
-            for name, info in new_state.items()
+            for name, info in new_devices.items()
         ]
     }))
     exit()
-
 # Handle add device
 if command == "add":
     model = form.getfirst("model", "Unknown")
