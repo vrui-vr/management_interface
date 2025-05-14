@@ -9,6 +9,10 @@
   --rig-b: #f97316;
   --rig-c: #22c55e;
   --rig-d: #facc15;
+  --rig-a-muted: #93c5fd;
+  --rig-b-muted: #fdba74;
+  --rig-c-muted: #86efac;
+  --rig-d-muted: #fde68a;
   --radius: 8px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -143,14 +147,48 @@ body {
 }
 
 .device-card.disconnected {
+  pointer-events: none;
+  background-color: #f9f9f9;
+  border-color: var(--border);
+}
+
+.device-card.disconnected .battery-label,
+.device-card.disconnected .battery-status,
+.device-card.disconnected .battery-percent {
   opacity: 0.5;
   filter: grayscale(100%);
+}
+
+.device-card.disconnected .device-name {
+  color: var(--text-muted); /* or keep the rig color if preferred */
 }
 
 .device-name {
   font-weight: 600;
   font-size: 1.05rem;
   margin-bottom: 0.75rem;
+}
+
+.device-name.rig-a.connected   { color: var(--rig-a); }
+.device-name.rig-a.disconnected { color: var(--rig-a-muted); }
+
+.device-name.rig-b.connected   { color: var(--rig-b); }
+.device-name.rig-b.disconnected { color: var(--rig-b-muted); }
+
+.device-name.rig-c.connected   { color: var(--rig-c); }
+.device-name.rig-c.disconnected { color: var(--rig-c-muted); }
+
+.device-name.rig-d.connected   { color: var(--rig-d); }
+.device-name.rig-d.disconnected { color: var(--rig-d-muted); }
+
+.offline {
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.offline {
+  color: var(--text-muted);
+  font-weight: normal;
 }
 
 .battery-column {

@@ -150,19 +150,25 @@ function updateDeviceUI(updatedDevice) {
 
   // 3) update battery percentages
   // Headset
+  if (!batteryRows.length) return;
+
   const hs = batteryRows[0].querySelector(".battery-percent");
-  hs.textContent = `${updatedDevice.headset}%`;
-  hs.classList.toggle("zero", updatedDevice.headset === 0);
+  if (hs) {
+    hs.textContent = `${updatedDevice.headset}%`;
+    hs.classList.toggle("zero", updatedDevice.headset === 0);
+  }
 
-  // Left
-  const lf = batteryRows[1].querySelector(".battery-percent");
-  lf.textContent = `${updatedDevice.left}%`;
-  lf.classList.toggle("zero", updatedDevice.left === 0);
+  const lf = batteryRows[1]?.querySelector(".battery-percent");
+  if (lf) {
+    lf.textContent = `${updatedDevice.left}%`;
+    lf.classList.toggle("zero", updatedDevice.left === 0);
+  }
 
-  // Right
-  const rt = batteryRows[2].querySelector(".battery-percent");
-  rt.textContent = `${updatedDevice.right}%`;
-  rt.classList.toggle("zero", updatedDevice.right === 0);
+  const rt = batteryRows[2]?.querySelector(".battery-percent");
+  if (rt) {
+    rt.textContent = `${updatedDevice.right}%`;
+    rt.classList.toggle("zero", updatedDevice.right === 0);
+  }
 
   // 4) update connected/disconnected styling
   if (updatedDevice.connected) {
@@ -261,14 +267,26 @@ function renderDevices(devices) {
     };
 
     const name = document.createElement("div");
-    name.className = "device-name";
-    name.textContent = device.name + (device.connected ? "" : " (not online)");
+    const colorClass = getColorClass(device.name);
+    const statusClass = device.connected ? "connected" : "disconnected";
+    name.className = `device-name ${colorClass} ${statusClass}`;
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = device.name;
+
+    const offlineSpan = document.createElement("span");
+    if (!device.connected) {
+      offlineSpan.textContent = " (not online)";
+      offlineSpan.className = "offline";
+    }
+
+    name.appendChild(labelSpan);
+    if (!device.connected) name.appendChild(offlineSpan);
+
     card.appendChild(name);
 
     const batteryColumn = document.createElement("div");
     batteryColumn.className = "battery-column";
-
-    const colorClass = getColorClass(device.name);
 
     // Headset row
     batteryColumn.appendChild(
@@ -400,12 +418,35 @@ function sendCustomCommand() {
 
 document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("commandInput");
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      sendCustomCommand();
-    }
-  });
+  if (input) {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendCustomCommand();
+      }
+    });
+  }
+
+  // Initial fetch and UI setup
+  fetch("/cgi-bin/handler.py?vr_status=1")
+    .then((r) => r.json())
+    .then((devicesFromServer) => {
+      allDevices = normalizeDevices(devicesFromServer);
+
+      if (allDevices.length) {
+        currentSystem = allDevices[0].name;
+        const label = document.getElementById("targetLabel");
+        if (label) {
+          label.textContent = `Target: ${currentSystem}`;
+          changeTargetColor(currentSystem);
+        }
+      }
+
+      updateDropdown();
+      renderDevices(allDevices);
+      updateFilterMenu();
+      applyConsoleFilter(); // Ensure proper visibility if console starts empty
+    });
 });
 
 const filterState = new Set(); // Active filter names
@@ -421,7 +462,9 @@ function updateFilterMenu() {
 
   allDevices.forEach((device) => {
     const label = document.createElement("label");
-    label.className = `filter-option ${getColorClass(device.name)} ${device.connected ? "connected" : "disconnected"}`;
+    label.className = `filter-option ${getColorClass(device.name)} ${
+      device.connected ? "connected" : "disconnected"
+    }`;
 
     const labelText = document.createElement("span");
     labelText.className = "label-text";
@@ -487,7 +530,7 @@ function applyConsoleFilter() {
 }
 
 function updateButtonStates() {
-  const device = allDevices.find(d => d.name === currentSystem);
+  const device = allDevices.find((d) => d.name === currentSystem);
   if (!device) return;
 
   const connected = device.connected;
