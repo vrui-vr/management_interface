@@ -104,26 +104,42 @@ function send(command) {
   const device = allDevices.find((d) => d.name === currentSystem);
   if (!device) return;
 
+  // Button ID mapping
+  const buttonMap = {
+    vrtracker_on: "btn-vrtracker", // this is now Open VR Tracker
+    headset: "btn-headset",
+    connect: "btn-connect",
+    disconnect: "btn-disconnect",
+    restart: "btn-restart",
+    shutdown: "btn-shutdown",
+    run: "btn-run",
+  };
+
+  const btnId = buttonMap[command];
+  const button = document.getElementById(btnId);
+  let originalText = "";
+  if (button) {
+    button.disabled = true;
+    originalText = button.textContent;
+    button.textContent = "Loading...";
+  }
+
   fetch("/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command, target: device.name }),
   })
     .then((response) => {
-      // first time we actually talk to the server, show a message
       if (!hasConnected && response.ok) {
-        autoUpdateConsole(device, "connect", "✅ Connected to server");
+        autoUpdateConsole(device, "connect", "Connected to server");
         hasConnected = true;
       }
       return response.json();
     })
     .then((data) => {
       if (data.status === "success") {
-        // 1) update our local device object
-        Object.assign(device, data.deviceState);
-        // 2) refresh the device UI
-        updateDeviceUI(data.deviceState);
-        // 3) log *this* command in the on-page console
+        Object.assign(device, data.deviceState); // update model
+        updateDeviceUI(data.deviceState); // update visuals
         autoUpdateConsole(device, command, data.message);
       } else {
         console.error(data.message);
@@ -131,7 +147,31 @@ function send(command) {
     })
     .catch((error) => {
       console.error("Error communicating with the server:", error);
+    })
+    .finally(() => {
+      if (button) {
+        button.textContent = originalText;
+        updateButtonStates(); // recheck enabled/disabled
+      }
     });
+}
+
+function updateButtonStatesFor(device) {
+  const connected = device.connected;
+  const headsetConnected = device.headset_connected;
+  const anyControllersConnected =
+    device.left_connected || device.right_connected;
+  const anythingConnected =
+    headsetConnected || device.left_connected || device.right_connected;
+
+  document.getElementById("btn-vrtracker").disabled = connected;
+  document.getElementById("btn-headset").disabled = !connected || headsetConnected;
+  document.getElementById("btn-connect").disabled =
+    !headsetConnected || (device.left_connected && device.right_connected);
+  document.getElementById("btn-disconnect").disabled = !anythingConnected;
+  document.getElementById("btn-shutdown").disabled = !connected;
+  document.getElementById("btn-restart").disabled = !connected;
+  document.getElementById("btn-run").disabled = !headsetConnected;
 }
 
 function updateDeviceUI(updatedDevice) {
@@ -182,17 +222,7 @@ function updateDeviceUI(updatedDevice) {
 
   // 6) Update button availability based on current device state
   if (updatedDevice.name === currentSystem) {
-    document.getElementById("btn-power").disabled = updatedDevice.connected;
-    document.getElementById("btn-headset").disabled =
-      !updatedDevice.connected || updatedDevice.headset_connected;
-    document.getElementById("btn-connect").disabled =
-      !updatedDevice.headset_connected ||
-      (updatedDevice.left_connected && updatedDevice.right_connected);
-    document.getElementById("btn-disconnect").disabled =
-      !updatedDevice.connected;
-    document.getElementById("btn-shutdown").disabled = !updatedDevice.connected;
-    document.getElementById("btn-run").disabled =
-      !updatedDevice.headset_connected;
+    updateButtonStatesFor(updatedDevice);
   }
 }
 
@@ -546,17 +576,7 @@ function applyConsoleFilter() {
 
 function updateButtonStates() {
   const device = allDevices.find((d) => d.name === currentSystem);
-  if (!device) return;
-
-  const connected = device.connected;
-  const headsetConnected = device.headset_connected;
-
-  document.getElementById("btn-power").disabled = connected;
-  document.getElementById("btn-headset").disabled = !device.connected;
-  document.getElementById("btn-shutdown").disabled = !connected;
-  document.getElementById("btn-connect").disabled = !connected;
-  document.getElementById("btn-disconnect").disabled = !connected;
-  document.getElementById("btn-run").disabled = !connected || !headsetConnected;
+  if (device) updateButtonStatesFor(device);
 }
 
 // Helper that updates all gui
@@ -599,4 +619,4 @@ setInterval(() => {
       if (focused) updateDeviceUI(focused);
     })
     .catch(console.error);
-}, 1_000);
+}, 10_000);

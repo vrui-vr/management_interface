@@ -141,22 +141,22 @@ if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
     ]))
     exit()
 
-# For commands like power/connect/run
+# For commands like vrtracker_on/connect/run
 if command and target in DEVICE_STATE:
     state = DEVICE_STATE[target]
     messages = []
 
-    # If device is not connected and command is not 'power', reject it
-    if not state["connected"] and command != "power":
+    # If device is not connected and command is not 'vrtracker_on', reject it
+    if not state["connected"] and command != "vrtracker_on":
         print(json.dumps({
             "status": "error",
             "message": f"Cannot run '{command}' — system is not powered on."
         }))
         exit()
 
-    if command == "power":
+    if command == "vrtracker_on":
         state["connected"] = True
-        messages.append("System powered on.")
+        messages.append("VRTracker On.")
 
     elif command == "headset":
         state["headset_connected"] = True
@@ -190,6 +190,16 @@ if command and target in DEVICE_STATE:
         state["right_connected"] = False
         messages.append("System shut down.")
 
+    elif command == "restart":
+        # simulate shutdown
+        state["connected"] = False
+        state["headset_connected"] = False
+        state["left_connected"] = False
+        state["right_connected"] = False
+
+        # simulate boot up again
+        state["connected"] = True
+        
     # Save updated state
     with open(STATE_FILE, "w") as f:
         json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
