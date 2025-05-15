@@ -1,10 +1,17 @@
-let deviceCounter = 0;
 let allDevices = [];
 let currentSystem = "";
 let hasConnected = false;
+const filterState = new Set();
+const lowBatteryWarnings = new Set();
+
+// prevent audio spam
+let lastPingTime = 0;
+let pingCooldown = 1000; // 1 second cooldown in ms
+let pingAudio = new Audio("/sounds/ping.mp3");
+let isPlaying = false;
 
 function normalizeDevices(rawDevices) {
-  return rawDevices.map((d) => ({
+  return rawDevices.map((d, index) => ({
     name: d.name,
     connected: d.connected,
     headset: d.headset,
@@ -14,21 +21,12 @@ function normalizeDevices(rawDevices) {
     left_connected: d.left_connected,
     right_connected: d.right_connected,
     headset_model: d.headset_model || "Unknown",
+    colorClass: `rig-${index % 6}`,
   }));
 }
 
-function createDevice(name) {
-  return {
-    name,
-    connected: false,
-    headset: 0,
-    left: 0,
-    right: 0,
-  };
-}
-
 function addDevice() {
-  const defaultName = `Rig ${String.fromCharCode(65 + deviceCounter)}`;
+  const defaultName = `Rig ${String.fromCharCode(65 + allDevices.length)}`;
   const nameInput = window.prompt("Enter device name:", defaultName);
   const newName =
     nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
@@ -59,11 +57,15 @@ function addDevice() {
         deviceCounter = allDevices.length;
         currentSystem = newName;
 
-        document.getElementById(
-          "targetLabel"
-        ).textContent = `Target: ${currentSystem}`;
-        changeTargetColor(currentSystem);
-        changeDeviceNameColor(currentSystem);
+        const label = document.getElementById("targetLabel");
+        if (label) {
+          label.textContent = `Target: ${currentSystem}`;
+          const device = allDevices.find((d) => d.name === currentSystem);
+          if (device) {
+            label.style.color = getDeviceColor(device);
+          }
+        }
+
         updateInterface();
         autoUpdateConsole({ name: newName }, "add", data.message);
       } else {
@@ -118,22 +120,65 @@ function removeDevice(deviceName) {
     });
 }
 
+function getDeviceColor(device, muted = false) {
+  const varName = `--${device.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
+  return (
+    getComputedStyle(document.documentElement)
+      .getPropertyValue(varName)
+      .trim() || "#999"
+  );
+}
+
 function changeSystem(name) {
   currentSystem = name;
   updateInterface();
-  document.getElementById("targetLabel").textContent = `Target: ${name}`;
-  changeTargetColor(name); // Update target color when system changes
-  changeDeviceNameColor(name); // Update device name color
+
+  const label = document.getElementById("targetLabel");
+  label.textContent = `Target: ${name}`;
+
+  const device = allDevices.find((d) => d.name === name);
+  if (device) {
+    label.style.color = getDeviceColor(device);
+  }
 }
 
-function getColorClass(name) {
-  return name.includes("A")
-    ? "rig-a"
-    : name.includes("B")
-    ? "rig-b"
-    : name.includes("C")
-    ? "rig-c"
-    : "rig-d"; // Support for more rigs
+function playPing() {
+  const now = Date.now();
+
+  if (now - lastPingTime < pingCooldown || isPlaying) return;
+
+  lastPingTime = now;
+  isPlaying = true;
+
+  console.log("attempted ping")
+  
+  try {
+    pingAudio.currentTime = 0;
+    const playPromise = pingAudio.play();
+
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          // Safe: wait for audio to finish
+          pingAudio.onended = () => {
+            isPlaying = false;
+          };
+        })
+        .catch(() => {
+          // Fail-safe: reset flag if browser blocks sound
+          isPlaying = false;
+        });
+
+      // 🔒 Fail-safe release after max 2s in case onended doesn't fire
+      setTimeout(() => (isPlaying = false), 2000);
+    } else {
+      // If play returns nothing, just auto-release
+      setTimeout(() => (isPlaying = false), 2000);
+    }
+  } catch (err) {
+    console.error("Audio failed:", err);
+    isPlaying = false;
+  }
 }
 
 function updateDropdown() {
@@ -279,61 +324,61 @@ function updateDeviceUI(updatedDevice) {
 function autoUpdateConsole(device, command, message) {
   const consoleBox = document.getElementById("consoleOutput");
 
-  // Save the current scroll position before adding new content
   const isAtBottom =
     consoleBox.scrollHeight - consoleBox.clientHeight <=
     consoleBox.scrollTop + 1;
 
-  // Create a new log entry
   const logEntry = document.createElement("div");
-  const colorClass = getColorClass(device.name);
+
+  // Use latest device info to get colorClass
+  const fullDevice = allDevices.find((d) => d.name === device.name) || device;
+  const colorClass = fullDevice.colorClass;
   logEntry.className = `log-entry ${colorClass}`;
-  const isOffline = !device.connected;
-  const systemName = `<span class="label">${device.name}</span>`;
+
+  const isOffline = !fullDevice.connected;
+  const isError = /error|failed|not connected|cannot/i.test(message);
+  const isCritical = /battery low|crash|critical/i.test(message);
+
+  if (isError) {
+    logEntry.classList.add("log-error");
+  }
+
+  if (isCritical) {
+    logEntry.classList.add("log-critical");
+    playPing(); // Play sound
+  }
+
+  const systemName = `<span class="label">${fullDevice.name}</span>`;
   const offlineNote = isOffline
     ? ` <span class="offline">(offline)</span>`
     : "";
+
   logEntry.innerHTML = `${systemName}${offlineNote} - ${command}<br>${message}`;
 
-  // Append the log entry to the console
+  const labelEl = logEntry.querySelector(".label");
+  if (labelEl) {
+    labelEl.style.color = getDeviceColor(fullDevice);
+  }
+
   consoleBox.appendChild(logEntry);
 
-  // Update filters in the console
   applyConsoleFilter();
 
-  // If the user was at the bottom, scroll after the content is added
   if (isAtBottom) {
     setTimeout(() => {
       consoleBox.scrollTop = consoleBox.scrollHeight;
-    }, 100); // Delay for rendering to complete
+    }, 100);
   }
 
-  // Update dropdown and render devices
   updateInterface();
 }
 
 function changeTargetColor(rigName) {
   const targetLabel = document.getElementById("targetLabel");
-  const colorClass = getColorClass(rigName);
-  const colors = {
-    "rig-a": "var(--rig-a)",
-    "rig-b": "var(--rig-b)",
-    "rig-c": "var(--rig-c)",
-    "rig-d": "var(--rig-d)",
-  };
-  targetLabel.style.color = colors[colorClass];
-}
-
-function changeDeviceNameColor(rigName) {
-  const container = document.getElementById("deviceContainer");
-  const devices = container.getElementsByClassName("device-card");
-  Array.from(devices).forEach((card) => {
-    const nameElement = card.querySelector(".device-name");
-    const deviceName = nameElement.textContent;
-    if (deviceName === rigName) {
-      nameElement.style.color = getColorClass(deviceName);
-    }
-  });
+  const device = allDevices.find((d) => d.name === rigName);
+  if (device) {
+    targetLabel.style.color = getDeviceColor(device);
+  }
 }
 
 function renderDevices(devices) {
@@ -344,42 +389,26 @@ function renderDevices(devices) {
     const card = document.createElement("div");
     card.className = "device-card";
 
-    // Apply .disconnected if not connected
     if (!device.connected) card.classList.add("disconnected");
 
-    // ✅ Highlight if this is the focused system
     if (device.name === currentSystem) {
-      const colorClass = getColorClass(device.name);
-      const cssVar = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue(`--${colorClass}`);
-      card.style.border = `2px solid ${cssVar.trim()}`;
-      card.style.boxShadow = `0 0 6px ${cssVar.trim()}`;
+      const borderColor = getDeviceColor(device);
+      card.style.border = `2px solid ${borderColor}`;
+      card.style.boxShadow = `0 0 6px ${borderColor}`;
     }
 
-    card.onclick = () => {
-      changeSystem(device.name);
-    };
+    card.onclick = () => changeSystem(device.name);
 
-    // // Create top header: name + remove button
-    // const header = document.createElement("div");
-    // header.className = "device-header";
-    // header.style.display = "flex";
-    // header.style.justifyContent = "space-between";
-    // header.style.alignItems = "center";
-    // header.style.marginBottom = "0.75rem";
-
-    // Header section for name + remove
+    // Header: name + remove button
     const header = document.createElement("div");
     header.style.display = "flex";
     header.style.justifyContent = "space-between";
     header.style.alignItems = "center";
 
-    // Device name section
     const name = document.createElement("div");
-    const colorClass = getColorClass(device.name);
     const statusClass = device.connected ? "connected" : "disconnected";
-    name.className = `device-name ${colorClass} ${statusClass}`;
+    name.className = `device-name ${statusClass}`;
+    name.style.color = getDeviceColor(device);
     name.style.display = "flex";
     name.style.alignItems = "center";
     name.style.gap = "0.25rem";
@@ -389,7 +418,7 @@ function renderDevices(devices) {
 
     const offlineSpan = document.createElement("span");
     if (!device.connected) {
-      offlineSpan.textContent = " (not online)";
+      offlineSpan.textContent = " (offline)";
       offlineSpan.className = "offline";
     }
 
@@ -397,7 +426,6 @@ function renderDevices(devices) {
     if (!device.connected) name.appendChild(offlineSpan);
     header.appendChild(name);
 
-    // Remove button (unless it's Local Host)
     if (device.name !== "Local Host") {
       const removeBtn = document.createElement("button");
       removeBtn.className = "remove-btn";
@@ -407,43 +435,35 @@ function renderDevices(devices) {
         e.stopPropagation();
         removeDevice(device.name);
       };
-
       header.appendChild(removeBtn);
     }
 
-    // Append header (name + remove) to card
     card.appendChild(header);
 
-    // Battery status section
     const batteryColumn = document.createElement("div");
     batteryColumn.className = "battery-column";
 
-    // Headset row
     batteryColumn.appendChild(
       createBattery(
+        device,
         `Headset (${device.headset_model})`,
         device.headset,
-        colorClass,
         device.headset_connected
       )
     );
-
-    // Left controller row
     batteryColumn.appendChild(
       createBattery(
+        device,
         "Left Controller",
         device.left,
-        colorClass,
         device.left_connected
       )
     );
-
-    // Right controller row
     batteryColumn.appendChild(
       createBattery(
+        device,
         "Right Controller",
         device.right,
-        colorClass,
         device.right_connected
       )
     );
@@ -453,7 +473,7 @@ function renderDevices(devices) {
   });
 }
 
-function createBattery(label, percent, colorClass, isConnected) {
+function createBattery(device, label, percent, isConnected) {
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -483,12 +503,18 @@ function createBattery(label, percent, colorClass, isConnected) {
 
     const fill = document.createElement("div");
     fill.className = "battery-fill";
+
+    // 🔁 Always resolve device fresh from allDevices
+    const fullDevice = allDevices.find((d) => d.name === device.name) || device;
+
     fill.style.width = `${percent}%`;
-    fill.style.backgroundColor = `var(--${colorClass})`;
+    fill.style.backgroundColor = getDeviceColor(fullDevice);
 
     const pct = document.createElement("span");
     pct.className = "battery-percent";
     pct.textContent = `${percent}%`;
+    pct.style.color = "var(--text-dark)";
+
     if (percent === 0) pct.classList.add("zero");
 
     bar.appendChild(fill);
@@ -511,54 +537,57 @@ function sendCustomCommand() {
   fetch("/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: rawCommand }),
+    body: new URLSearchParams({ command: rawCommand, target: currentSystem }),
   })
     .then((r) => r.json())
     .then((data) => {
-      const fakeDevice = {
-        name: "System",
-        connected: true,
-        headset: 0,
-        left: 0,
-        right: 0,
-      };
+      const targetDevice =
+        allDevices.find((d) => d.name === currentSystem) || {
+          name: currentSystem,
+          connected: true,
+          headset: 0,
+          left: 0,
+          right: 0,
+          colorClass: "rig-0",
+        };
 
+      // If reset, refresh everything
       if (Array.isArray(data.devices)) {
         allDevices = normalizeDevices(data.devices);
 
-        // Force the first device to always be "Local Host"
         if (allDevices.length > 0) {
           allDevices[0].name = "Local Host";
+          currentSystem = "Local Host";
+
+          const label = document.getElementById("targetLabel");
+          const currentDevice = allDevices.find((d) => d.name === currentSystem);
+          if (label && currentDevice) {
+            label.textContent = `Target: ${currentSystem}`;
+            label.style.color = getDeviceColor(currentDevice);
+          }
         }
 
-        currentSystem = "Local Host";
-        const label = document.getElementById("targetLabel");
-        if (label) {
-          label.textContent = `Target: ${currentSystem}`;
-          changeTargetColor(currentSystem);
-        }
-
-        document.getElementById(
-          "targetLabel"
-        ).textContent = `Target: ${currentSystem}`;
-        changeTargetColor(currentSystem);
-        changeDeviceNameColor(currentSystem);
+        updateInterface();
 
         if (isReset) {
           clearConsoleMessages();
           resetFilterCheckboxes(allDevices);
+          return;
         }
-
-        updateInterface();
       }
 
-      if (!isReset) {
-        autoUpdateConsole(
-          fakeDevice,
-          rawCommand,
-          data.message || "No response"
-        );
+      // Update device if backend gave updated state
+      if (data.deviceState) {
+        Object.assign(targetDevice, data.deviceState);
+        updateDeviceUI(targetDevice);
       }
+
+      // Log the response
+      autoUpdateConsole(
+        targetDevice,
+        rawCommand,
+        data.message || "No response"
+      );
     })
     .catch((err) => {
       console.error("Command failed:", err);
@@ -605,7 +634,7 @@ function updateFilterMenu() {
 
   allDevices.forEach((device) => {
     const label = document.createElement("label");
-    label.className = `filter-option ${getColorClass(device.name)} ${
+    label.className = `filter-option ${device.colorClass} ${
       device.connected ? "connected" : "disconnected"
     }`;
 
@@ -678,9 +707,6 @@ function updateInterface() {
   applyConsoleFilter();
 }
 
-// Set of filters for the console
-const filterState = new Set(); // Active filter names
-
 // PAGE SETUP
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
@@ -714,19 +740,50 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// poll every 10s for the decayed battery levels
 setInterval(() => {
   fetch("/cgi-bin/handler.py?vr_status=1")
     .then((r) => r.json())
     .then((devs) => {
-      // 1) update your local model
       allDevices = normalizeDevices(devs);
-
-      // 2) re-render the cards
       renderDevices(allDevices);
-      // 3) refresh the focused card/detail if needed
+
       const focused = allDevices.find((d) => d.name === currentSystem);
       if (focused) updateDeviceUI(focused);
+
+      // ✅ Low battery scan
+      devs.forEach((d) => {
+        [
+          { type: "headset", value: d.headset, connected: d.headset_connected },
+          {
+            type: "left controller",
+            value: d.left,
+            connected: d.left_connected,
+          },
+          {
+            type: "right controller",
+            value: d.right,
+            connected: d.right_connected,
+          },
+        ].forEach(({ type, value, connected }) => {
+          const key = `${d.name}_${type}`;
+          if (connected && value < 10 && !lowBatteryWarnings.has(key)) {
+            const msg = `${
+              type[0].toUpperCase() + type.slice(1)
+            } battery low: ${value}%`;
+            autoUpdateConsole(
+              { name: d.name, connected: d.connected },
+              "battery",
+              msg
+            );
+            lowBatteryWarnings.add(key);
+          }
+
+          // Optional: remove from set if it goes above threshold again
+          if (value >= 10 && lowBatteryWarnings.has(key)) {
+            lowBatteryWarnings.delete(key);
+          }
+        });
+      });
     })
     .catch(console.error);
-}, 10_000);
+}, 1_000);

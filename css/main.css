@@ -1,20 +1,36 @@
 :root {
+  /* Color Palette */
   --bg-light: #f8f9fa;
   --bg-white: #ffffff;
   --border: #e0e0e0;
   --text-dark: #212529;
   --text-muted: #6c757d;
   --primary: #00b87b;
-  --rig-a: #3b82f6;
-  --rig-b: #f97316;
-  --rig-c: #22c55e;
-  --rig-d: #facc15;
-  --rig-a-muted: #93c5fd;
-  --rig-b-muted: #fdba74;
-  --rig-c-muted: #86efac;
-  --rig-d-muted: #fde68a;
-  --radius: 8px;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  /* Standardized Colors */
+  --error: #ff0000;
+  --danger: #dc2626;
+  --critical: #a30000;
+  --critical-bg: #ffe0e0;
+
+  /* Button States */
+  --btn-hover-bg: #f1f3f5;
+  --btn-disabled-bg: #eee;
+
+  /* Rig Colors */
+  --rig-0: #3b82f6;
+  --rig-1: #f97316;
+  --rig-2: #22c55e;
+  --rig-3: #facc15;
+  --rig-4: #8b5cf6;
+  --rig-5: #ec4899;
+
+  --rig-0-muted: #93c5fd;
+  --rig-1-muted: #fdba74;
+  --rig-2-muted: #86efac;
+  --rig-3-muted: #fde68a;
+  --rig-4-muted: #ddd6fe;
+  --rig-5-muted: #fbcfe8;
 }
 
 body {
@@ -182,20 +198,26 @@ body {
 }
 
 .remove-btn:hover {
-  color: #dc2626; /* red-600 on hover */
+  color: var(--danger)
 }
 
-.device-name.rig-a.connected   { color: var(--rig-a); }
-.device-name.rig-a.disconnected { color: var(--rig-a-muted); }
+.device-name.rig-0.connected   { color: var(--rig-0); }
+.device-name.rig-0.disconnected { color: var(--rig-0-muted); }
 
-.device-name.rig-b.connected   { color: var(--rig-b); }
-.device-name.rig-b.disconnected { color: var(--rig-b-muted); }
+.device-name.rig-1.connected   { color: var(--rig-1); }
+.device-name.rig-1.disconnected { color: var(--rig-1-muted); }
 
-.device-name.rig-c.connected   { color: var(--rig-c); }
-.device-name.rig-c.disconnected { color: var(--rig-c-muted); }
+.device-name.rig-2.connected   { color: var(--rig-2); }
+.device-name.rig-2.disconnected { color: var(--rig-2-muted); }
 
-.device-name.rig-d.connected   { color: var(--rig-d); }
-.device-name.rig-d.disconnected { color: var(--rig-d-muted); }
+.device-name.rig-3.connected   { color: var(--rig-3); }
+.device-name.rig-3.disconnected { color: var(--rig-3-muted); }
+
+.device-name.rig-4.connected   { color: var(--rig-4); }
+.device-name.rig-4.disconnected { color: var(--rig-4-muted); }
+
+.device-name.rig-5.connected   { color: var(--rig-5); }
+.device-name.rig-5.disconnected { color: var(--rig-5-muted); }
 
 .offline {
   color: var(--text-muted);
@@ -353,8 +375,8 @@ body {
 }
 
 .filter-option .label-text {
-  flex: 1;
-  text-align: left;
+  font-weight: bold;
+  color: inherit;
 }
 
 .filter-option input[type="checkbox"] {
@@ -362,40 +384,75 @@ body {
   cursor: pointer;
 }
 
-.filter-option.disconnected input[type="checkbox"] {
-  accent-color: var(--text-muted);
-}
-
 .log-entry {
   margin-bottom: 0.5rem;
 }
 
-.filter-option.rig-a .label-text,
-.filter-option.rig-a input { color: var(--rig-a); accent-color: var(--rig-a); }
-
-.filter-option.rig-b .label-text,
-.filter-option.rig-b input { color: var(--rig-b); accent-color: var(--rig-b); }
-
-.filter-option.rig-c .label-text,
-.filter-option.rig-c input { color: var(--rig-c); accent-color: var(--rig-c); }
-
-.filter-option.rig-d .label-text,
-.filter-option.rig-d input { color: var(--rig-d); accent-color: var(--rig-d); }
-
-/* Connected vs Disconnected tweaks */
-.filter-option.connected .label-text {
+.log-entry.log-alert {
+  color: var(--danger);
   font-weight: 600;
 }
 
-.filter-option.disconnected .label-text {
-  color: var(--text-muted) !important;
-  font-weight: 400;
+.log-error {
+  color: var(--error);
+  font-weight: bold;
 }
 
-.log-entry.rig-a { color: var(--rig-a); }
-.log-entry.rig-b { color: var(--rig-b); }
-.log-entry.rig-c { color: var(--rig-c); }
-.log-entry.rig-d { color: var(--rig-d); }
+.log-critical {
+  color: var(--critical); 
+  font-weight: bold;
+  background-color: #ffe0e0;
+  border-left: 4px solid red;
+  padding-left: 6px;
+}
+
+.filter-option.rig-0 .label-text,
+.filter-option.rig-0 input {
+  color: var(--rig-0);
+  accent-color: var(--rig-0);
+}
+
+.filter-option.rig-1 .label-text,
+.filter-option.rig-1 input {
+  color: var(--rig-1);
+  accent-color: var(--rig-1);
+}
+
+.filter-option.rig-2 .label-text,
+.filter-option.rig-2 input {
+  color: var(--rig-2);
+  accent-color: var(--rig-2);
+}
+
+.filter-option.rig-3 .label-text,
+.filter-option.rig-3 input {
+  color: var(--rig-3);
+  accent-color: var(--rig-3);
+}
+
+.filter-option.rig-4 .label-text,
+.filter-option.rig-4 input {
+  color: var(--rig-4);
+  accent-color: var(--rig-4);
+}
+
+.filter-option.rig-5 .label-text,
+.filter-option.rig-5 input {
+  color: var(--rig-5);
+  accent-color: var(--rig-5);
+}
+
+/* Connected vs Disconnected tweaks */
+.filter-option.focused .label-text {
+  font-weight: 700;
+}
+
+.log-entry.rig-0 { color: var(--rig-0); }
+.log-entry.rig-1 { color: var(--rig-1); }
+.log-entry.rig-2 { color: var(--rig-2); }
+.log-entry.rig-3 { color: var(--rig-3); }
+.log-entry.rig-4 { color: var(--rig-4); }
+.log-entry.rig-5 { color: var(--rig-5); }
 
 .log-entry .label {
   font-weight: bold;

@@ -53,6 +53,17 @@ else:
     with open(STATE_FILE, "w") as f:
         json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
 
+now = time.time()
+elapsed = now - last_update
+steps = int(elapsed // DECAY_INTERVAL)
+if steps > 0:
+    for state in DEVICE_STATE.values():
+        for key in ("headset", "left", "right"):
+            state[key] = max(0, state[key] - DECAY_AMOUNT * steps)
+    last_update += steps * DECAY_INTERVAL
+    with open(STATE_FILE, "w") as f:
+        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
+        
 # ✅ Always check vr_status=1 here
 if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
     print(json.dumps([
@@ -173,18 +184,6 @@ if command == "remove":
         ]
     }))
     exit()
-    
-# Apply decay
-now = time.time()
-elapsed = now - last_update
-steps = int(elapsed // DECAY_INTERVAL)
-if steps > 0:
-    for state in DEVICE_STATE.values():
-        for key in ("headset", "left", "right"):
-            state[key] = max(0, state[key] - DECAY_AMOUNT * steps)
-    last_update += steps * DECAY_INTERVAL
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
 
 # If it's a GET for status (vr_status=1)
 if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
@@ -230,6 +229,52 @@ if command and target in DEVICE_STATE:
         state["right_connected"] = False
         messages.append("All devices disconnected.")
 
+    elif command.startswith("setbattery"):
+        parts = form.getfirst("command", "").strip().split()
+        if len(parts) != 3:
+            print(json.dumps({
+                "status": "error",
+                "message": "Usage: setbattery [headset|left|right] [0-100]"
+            }))
+            exit()
+
+        _, part, value_str = parts
+        if part not in ("headset", "left", "right"):
+            print(json.dumps({
+                "status": "error",
+                "message": f"Unknown battery target: {part}"
+            }))
+            exit()
+
+        if not state["connected"]:
+            print(json.dumps({
+                "status": "error",
+                "message": f"Cannot set battery for '{part}' — system is not powered on."
+            }))
+            exit()
+
+        try:
+            value = max(0, min(100, int(value_str)))
+        except ValueError:
+            print(json.dumps({
+                "status": "error",
+                "message": "Battery value must be an integer 0-100"
+            }))
+            exit()
+
+        state[part] = value
+        messages.append(f"{part.capitalize()} battery manually set to {value}%.")
+
+        with open(STATE_FILE, "w") as f:
+            json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
+
+        print(json.dumps({
+            "status": "success",
+            "message": "\n".join(messages),
+            "deviceState": state
+        }))
+        exit()
+    
     elif command == "run":
         if not state.get("headset_connected"):
             messages.append("Cannot run program — headset is not connected.")
@@ -254,6 +299,13 @@ if command and target in DEVICE_STATE:
         # simulate boot up again
         state["connected"] = True
         
+    else:
+        print(json.dumps({
+            "status": "error",
+            "message": f"❌ Unknown command: '{command}'"
+        }))
+        exit()
+    
     # Save updated state
     with open(STATE_FILE, "w") as f:
         json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
@@ -265,15 +317,23 @@ if command and target in DEVICE_STATE:
     }))
     exit()
 
-# If target is missing or unknown
-if command and target == "":
+# Handle unknown commands for valid targets
+if command and target in DEVICE_STATE:
+    print(json.dumps({
+        "status": "error",
+        "message": f"❌ Unknown command: '{command}'"
+    }))
+    exit()
+
+# Handle missing or unknown targets
+elif command and not target:
     print(json.dumps({
         "status": "error",
         "message": f"❌ Target not specified for command: '{command}'"
     }))
     exit()
 
-if command:
+elif command:
     print(json.dumps({
         "status": "error",
         "message": f"❌ Target '{target}' not found"
