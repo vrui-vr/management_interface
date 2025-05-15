@@ -21,6 +21,7 @@ function normalizeDevices(rawDevices) {
     left_connected: d.left_connected,
     right_connected: d.right_connected,
     headset_model: d.headset_model || "Unknown",
+    ip: d.ip || "N/A", // new line
     colorClass: `rig-${index % 6}`,
   }));
 }
@@ -31,6 +32,11 @@ function addDevice() {
   const newName =
     nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
 
+  if (newName.toLowerCase() === "local host") {
+    alert("The name 'Local Host' is reserved and cannot be used.");
+    return;
+  }
+
   const headsetModel = window.prompt(
     "Enter headset model (e.g., HTC Vive Pro, Valve Index):",
     "HTC Vive Pro"
@@ -40,15 +46,16 @@ function addDevice() {
       ? headsetModel.trim()
       : "Unknown";
 
-  if (newName.toLowerCase() === "local host") {
-    alert("The name 'Local Host' is reserved and cannot be used.");
-    return;
-  }
+  const ipAddress = window.prompt(
+    "Enter device IP address (e.g., 192.168.1.15):",
+    "192.168.1.15"
+  );
+  const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
   fetch("/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "add", target: newName, model }),
+    body: new URLSearchParams({ command: "add", target: newName, model, ip }),
   })
     .then((r) => r.json())
     .then((data) => {
@@ -150,8 +157,8 @@ function playPing() {
   lastPingTime = now;
   isPlaying = true;
 
-  console.log("attempted ping")
-  
+  console.log("attempted ping");
+
   try {
     pingAudio.currentTime = 0;
     const playPromise = pingAudio.play();
@@ -198,9 +205,8 @@ function send(command) {
   const device = allDevices.find((d) => d.name === currentSystem);
   if (!device) return;
 
-  // Button ID mapping
   const buttonMap = {
-    vrtracker_on: "btn-vrtracker", // this is now Open VR Tracker
+    vrtracker_on: "btn-vrtracker",
     headset: "btn-headset",
     connect: "btn-connect",
     disconnect: "btn-disconnect",
@@ -223,29 +229,31 @@ function send(command) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command, target: device.name }),
   })
-    .then((response) => {
-      if (!hasConnected && response.ok) {
-        autoUpdateConsole(device, "connect", "Connected to server");
-        hasConnected = true;
-      }
-      return response.json();
-    })
-    .then((data) => {
-      if (data.status === "success") {
-        Object.assign(device, data.deviceState); // update model
-        updateDeviceUI(data.deviceState); // update visuals
-        autoUpdateConsole(device, command, data.message);
-      } else {
-        console.error(data.message);
-      }
-    })
-    .catch((error) => {
-      console.error("Error communicating with the server:", error);
-    })
-    .finally(() => {
-      if (button) {
-        button.textContent = originalText;
-        updateButtonStates(); // recheck enabled/disabled
+    .then((response) => response.text())
+    .then((text) => {
+      try {
+        const data = JSON.parse(text);
+
+        if (data.status === "success") {
+          const i = allDevices.findIndex((d) => d.name === device.name);
+          if (i !== -1 && data.deviceState) {
+            allDevices[i] = { ...allDevices[i], ...data.deviceState };
+            updateDeviceUI(allDevices[i]);
+          }
+          autoUpdateConsole(device, command, data.message);
+        } else {
+          console.error(data.message);
+          autoUpdateConsole(
+            device,
+            command,
+            data.message || "⚠️ Unexpected server response"
+          );
+        }
+      } catch (err) {
+        console.error("❌ JSON parse error:", err);
+        console.error("⬇ Raw response from server:");
+        console.error(text);
+        autoUpdateConsole(device, command, "❌ Server returned invalid JSON.");
       }
     });
 }
@@ -253,17 +261,21 @@ function send(command) {
 function updateButtonStatesFor(device) {
   const connected = device.connected;
   const headsetConnected = device.headset_connected;
-  const anyControllersConnected =
-    device.left_connected || device.right_connected;
-  const anythingConnected =
-    headsetConnected || device.left_connected || device.right_connected;
+  const leftConnected = device.left_connected;
+  const rightConnected = device.right_connected;
+  const anyControllersConnected = leftConnected || rightConnected;
+  const allControllersConnected = leftConnected && rightConnected;
 
   document.getElementById("btn-vrtracker").disabled = connected;
   document.getElementById("btn-headset").disabled =
     !connected || headsetConnected;
   document.getElementById("btn-connect").disabled =
-    !headsetConnected || (device.left_connected && device.right_connected);
-  document.getElementById("btn-disconnect").disabled = !anythingConnected;
+    !headsetConnected || allControllersConnected;
+  document.getElementById("btn-disconnect").disabled = !(
+    headsetConnected ||
+    leftConnected ||
+    rightConnected
+  );
   document.getElementById("btn-shutdown").disabled = !connected;
   document.getElementById("btn-restart").disabled = !connected;
   document.getElementById("btn-run").disabled = !headsetConnected;
@@ -410,8 +422,9 @@ function renderDevices(devices) {
     name.className = `device-name ${statusClass}`;
     name.style.color = getDeviceColor(device);
     name.style.display = "flex";
-    name.style.alignItems = "center";
-    name.style.gap = "0.25rem";
+    name.style.flexDirection = "column"; // ✅ stack name + ip
+    name.style.alignItems = "flex-start";
+    name.style.gap = "0.1rem"; // small vertical gap
 
     const labelSpan = document.createElement("span");
     labelSpan.textContent = device.name;
@@ -420,10 +433,20 @@ function renderDevices(devices) {
     if (!device.connected) {
       offlineSpan.textContent = " (offline)";
       offlineSpan.className = "offline";
+      labelSpan.appendChild(offlineSpan);
     }
 
+    // ✅ New: IP address below the name
+    const ipSpan = document.createElement("span");
+    ipSpan.textContent = device.ip || "";
+    ipSpan.style.fontSize = "0.6rem";
+    ipSpan.style.color = "gray";
+    ipSpan.style.opacity = "0.7";
+    ipSpan.style.marginTop = "-2px";
+
     name.appendChild(labelSpan);
-    if (!device.connected) name.appendChild(offlineSpan);
+    name.appendChild(ipSpan); // 👈 append IP below name
+
     header.appendChild(name);
 
     if (device.name !== "Local Host") {
@@ -541,15 +564,14 @@ function sendCustomCommand() {
   })
     .then((r) => r.json())
     .then((data) => {
-      const targetDevice =
-        allDevices.find((d) => d.name === currentSystem) || {
-          name: currentSystem,
-          connected: true,
-          headset: 0,
-          left: 0,
-          right: 0,
-          colorClass: "rig-0",
-        };
+      const targetDevice = allDevices.find((d) => d.name === currentSystem) || {
+        name: currentSystem,
+        connected: true,
+        headset: 0,
+        left: 0,
+        right: 0,
+        colorClass: "rig-0",
+      };
 
       // If reset, refresh everything
       if (Array.isArray(data.devices)) {
@@ -560,7 +582,9 @@ function sendCustomCommand() {
           currentSystem = "Local Host";
 
           const label = document.getElementById("targetLabel");
-          const currentDevice = allDevices.find((d) => d.name === currentSystem);
+          const currentDevice = allDevices.find(
+            (d) => d.name === currentSystem
+          );
           if (label && currentDevice) {
             label.textContent = `Target: ${currentSystem}`;
             label.style.color = getDeviceColor(currentDevice);
@@ -578,7 +602,11 @@ function sendCustomCommand() {
 
       // Update device if backend gave updated state
       if (data.deviceState) {
-        Object.assign(targetDevice, data.deviceState);
+        const i = allDevices.findIndex((d) => d.name === device.name);
+        if (i !== -1 && data.deviceState) {
+          allDevices[i] = { ...allDevices[i], ...data.deviceState };
+          updateDeviceUI(allDevices[i]);
+        }
         updateDeviceUI(targetDevice);
       }
 

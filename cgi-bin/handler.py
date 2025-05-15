@@ -4,7 +4,13 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 print("Content-Type: application/json\n")
 
-STATE_FILE = os.path.join(os.path.dirname(__file__), "state.json")
+try:
+    BASE_DIR = os.path.dirname(__file__)
+except NameError:
+    BASE_DIR = os.getcwd()
+
+STATE_FILE = os.path.join(BASE_DIR, "state.json")
+
 DECAY_INTERVAL = 1       # seconds per decay step
 DECAY_AMOUNT   = 1       # percent per step
 
@@ -18,24 +24,30 @@ DEFAULT_STATE = {
             "headset_connected": False,
             "left_connected": False,
             "right_connected": False,
-            "headset_model": "Valve Index"
+            "headset_model": "Valve Index",
+            "ip": "127.0.0.1"
         }
     },
     "last_update": time.time()
 }
 
+form = cgi.FieldStorage()
+command = form.getfirst("command", "").strip()
+target = form.getfirst("target", "").strip()
+model = form.getfirst("model", "").strip()
+ip = form.getfirst("ip", "").strip()
+
 def reset_state():
+    global DEVICE_STATE, last_update
+    DEVICE_STATE = DEFAULT_STATE["devices"]
+    last_update = time.time()
     with open(STATE_FILE, "w") as f:
-        json.dump(DEFAULT_STATE, f)  # Don't double-wrap
-    return DEFAULT_STATE["devices"]
+        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
+    return DEVICE_STATE
 
 def get_batteries():
     return 100
 
-# Parse request
-form = cgi.FieldStorage()
-command = form.getfirst("command", "").strip().lower()
-target = form.getfirst("target", "").strip()
 
 # Load or create state
 if os.path.exists(STATE_FILE):
@@ -84,20 +96,8 @@ if command == "reset":
         ]
     }))
     exit()
-# Handle add device
-if command == "add":
-    model = form.getfirst("model", "Unknown")
-    if not target:
-        print(json.dumps({
-            "status": "error",
-            "message": "⚠️ No device name provided.",
-            "devices": [
-                {"name": name, **info}
-                for name, info in DEVICE_STATE.items()
-            ]
-        }))
-        exit()
 
+if command == "add":
     if target in DEVICE_STATE:
         print(json.dumps({
             "status": "error",
@@ -110,19 +110,22 @@ if command == "add":
         exit()
 
     DEVICE_STATE[target] = {
-    "connected": False,
-    "headset": 0,
-    "left": 0,
-    "right": 0,
-    "headset_connected": False,
-    "left_connected": False,
-    "right_connected": False,
-    "headset_model": model
-}
+        "connected": False,
+        "headset": 0,
+        "left": 0,
+        "right": 0,
+        "headset_connected": False,
+        "left_connected": False,
+        "right_connected": False,
+        "headset_model": model,
+        "ip": ip
+    }
 
+    # ✅ Save first
     with open(STATE_FILE, "w") as f:
         json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
 
+    # ✅ Then respond
     print(json.dumps({
         "status": "success",
         "message": f"✅ Added device '{target}'",
@@ -183,15 +186,6 @@ if command == "remove":
             for name, info in DEVICE_STATE.items()
         ]
     }))
-    exit()
-
-# If it's a GET for status (vr_status=1)
-if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
-    print("Content-Type: application/json\n")
-    print(json.dumps([
-        {"name": name, **info}
-        for name, info in DEVICE_STATE.items()
-    ]))
     exit()
 
 # For commands like vrtracker_on/connect/run
@@ -339,3 +333,10 @@ elif command:
         "message": f"❌ Target '{target}' not found"
     }))
     exit()
+
+else:
+    # Catch-all fallback (very end of script)
+    print(json.dumps({
+        "status": "error",
+        "message": "❌ Unrecognized or incomplete request (no matching command or target)."
+    }))
