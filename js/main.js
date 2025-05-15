@@ -465,40 +465,6 @@ function sendCustomCommand() {
   input.value = "";
 }
 
-
-document.addEventListener("DOMContentLoaded", () => {
-  const input = document.getElementById("commandInput");
-  if (input) {
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendCustomCommand();
-      }
-    });
-  }
-
-  // Initial fetch and UI setup
-  fetch("/cgi-bin/handler.py?vr_status=1")
-    .then((r) => r.json())
-    .then((devicesFromServer) => {
-      allDevices = normalizeDevices(devicesFromServer);
-
-      if (allDevices.length) {
-        currentSystem = allDevices[0].name;
-        const label = document.getElementById("targetLabel");
-        if (label) {
-          label.textContent = `Target: ${currentSystem}`;
-          changeTargetColor(currentSystem);
-        }
-      }
-
-      updateDropdown();
-      renderDevices(allDevices);
-      updateFilterMenu();
-      applyConsoleFilter(); // Ensure proper visibility if console starts empty
-    });
-});
-
 function clearConsoleMessages() {
   const consoleBox = document.getElementById("consoleOutput");
   if (consoleBox) {
@@ -518,8 +484,6 @@ function resetFilterCheckboxes(devices) {
   devices.forEach((d) => filterState.add(d.name));
   updateFilterMenu();
 }
-
-const filterState = new Set(); // Active filter names
 
 document.getElementById("filterToggle").addEventListener("click", () => {
   const menu = document.getElementById("filterMenu");
@@ -612,6 +576,42 @@ function updateInterface() {
   updateFilterMenu();
   applyConsoleFilter();
 }
+
+// Set of filters for the console
+const filterState = new Set(); // Active filter names
+
+// PAGE SETUP
+// Initial Events on Page Load
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("commandInput");
+  if (input) {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendCustomCommand();
+      }
+    });
+  }
+
+  // Initial fetch and UI setup
+  fetch("/cgi-bin/handler.py?vr_status=1")
+    .then((r) => r.json())
+    .then((devicesFromServer) => {
+      allDevices = normalizeDevices(devicesFromServer);
+
+      if (allDevices.length) {
+        currentSystem = allDevices[0].name;
+        const label = document.getElementById("targetLabel");
+        if (label) {
+          label.textContent = `Target: ${currentSystem}`;
+          changeTargetColor(currentSystem);
+        }
+      }
+
+      updateInterface();
+      applyConsoleFilter(); // Ensure proper visibility if console starts empty
+    });
+});
 
 // poll every 10s for the decayed battery levels
 setInterval(() => {
