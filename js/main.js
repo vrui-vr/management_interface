@@ -42,6 +42,11 @@ function addDevice() {
       ? headsetModel.trim()
       : "Unknown";
 
+  if (newName.toLowerCase() === "local host") {
+    alert("The name 'Local Host' is reserved and cannot be used.");
+    return;
+  }
+
   fetch("/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -66,6 +71,51 @@ function addDevice() {
       }
     })
     .catch((err) => console.error("Add failed:", err));
+}
+
+function removeDevice(deviceName) {
+  if (deviceName === "Local Host") {
+    alert("Cannot remove 'Local Host'. It is a protected system.");
+    return;
+  }
+
+  const confirmed = confirm(`Are you sure you want to remove "${deviceName}"?`);
+  if (!confirmed) return;
+
+  fetch("/cgi-bin/handler.py", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "remove", target: deviceName }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.status === "success") {
+        allDevices = normalizeDevices(data.devices);
+
+        // Force the first device to always be named Local Host
+        if (allDevices.length > 0) {
+          allDevices[0].name = "Local Host";
+        }
+
+        // Reset current system if the removed one was selected
+        if (currentSystem === deviceName) {
+          currentSystem = "Local Host";
+          document.getElementById(
+            "targetLabel"
+          ).textContent = `Target: ${currentSystem}`;
+          changeTargetColor(currentSystem);
+        }
+
+        updateInterface();
+        autoUpdateConsole({ name: deviceName }, "remove", data.message);
+      } else {
+        console.error(data.message);
+        alert("Failed to remove device: " + data.message);
+      }
+    })
+    .catch((err) => {
+      console.error("Remove failed:", err);
+    });
 }
 
 function changeSystem(name) {
@@ -311,10 +361,28 @@ function renderDevices(devices) {
       changeSystem(device.name);
     };
 
+    // // Create top header: name + remove button
+    // const header = document.createElement("div");
+    // header.className = "device-header";
+    // header.style.display = "flex";
+    // header.style.justifyContent = "space-between";
+    // header.style.alignItems = "center";
+    // header.style.marginBottom = "0.75rem";
+
+    // Header section for name + remove
+    const header = document.createElement("div");
+    header.style.display = "flex";
+    header.style.justifyContent = "space-between";
+    header.style.alignItems = "center";
+
+    // Device name section
     const name = document.createElement("div");
     const colorClass = getColorClass(device.name);
     const statusClass = device.connected ? "connected" : "disconnected";
     name.className = `device-name ${colorClass} ${statusClass}`;
+    name.style.display = "flex";
+    name.style.alignItems = "center";
+    name.style.gap = "0.25rem";
 
     const labelSpan = document.createElement("span");
     labelSpan.textContent = device.name;
@@ -327,9 +395,26 @@ function renderDevices(devices) {
 
     name.appendChild(labelSpan);
     if (!device.connected) name.appendChild(offlineSpan);
+    header.appendChild(name);
 
-    card.appendChild(name);
+    // Remove button (unless it's Local Host)
+    if (device.name !== "Local Host") {
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "remove-btn";
+      removeBtn.title = "Remove device";
+      removeBtn.textContent = "x";
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        removeDevice(device.name);
+      };
 
+      header.appendChild(removeBtn);
+    }
+
+    // Append header (name + remove) to card
+    card.appendChild(header);
+
+    // Battery status section
     const batteryColumn = document.createElement("div");
     batteryColumn.className = "battery-column";
 
@@ -440,9 +525,22 @@ function sendCustomCommand() {
 
       if (Array.isArray(data.devices)) {
         allDevices = normalizeDevices(data.devices);
-        currentSystem = allDevices[0]?.name || "";
 
-        document.getElementById("targetLabel").textContent = `Target: ${currentSystem}`;
+        // Force the first device to always be "Local Host"
+        if (allDevices.length > 0) {
+          allDevices[0].name = "Local Host";
+        }
+
+        currentSystem = "Local Host";
+        const label = document.getElementById("targetLabel");
+        if (label) {
+          label.textContent = `Target: ${currentSystem}`;
+          changeTargetColor(currentSystem);
+        }
+
+        document.getElementById(
+          "targetLabel"
+        ).textContent = `Target: ${currentSystem}`;
         changeTargetColor(currentSystem);
         changeDeviceNameColor(currentSystem);
 
@@ -451,11 +549,15 @@ function sendCustomCommand() {
           resetFilterCheckboxes(allDevices);
         }
 
-        updateInterface();                
+        updateInterface();
       }
 
       if (!isReset) {
-        autoUpdateConsole(fakeDevice, rawCommand, data.message || "No response");
+        autoUpdateConsole(
+          fakeDevice,
+          rawCommand,
+          data.message || "No response"
+        );
       }
     })
     .catch((err) => {
@@ -465,17 +567,24 @@ function sendCustomCommand() {
   input.value = "";
 }
 
+// logs the "Nothing here yet.." message when console is empty
+function logEmpty(consoleBox) {
+  if (consoleBox.querySelector(".log-empty")) return;
+
+  const emptyMsg = document.createElement("div");
+  emptyMsg.className = "log-empty";
+  emptyMsg.textContent = "Nothing here yet...";
+  emptyMsg.style.color = "var(--text-muted)";
+  emptyMsg.style.fontStyle = "italic";
+  emptyMsg.style.padding = "0.25rem 0";
+  consoleBox.appendChild(emptyMsg);
+}
+
 function clearConsoleMessages() {
   const consoleBox = document.getElementById("consoleOutput");
   if (consoleBox) {
     consoleBox.innerHTML = ""; // Full wipe
-    const emptyMsg = document.createElement("div");
-    emptyMsg.className = "log-empty";
-    emptyMsg.textContent = "Nothing here yet...";
-    emptyMsg.style.color = "var(--text-muted)";
-    emptyMsg.style.fontStyle = "italic";
-    emptyMsg.style.padding = "0.25rem 0";
-    consoleBox.appendChild(emptyMsg);
+    logEmpty(consoleBox);
   }
 }
 
@@ -548,15 +657,7 @@ function applyConsoleFilter() {
   const isEmpty = visibleCount === 0;
 
   if (isEmpty) {
-    if (!consoleBox.querySelector(".log-empty")) {
-      const emptyMsg = document.createElement("div");
-      emptyMsg.className = "log-empty";
-      emptyMsg.textContent = "Nothing here yet...";
-      emptyMsg.style.color = "var(--text-muted)";
-      emptyMsg.style.fontStyle = "italic";
-      emptyMsg.style.padding = "0.25rem 0";
-      consoleBox.appendChild(emptyMsg);
-    }
+    logEmpty(consoleBox);
   } else {
     const existing = consoleBox.querySelector(".log-empty");
     if (existing) existing.remove();

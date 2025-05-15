@@ -144,6 +144,7 @@ body {
   background-color: var(--bg-white);
   box-shadow: var(--shadow);
   transition: box-shadow 0.2s, border 0.2s;
+  position: relative;
 }
 
 .device-card.disconnected {
@@ -166,6 +167,22 @@ body {
   font-weight: 600;
   font-size: 1.05rem;
   margin-bottom: 0.75rem;
+}
+
+.remove-btn {
+  font-size: 1rem;
+  padding: 0 0.6rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: -8px;
+  margin-left: 10px;
+}
+
+.remove-btn:hover {
+  color: #dc2626; /* red-600 on hover */
 }
 
 .device-name.rig-a.connected   { color: var(--rig-a); }

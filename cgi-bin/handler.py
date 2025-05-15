@@ -10,7 +10,7 @@ DECAY_AMOUNT   = 1       # percent per step
 
 DEFAULT_STATE = {
     "devices": {
-        "Rig A": {
+        "Local Host": {
             "connected": False,
             "headset": 0,
             "left": 0,
@@ -19,16 +19,6 @@ DEFAULT_STATE = {
             "left_connected": False,
             "right_connected": False,
             "headset_model": "Valve Index"
-        },
-        "Rig B": {
-            "connected": False,
-            "headset": 0,
-            "left": 0,
-            "right": 0,
-            "headset_connected": False,
-            "left_connected": False,
-            "right_connected": False,
-            "headset_model": "HTC Vive Pro"
         }
     },
     "last_update": time.time()
@@ -132,6 +122,58 @@ if command == "add":
     }))
     exit()
 
+# Handle remove device
+if command == "remove":
+    if not target:
+        print(json.dumps({
+            "status": "error",
+            "message": "⚠️ No device name provided for removal.",
+            "devices": [
+                {"name": name, **info}
+                for name, info in DEVICE_STATE.items()
+            ]
+        }))
+        exit()
+
+    if target == "Local Host":
+        print(json.dumps({
+            "status": "error",
+            "message": "❌ Cannot remove 'Local Host'. It is a protected system.",
+            "devices": [
+                {"name": name, **info}
+                for name, info in DEVICE_STATE.items()
+            ]
+        }))
+        exit()
+
+    if target not in DEVICE_STATE:
+        print(json.dumps({
+            "status": "error",
+            "message": f"⚠️ Device '{target}' not found.",
+            "devices": [
+                {"name": name, **info}
+                for name, info in DEVICE_STATE.items()
+            ]
+        }))
+        exit()
+
+    # Remove the device
+    del DEVICE_STATE[target]
+
+    # Save updated state
+    with open(STATE_FILE, "w") as f:
+        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
+
+    print(json.dumps({
+        "status": "success",
+        "message": f"🗑️ Device '{target}' removed.",
+        "devices": [
+            {"name": name, **info}
+            for name, info in DEVICE_STATE.items()
+        ]
+    }))
+    exit()
+    
 # Apply decay
 now = time.time()
 elapsed = now - last_update
