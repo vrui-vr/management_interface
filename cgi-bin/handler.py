@@ -1,342 +1,43 @@
 #!/usr/bin/env python3
-import json, os, time, warnings, cgi
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+import json, os, cgi, warnings
 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 print("Content-Type: application/json\n")
 
-try:
-    BASE_DIR = os.path.dirname(__file__)
-except NameError:
-    BASE_DIR = os.getcwd()
+# Ensure request method is POST
+if os.environ.get("REQUEST_METHOD", "") != "POST":
+    print(json.dumps({
+        "status": "error",
+        "message": "❌ Only POST requests are allowed."
+    }))
+    exit()
 
-STATE_FILE = os.path.join(BASE_DIR, "state.json")
-
-DECAY_INTERVAL = 1       # seconds per decay step
-DECAY_AMOUNT   = 1       # percent per step
-
-DEFAULT_STATE = {
-    "devices": {
-        "Local Host": {
-            "connected": False,
-            "headset": 0,
-            "left": 0,
-            "right": 0,
-            "headset_connected": False,
-            "left_connected": False,
-            "right_connected": False,
-            "headset_model": "Valve Index",
-            "ip": "127.0.0.1"
-        }
-    },
-    "last_update": time.time()
-}
-
+# Parse form data
 form = cgi.FieldStorage()
 command = form.getfirst("command", "").strip()
-target = form.getfirst("target", "").strip()
-model = form.getfirst("model", "").strip()
-ip = form.getfirst("ip", "").strip()
 
-def reset_state():
-    global DEVICE_STATE, last_update
-    DEVICE_STATE = DEFAULT_STATE["devices"]
-    last_update = time.time()
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
-    return DEVICE_STATE
-
-def get_batteries():
-    return 100
-
-
-# Load or create state
-if os.path.exists(STATE_FILE):
-    try:
-        with open(STATE_FILE, "r") as f:
-            saved = json.load(f)
-        DEVICE_STATE = saved.get("devices", {})
-        last_update = saved.get("last_update", time.time())
-    except:
-        DEVICE_STATE = DEFAULT_STATE["devices"]
-        last_update = DEFAULT_STATE["last_update"]
-else:
-    DEVICE_STATE = DEFAULT_STATE["devices"]
-    last_update = DEFAULT_STATE["last_update"]
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
-
-now = time.time()
-elapsed = now - last_update
-steps = int(elapsed // DECAY_INTERVAL)
-if steps > 0:
-    for state in DEVICE_STATE.values():
-        for key in ("headset", "left", "right"):
-            state[key] = max(0, state[key] - DECAY_AMOUNT * steps)
-    last_update += steps * DECAY_INTERVAL
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
-        
-# ✅ Always check vr_status=1 here
-if "vr_status=1" in os.environ.get("QUERY_STRING", ""):
-    print(json.dumps([
-        {"name": name, **info}
-        for name, info in DEVICE_STATE.items()
-    ]))
-    exit()
-
-# Handle reset
-if command == "reset":
-    new_devices = reset_state()
+# Only respond to 'getServerStatus'
+if command != "getServerStatus":
     print(json.dumps({
-        "status": "success",
-        "message": "System state has been reset.",
-        "devices": [
-            {"name": name, **info}
-            for name, info in new_devices.items()
-        ]
+        "status": "error",
+        "message": "❌ Invalid or missing command. Only 'getServerStatus' is supported."
     }))
     exit()
 
-if command == "add":
-    if target in DEVICE_STATE:
-        print(json.dumps({
-            "status": "error",
-            "message": f"⚠️ Device '{target}' already exists.",
-            "devices": [
-                {"name": name, **info}
-                for name, info in DEVICE_STATE.items()
-            ]
-        }))
-        exit()
+# Load and return teststate.json
+try:
+    base_dir = os.path.dirname(__file__) if "__file__" in globals() else os.getcwd()
+    test_file = os.path.join(base_dir, "teststate.json")
 
-    DEVICE_STATE[target] = {
-        "connected": False,
-        "headset": 0,
-        "left": 0,
-        "right": 0,
-        "headset_connected": False,
-        "left_connected": False,
-        "right_connected": False,
-        "headset_model": model,
-        "ip": ip
-    }
-
-    # ✅ Save first
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
-
-    # ✅ Then respond
-    print(json.dumps({
-        "status": "success",
-        "message": f"✅ Added device '{target}'",
-        "devices": [
-            {"name": name, **info}
-            for name, info in DEVICE_STATE.items()
-        ]
-    }))
-    exit()
-
-# Handle remove device
-if command == "remove":
-    if not target:
-        print(json.dumps({
-            "status": "error",
-            "message": "⚠️ No device name provided for removal.",
-            "devices": [
-                {"name": name, **info}
-                for name, info in DEVICE_STATE.items()
-            ]
-        }))
-        exit()
-
-    if target == "Local Host":
-        print(json.dumps({
-            "status": "error",
-            "message": "❌ Cannot remove 'Local Host'. It is a protected system.",
-            "devices": [
-                {"name": name, **info}
-                for name, info in DEVICE_STATE.items()
-            ]
-        }))
-        exit()
-
-    if target not in DEVICE_STATE:
-        print(json.dumps({
-            "status": "error",
-            "message": f"⚠️ Device '{target}' not found.",
-            "devices": [
-                {"name": name, **info}
-                for name, info in DEVICE_STATE.items()
-            ]
-        }))
-        exit()
-
-    # Remove the device
-    del DEVICE_STATE[target]
-
-    # Save updated state
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
+    with open(test_file, "r") as f:
+        data = json.load(f)
 
     print(json.dumps({
         "status": "success",
-        "message": f"🗑️ Device '{target}' removed.",
-        "devices": [
-            {"name": name, **info}
-            for name, info in DEVICE_STATE.items()
-        ]
+        "data": data
     }))
-    exit()
-
-# For commands like vrtracker_on/connect/run
-if command and target in DEVICE_STATE:
-    state = DEVICE_STATE[target]
-    messages = []
-
-    # If device is not connected and command is not 'vrtracker_on', reject it
-    if not state["connected"] and command != "vrtracker_on":
-        print(json.dumps({
-            "status": "error",
-            "message": f"Cannot run '{command}' — system is not powered on."
-        }))
-        exit()
-
-    if command == "vrtracker_on":
-        state["connected"] = True
-        messages.append("VRTracker On.")
-
-    elif command == "headset":
-        state["headset_connected"] = True
-        state["headset"] = get_batteries()  # e.g., return 100
-        messages.append("Connected to Headset via VR Compositor.")
-
-    elif command == "connect":
-        state["left_connected"] = True
-        state["right_connected"] = True
-        state["left"] = get_batteries()
-        state["right"] = get_batteries()
-        messages.append("Controllers connected.")
-
-    elif command == "disconnect":
-        state["headset_connected"] = False
-        state["left_connected"] = False
-        state["right_connected"] = False
-        messages.append("All devices disconnected.")
-
-    elif command.startswith("setbattery"):
-        parts = form.getfirst("command", "").strip().split()
-        if len(parts) != 3:
-            print(json.dumps({
-                "status": "error",
-                "message": "Usage: setbattery [headset|left|right] [0-100]"
-            }))
-            exit()
-
-        _, part, value_str = parts
-        if part not in ("headset", "left", "right"):
-            print(json.dumps({
-                "status": "error",
-                "message": f"Unknown battery target: {part}"
-            }))
-            exit()
-
-        if not state["connected"]:
-            print(json.dumps({
-                "status": "error",
-                "message": f"Cannot set battery for '{part}' — system is not powered on."
-            }))
-            exit()
-
-        try:
-            value = max(0, min(100, int(value_str)))
-        except ValueError:
-            print(json.dumps({
-                "status": "error",
-                "message": "Battery value must be an integer 0-100"
-            }))
-            exit()
-
-        state[part] = value
-        messages.append(f"{part.capitalize()} battery manually set to {value}%.")
-
-        with open(STATE_FILE, "w") as f:
-            json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
-
-        print(json.dumps({
-            "status": "success",
-            "message": "\n".join(messages),
-            "deviceState": state
-        }))
-        exit()
-    
-    elif command == "run":
-        if not state.get("headset_connected"):
-            messages.append("Cannot run program — headset is not connected.")
-        else:
-            state["headset"] = min(100, state["headset"] + 5)
-            messages.append("Program launched on headset.")
-
-    elif command == "shutdown":
-        state["connected"] = False
-        state["headset_connected"] = False
-        state["left_connected"] = False
-        state["right_connected"] = False
-        messages.append("System shut down.")
-
-    elif command == "restart":
-        # simulate shutdown
-        state["connected"] = False
-        state["headset_connected"] = False
-        state["left_connected"] = False
-        state["right_connected"] = False
-
-        # simulate boot up again
-        state["connected"] = True
-        
-    else:
-        print(json.dumps({
-            "status": "error",
-            "message": f"❌ Unknown command: '{command}'"
-        }))
-        exit()
-    
-    # Save updated state
-    with open(STATE_FILE, "w") as f:
-        json.dump({"devices": DEVICE_STATE, "last_update": last_update}, f)
-
-    print(json.dumps({
-        "status": "success",
-        "message": "\n".join(messages),
-        "deviceState": state
-    }))
-    exit()
-
-# Handle unknown commands for valid targets
-if command and target in DEVICE_STATE:
+except Exception as e:
     print(json.dumps({
         "status": "error",
-        "message": f"❌ Unknown command: '{command}'"
-    }))
-    exit()
-
-# Handle missing or unknown targets
-elif command and not target:
-    print(json.dumps({
-        "status": "error",
-        "message": f"❌ Target not specified for command: '{command}'"
-    }))
-    exit()
-
-elif command:
-    print(json.dumps({
-        "status": "error",
-        "message": f"❌ Target '{target}' not found"
-    }))
-    exit()
-
-else:
-    # Catch-all fallback (very end of script)
-    print(json.dumps({
-        "status": "error",
-        "message": "❌ Unrecognized or incomplete request (no matching command or target)."
+        "message": f"Failed to load test state: {str(e)}"
     }))

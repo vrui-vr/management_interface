@@ -6,19 +6,6 @@ const lowBatteryWarnings = new Set();
 
 let url, port;
 
-//load config.json to set variables
-fetch('data/config.json')
-  .then(response => response.json())  // Parse JSON
-  .then(data => {
-    // Assign values to global variables
-    url = data.url;
-    port = data.port;
-
-    // You can now use the global variables in your code
-    console.log(url, port);
-  })
-  .catch(error => console.error('Error loading JSON:', error));
-
 function normalizeDevices(rawDevices) {
   return rawDevices.map((d, index) => ({
     name: d.name,
@@ -33,6 +20,10 @@ function normalizeDevices(rawDevices) {
     ip: d.ip || "N/A", // new line
     colorClass: `rig-${index % 6}`,
   }));
+} 
+
+function getEndpoint(device) {
+  return `http://${device.ip}:${device.port}/${url}`;
 }
 
 function addDevice() {
@@ -61,34 +52,31 @@ function addDevice() {
   );
   const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
-  fetch("/cgi-bin/handler.py", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "add", target: newName, model, ip }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.status === "success") {
-        allDevices = normalizeDevices(data.devices);
-        deviceCounter = allDevices.length;
-        currentSystem = newName;
+  const devicePort = window.prompt(
+    "Enter device port  (e.g., 8000):",
+    "8080"
+  );
+  const port = devicePort && devicePort.trim() !== "" ? devicePort.trim() : "";
 
-        const label = document.getElementById("targetLabel");
-        if (label) {
-          label.textContent = `Target: ${currentSystem}`;
-          const device = allDevices.find((d) => d.name === currentSystem);
-          if (device) {
-            label.style.color = getDeviceColor(device);
-          }
-        }
+  const newDevice = {
+    name: newName,
+    headset_model: model,
+    ip,
+    port, // optionally prompt for port (TODO)
+    connected: false,
+    headset: 0,
+    left: 0,
+    right: 0,
+    headset_connected: false,
+    left_connected: false,
+    right_connected: false,
+    colorClass: `rig-${allDevices.length % 6}`,
+  };
 
-        updateInterface();
-        autoUpdateConsole({ name: newName }, "add", data.message);
-      } else {
-        console.error(data.message);
-      }
-    })
-    .catch((err) => console.error("Add failed:", err));
+  allDevices.push(newDevice);
+  currentSystem = newName;
+  updateInterface();
+  autoUpdateConsole(newDevice, "add", `✅ Added device '${newName}'`);
 }
 
 function removeDevice(deviceName) {
@@ -100,40 +88,16 @@ function removeDevice(deviceName) {
   const confirmed = confirm(`Are you sure you want to remove "${deviceName}"?`);
   if (!confirmed) return;
 
-  fetch("/cgi-bin/handler.py", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "remove", target: deviceName }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.status === "success") {
-        allDevices = normalizeDevices(data.devices);
-
-        // Force the first device to always be named Local Host
-        if (allDevices.length > 0) {
-          allDevices[0].name = "Local Host";
-        }
-
-        // Reset current system if the removed one was selected
-        if (currentSystem === deviceName) {
-          currentSystem = "Local Host";
-          document.getElementById(
-            "targetLabel"
-          ).textContent = `Target: ${currentSystem}`;
-          changeTargetColor(currentSystem);
-        }
-
-        updateInterface();
-        autoUpdateConsole({ name: deviceName }, "remove", data.message);
-      } else {
-        console.error(data.message);
-        alert("Failed to remove device: " + data.message);
-      }
-    })
-    .catch((err) => {
-      console.error("Remove failed:", err);
-    });
+  allDevices = allDevices.filter((d) => d.name !== deviceName);
+  if (currentSystem === deviceName) {
+    currentSystem = "Local Host";
+  }
+  updateInterface();
+  autoUpdateConsole(
+    { name: deviceName },
+    "remove",
+    `🗑️ Device '${deviceName}' removed.`
+  );
 }
 
 function getDeviceColor(device, muted = false) {
@@ -169,74 +133,6 @@ function updateDropdown() {
     if (device.name === currentSystem) option.selected = true;
     dropdown.appendChild(option);
   });
-}
-
-function send(command) {
-  const device = allDevices.find((d) => d.name === currentSystem);
-  if (!device) return;
-
-  const buttonMap = {
-    vrtracker_on: "btn-vrtracker",
-    headset: "btn-headset",
-    connect: "btn-connect",
-    disconnect: "btn-disconnect",
-    restart: "btn-restart",
-    shutdown: "btn-shutdown",
-    run: "btn-run",
-  };
-
-  const btnId = buttonMap[command];
-  const button = document.getElementById(btnId);
-  let originalText = "";
-  if (button) {
-    button.disabled = true;
-    originalText = button.textContent;
-    button.textContent = "Loading...";
-  }
-
-  fetch("/cgi-bin/handler.py", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command, target: device.name }),
-  })
-    .then((response) => response.text())
-    .then((text) => {
-      try {
-        const data = JSON.parse(text);
-
-        if (data.status === "success") {
-          const i = allDevices.findIndex((d) => d.name === device.name);
-          if (i !== -1 && data.deviceState) {
-            allDevices[i] = { ...allDevices[i], ...data.deviceState };
-            updateDeviceUI(allDevices[i]);
-          }
-          autoUpdateConsole(device, command, data.message);
-        } else {
-          console.error(data.message);
-          autoUpdateConsole(
-            device,
-            command,
-            data.message || "⚠️ Unexpected server response"
-          );
-        }
-      } catch (err) {
-        console.error("❌ JSON parse error:", err);
-        console.error("⬇ Raw response from server:");
-        console.error(text);
-        autoUpdateConsole(device, command, "❌ Server returned invalid JSON.");
-      }
-    })
-    .catch((err) => {
-      console.error("❌ Fetch failed:", err);
-      autoUpdateConsole(device, command, "❌ Failed to send command.");
-    })
-    // Runs whether the function succeeds or fails, guaranteeing the buttons update
-    .finally(() => {
-      if (button) {
-        button.disabled = false;
-        button.textContent = originalText;
-      }
-    });
 }
 
 function updateButtonStatesFor(device) {
@@ -418,7 +314,7 @@ function renderDevices(devices) {
 
     // ✅ New: IP address below the name
     const ipSpan = document.createElement("span");
-    ipSpan.textContent = device.ip || "";
+    ipSpan.textContent = `${device.ip}:${device.port}` || "";
     ipSpan.style.fontSize = "0.6rem";
     ipSpan.style.color = "gray";
     ipSpan.style.opacity = "0.7";
@@ -528,6 +424,64 @@ function createBattery(device, label, percent, isConnected) {
   }
 
   return row;
+}
+
+function send(command) {
+  const device = allDevices.find((d) => d.name === currentSystem);
+  if (!device) return;
+
+  const buttonMap = {
+    vrtracker_on: "btn-vrtracker",
+    headset: "btn-headset",
+    connect: "btn-connect",
+    disconnect: "btn-disconnect",
+    restart: "btn-restart",
+    shutdown: "btn-shutdown",
+    run: "btn-run",
+  };
+
+  const btnId = buttonMap[command];
+  const button = document.getElementById(btnId);
+  let originalText = "";
+  if (button) {
+    button.disabled = true;
+    originalText = button.textContent;
+    button.textContent = "Loading...";
+  }
+
+  fetch(getEndpoint(device), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data.status === "success" && data.deviceState) {
+        const i = allDevices.findIndex((d) => d.name === device.name);
+        if (i !== -1) {
+          allDevices[i] = { ...allDevices[i], ...data.deviceState };
+          updateDeviceUI(allDevices[i]);
+          autoUpdateConsole(device, command, data.message);
+        }
+      } else {
+        autoUpdateConsole(
+          device,
+          command,
+          data.message || "⚠️ Unexpected response"
+        );
+      }
+    })
+    .catch((err) => {
+      console.error("Send failed:", err);
+      autoUpdateConsole(device, command, "❌ Failed to send command");
+    })
+    // Runs whether the function succeeds or fails, guaranteeing the buttons update
+    .finally(() => {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    });
 }
 
 function sendCustomCommand() {
@@ -716,8 +670,18 @@ function updateInterface() {
 }
 
 // PAGE SETUP
+
+// Load config.json to set variables
+fetch("data/config.json")
+  .then((response) => response.json())
+  .then((data) => {
+    url = data.url;
+  })
+  .catch((error) => console.error("Error loading JSON:", error));
+
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
+  // Set up manual console entry
   const input = document.getElementById("commandInput");
   if (input) {
     input.addEventListener("keydown", (event) => {
@@ -729,10 +693,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Initial fetch and UI setup
-  fetch("/cgi-bin/handler.py?vr_status=1")
-    .then((r) => r.json())
-    .then((devicesFromServer) => {
-      allDevices = normalizeDevices(devicesFromServer);
+  fetch("data/devices.json")
+    .then((response) => response.json())
+    .then((baseDevices) => {
+      allDevices = baseDevices.map((d, index) => ({
+        name: d.name,
+        headset_model: d.model,
+        ip: d.ip,
+        port: d.port,
+        connected: false,
+        headset: 0,
+        left: 0,
+        right: 0,
+        headset_connected: false,
+        left_connected: false,
+        right_connected: false,
+        colorClass: `rig-${index % 6}`,
+      }));
 
       if (allDevices.length) {
         currentSystem = allDevices[0].name;
@@ -744,54 +721,40 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       updateInterface();
-      applyConsoleFilter(); // Ensure proper visibility if console starts empty
+      applyConsoleFilter();
     });
 });
 
+/*
 setInterval(() => {
-  fetch("/cgi-bin/handler.py?vr_status=1")
-    .then((r) => r.json())
-    .then((devs) => {
-      allDevices = normalizeDevices(devs);
-      renderDevices(allDevices);
+  allDevices.forEach((device, index) => {
+    fetch(getEndpoint(device))
+      .then((r) => r.json())
+      .then((updated) => {
+        // apply updates to this device
+        const i = allDevices.findIndex((d) => d.name === device.name);
+        if (i !== -1) {
+          allDevices[i] = { ...allDevices[i], ...updated };
+          updateDeviceUI(allDevices[i]);
 
-      const focused = allDevices.find((d) => d.name === currentSystem);
-      if (focused) updateDeviceUI(focused);
-
-      // ✅ Low battery scan
-      devs.forEach((d) => {
-        [
-          { type: "headset", value: d.headset, connected: d.headset_connected },
-          {
-            type: "left controller",
-            value: d.left,
-            connected: d.left_connected,
-          },
-          {
-            type: "right controller",
-            value: d.right,
-            connected: d.right_connected,
-          },
-        ].forEach(({ type, value, connected }) => {
-          const key = `${d.name}_${type}`;
-          if (connected && value < 10 && !lowBatteryWarnings.has(key)) {
-            const msg = `${
-              type[0].toUpperCase() + type.slice(1)
-            } battery low: ${value}%`;
-            autoUpdateConsole(
-              { name: d.name, connected: d.connected },
-              "battery",
-              msg
-            );
-            lowBatteryWarnings.add(key);
-          }
-
-          // Optional: remove from set if it goes above threshold again
-          if (value >= 10 && lowBatteryWarnings.has(key)) {
-            lowBatteryWarnings.delete(key);
-          }
-        });
+          [
+            { type: "headset", value: updated.headset, connected: updated.headset_connected },
+            { type: "left controller", value: updated.left, connected: updated.left_connected },
+            { type: "right controller", value: updated.right, connected: updated.right_connected },
+          ].forEach(({ type, value, connected }) => {
+            const key = `${device.name}_${type}`;
+            if (connected && value < 10 && !lowBatteryWarnings.has(key)) {
+              autoUpdateConsole(device, "battery", `${type} battery low: ${value}%`);
+              lowBatteryWarnings.add(key);
+            } else if (value >= 10) {
+              lowBatteryWarnings.delete(key);
+            }
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn(`❌ Failed to poll ${device.name}:`, err);
       });
-    })
-    .catch(console.error);
-}, 1_000);
+  });
+}, 1000);
+*/
