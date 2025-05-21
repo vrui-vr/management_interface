@@ -4,12 +4,6 @@ let hasConnected = false;
 const filterState = new Set();
 const lowBatteryWarnings = new Set();
 
-// prevent audio spam
-let lastPingTime = 0;
-let pingCooldown = 1000; // 1 second cooldown in ms
-let pingAudio = new Audio("/sounds/ping.mp3");
-let isPlaying = false;
-
 function normalizeDevices(rawDevices) {
   return rawDevices.map((d, index) => ({
     name: d.name,
@@ -146,45 +140,6 @@ function changeSystem(name) {
   const device = allDevices.find((d) => d.name === name);
   if (device) {
     label.style.color = getDeviceColor(device);
-  }
-}
-
-function playPing() {
-  const now = Date.now();
-
-  if (now - lastPingTime < pingCooldown || isPlaying) return;
-
-  lastPingTime = now;
-  isPlaying = true;
-
-  console.log("attempted ping");
-
-  try {
-    pingAudio.currentTime = 0;
-    const playPromise = pingAudio.play();
-
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          // Safe: wait for audio to finish
-          pingAudio.onended = () => {
-            isPlaying = false;
-          };
-        })
-        .catch(() => {
-          // Fail-safe: reset flag if browser blocks sound
-          isPlaying = false;
-        });
-
-      // 🔒 Fail-safe release after max 2s in case onended doesn't fire
-      setTimeout(() => (isPlaying = false), 2000);
-    } else {
-      // If play returns nothing, just auto-release
-      setTimeout(() => (isPlaying = false), 2000);
-    }
-  } catch (err) {
-    console.error("Audio failed:", err);
-    isPlaying = false;
   }
 }
 
@@ -357,7 +312,6 @@ function autoUpdateConsole(device, command, message) {
 
   if (isCritical) {
     logEntry.classList.add("log-critical");
-    playPing(); // Play sound
   }
 
   const systemName = `<span class="label">${fullDevice.name}</span>`;
