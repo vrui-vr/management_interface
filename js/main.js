@@ -210,6 +210,17 @@ function send(command) {
         console.error(text);
         autoUpdateConsole(device, command, "❌ Server returned invalid JSON.");
       }
+    })
+    .catch((err) => {
+      console.error("❌ Fetch failed:", err);
+      autoUpdateConsole(device, command, "❌ Failed to send command.");
+    })
+    // Runs whether the function succeeds or fails, guaranteeing the buttons update
+    .finally(() => {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     });
 }
 
