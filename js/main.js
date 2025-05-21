@@ -4,8 +4,10 @@ let hasConnected = false;
 const filterState = new Set();
 const lowBatteryWarnings = new Set();
 
-let url, port;
+// Will be set at bottom of code
+let url;
 
+// Returns list of devices normalized and standardized with latest updates
 function normalizeDevices(rawDevices) {
   return rawDevices.map((d, index) => ({
     name: d.name,
@@ -22,10 +24,13 @@ function normalizeDevices(rawDevices) {
   }));
 } 
 
+// Gets the address of a device using the global url combined with the local data of the device
+// ex): http://192.0.0.1:8080/ServerStatus.html
 function getEndpoint(device) {
   return `http://${device.ip}:${device.port}/${url}`;
 }
 
+// Add device to list of devices
 function addDevice() {
   const defaultName = `Rig ${String.fromCharCode(65 + allDevices.length)}`;
   const nameInput = window.prompt("Enter device name:", defaultName);
@@ -79,6 +84,8 @@ function addDevice() {
   autoUpdateConsole(newDevice, "add", `✅ Added device '${newName}'`);
 }
 
+// Remove device from list of devices
+// Protects the Local Host from deletion
 function removeDevice(deviceName) {
   if (deviceName === "Local Host") {
     alert("Cannot remove 'Local Host'. It is a protected system.");
@@ -100,6 +107,7 @@ function removeDevice(deviceName) {
   );
 }
 
+// Gets color of the device theme from css
 function getDeviceColor(device, muted = false) {
   const varName = `--${device.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
   return (
@@ -109,6 +117,8 @@ function getDeviceColor(device, muted = false) {
   );
 }
 
+// Changes which device we are talking to
+// Possibly wanna rename to change device
 function changeSystem(name) {
   currentSystem = name;
   updateInterface();
@@ -122,6 +132,7 @@ function changeSystem(name) {
   }
 }
 
+// Handles dropdown for changing devices
 function updateDropdown() {
   const dropdown = document.getElementById("systemSelect");
   dropdown.innerHTML = "";
@@ -135,6 +146,8 @@ function updateDropdown() {
   });
 }
 
+// Updates button logic based on the state
+// Subject to heavy logic change as buttons change
 function updateButtonStatesFor(device) {
   const connected = device.connected;
   const headsetConnected = device.headset_connected;
@@ -158,6 +171,7 @@ function updateButtonStatesFor(device) {
   document.getElementById("btn-run").disabled = !headsetConnected;
 }
 
+// Updates the UI for the device widgets
 function updateDeviceUI(updatedDevice) {
   // 1) find the right .device-card
   const cards = document.querySelectorAll(".device-card");
@@ -210,6 +224,7 @@ function updateDeviceUI(updatedDevice) {
   }
 }
 
+// Updates console with new message
 function autoUpdateConsole(device, command, message) {
   const consoleBox = document.getElementById("consoleOutput");
 
@@ -261,6 +276,7 @@ function autoUpdateConsole(device, command, message) {
   updateInterface();
 }
 
+// Changes color of device (called rig NEED TO RENAME)
 function changeTargetColor(rigName) {
   const targetLabel = document.getElementById("targetLabel");
   const device = allDevices.find((d) => d.name === rigName);
@@ -269,6 +285,7 @@ function changeTargetColor(rigName) {
   }
 }
 
+// Renders the individual device widges
 function renderDevices(devices) {
   const container = document.getElementById("deviceContainer");
   container.innerHTML = "";
@@ -372,6 +389,7 @@ function renderDevices(devices) {
   });
 }
 
+// Creates battery bars within the device widgets
 function createBattery(device, label, percent, isConnected) {
   const row = document.createElement("div");
   row.className = "battery-row";
@@ -426,6 +444,9 @@ function createBattery(device, label, percent, isConnected) {
   return row;
 }
 
+// Sends command to the server of the active device
+// MOST WORK NEEDED HERE
+// TALK TO OLIVER ABOUT HOW TO SET THINGS UP
 function send(command) {
   const device = allDevices.find((d) => d.name === currentSystem);
   if (!device) return;
@@ -484,6 +505,7 @@ function send(command) {
     });
 }
 
+// SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS) (MAYBE RENAME FUNCTION TO BE SEND CHAT COMMEND OR SMTH)
 function sendCustomCommand() {
   const input = document.getElementById("commandInput");
   const rawCommand = input.value.trim();
@@ -558,7 +580,7 @@ function sendCustomCommand() {
   input.value = "";
 }
 
-// logs the "Nothing here yet.." message when console is empty
+// Logs the "Nothing here yet.." message when console is empty
 function logEmpty(consoleBox) {
   if (consoleBox.querySelector(".log-empty")) return;
 
@@ -571,6 +593,7 @@ function logEmpty(consoleBox) {
   consoleBox.appendChild(emptyMsg);
 }
 
+// Clears console when necesary
 function clearConsoleMessages() {
   const consoleBox = document.getElementById("consoleOutput");
   if (consoleBox) {
@@ -579,17 +602,20 @@ function clearConsoleMessages() {
   }
 }
 
+// Resets the chat filter
 function resetFilterCheckboxes(devices) {
   filterState.clear();
   devices.forEach((d) => filterState.add(d.name));
   updateFilterMenu();
 }
 
+// Add clickable boxes for the filter toggles
 document.getElementById("filterToggle").addEventListener("click", () => {
   const menu = document.getElementById("filterMenu");
   menu.style.display = menu.style.display === "block" ? "none" : "block";
 });
 
+// Updates the chat filter menu
 function updateFilterMenu() {
   const menu = document.getElementById("filterMenu");
   menu.innerHTML = "";
@@ -630,6 +656,7 @@ function updateFilterMenu() {
   });
 }
 
+// Filters chat based on filter menu
 function applyConsoleFilter() {
   const entries = document.querySelectorAll(".log-entry");
   let visibleCount = 0;
@@ -655,12 +682,13 @@ function applyConsoleFilter() {
   }
 }
 
+// Updates the states of the main buttons
 function updateButtonStates() {
   const device = allDevices.find((d) => d.name === currentSystem);
   if (device) updateButtonStatesFor(device);
 }
 
-// Helper that updates all gui
+// Helper that updates GUI of entire website
 function updateInterface() {
   updateDropdown();
   renderDevices(allDevices);
@@ -669,7 +697,11 @@ function updateInterface() {
   applyConsoleFilter();
 }
 
-// PAGE SETUP
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+// PAGE SETUP SECTION
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 // Load config.json to set variables
 fetch("data/config.json")
@@ -725,6 +757,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
+// Periodic call to get battery counts for each device, will need to be updated to fit new system
 /*
 setInterval(() => {
   allDevices.forEach((device, index) => {
