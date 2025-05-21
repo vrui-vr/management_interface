@@ -4,6 +4,21 @@ let hasConnected = false;
 const filterState = new Set();
 const lowBatteryWarnings = new Set();
 
+let url, port;
+
+//load config.json to set variables
+fetch('data/config.json')
+  .then(response => response.json())  // Parse JSON
+  .then(data => {
+    // Assign values to global variables
+    url = data.url;
+    port = data.port;
+
+    // You can now use the global variables in your code
+    console.log(url, port);
+  })
+  .catch(error => console.error('Error loading JSON:', error));
+
 function normalizeDevices(rawDevices) {
   return rawDevices.map((d, index) => ({
     name: d.name,
