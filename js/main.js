@@ -4,7 +4,7 @@ let hasConnected = false;
 const filterState = new Set();
 const lowBatteryWarnings = new Set();
 
-// Will be set at bottom of code
+// Will be set at bottom of  code
 let url;
 
 // Returns list of devices normalized and standardized with latest updates
@@ -23,6 +23,17 @@ function normalizeDevices(rawDevices) {
     colorClass: `rig-${index % 6}`,
   }));
 } 
+
+//Saves devices to local storage
+function saveDevicesToLocalStorage() {
+  const toSave = allDevices.map(d => ({
+    name: d.name,
+    model: d.headset_model,
+    ip: d.ip,
+    port: d.port
+  }));
+  localStorage.setItem("savedDevices", JSON.stringify(toSave));
+}
 
 // Gets the address of a device using the global url combined with the local data of the device
 // ex): http://192.0.0.1:8080/ServerStatus.html
@@ -82,6 +93,8 @@ function addDevice() {
   currentSystem = newName;
   updateInterface();
   autoUpdateConsole(newDevice, "add", `✅ Added device '${newName}'`);
+
+  saveDevicesToLocalStorage();
 }
 
 // Remove device from list of devices
@@ -105,6 +118,8 @@ function removeDevice(deviceName) {
     "remove",
     `🗑️ Device '${deviceName}' removed.`
   );
+
+  saveDevicesToLocalStorage();
 }
 
 // Gets color of the device theme from css
@@ -713,49 +728,69 @@ fetch("data/config.json")
 
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
-  // Set up manual console entry
-  const input = document.getElementById("commandInput");
-  if (input) {
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendCustomCommand();
-      }
-    });
-  }
+  const saved = localStorage.getItem("savedDevices");
 
-  // Initial fetch and UI setup
-  fetch("data/devices.json")
-    .then((response) => response.json())
-    .then((baseDevices) => {
-      allDevices = baseDevices.map((d, index) => ({
-        name: d.name,
-        headset_model: d.model,
-        ip: d.ip,
-        port: d.port,
-        connected: false,
-        headset: 0,
-        left: 0,
-        right: 0,
-        headset_connected: false,
-        left_connected: false,
-        right_connected: false,
-        colorClass: `rig-${index % 6}`,
-      }));
+  if (saved) {
+    const baseDevices = JSON.parse(saved);
+    allDevices = baseDevices.map((d, index) => ({
+      name: d.name,
+      headset_model: d.model,
+      ip: d.ip,
+      port: d.port,
+      connected: false,
+      headset: 0,
+      left: 0,
+      right: 0,
+      headset_connected: false,
+      left_connected: false,
+      right_connected: false,
+      colorClass: `rig-${index % 6}`,
+    }));
 
-      if (allDevices.length) {
-        currentSystem = allDevices[0].name;
-        const label = document.getElementById("targetLabel");
-        if (label) {
-          label.textContent = `Target: ${currentSystem}`;
-          changeTargetColor(currentSystem);
+    currentSystem = allDevices[0]?.name || "";
+    const label = document.getElementById("targetLabel");
+    if (label && currentSystem) {
+      label.textContent = `Target: ${currentSystem}`;
+      changeTargetColor(currentSystem);
+    }
+
+    updateInterface();
+    applyConsoleFilter();
+  } else {
+    // fallback if nothing is stored
+    fetch("data/defaultdevice.json")
+      .then((response) => response.json())
+      .then((baseDevices) => {
+        allDevices = baseDevices.map((d, index) => ({
+          name: d.name,
+          headset_model: d.model,
+          ip: d.ip,
+          port: d.port,
+          connected: false,
+          headset: 0,
+          left: 0,
+          right: 0,
+          headset_connected: false,
+          left_connected: false,
+          right_connected: false,
+          colorClass: `rig-${index % 6}`,
+        }));
+
+        if (allDevices.length) {
+          currentSystem = allDevices[0].name;
+          const label = document.getElementById("targetLabel");
+          if (label) {
+            label.textContent = `Target: ${currentSystem}`;
+            changeTargetColor(currentSystem);
+          }
         }
-      }
 
-      updateInterface();
-      applyConsoleFilter();
-    });
+        updateInterface();
+        applyConsoleFilter();
+      });
+  }
 });
+
 
 // Periodic call to get battery counts for each device, will need to be updated to fit new system
 /*

@@ -4,11 +4,5 @@
     "model": "Valve Index",
     "ip": "127.0.0.1",
     "port": "8080"
-  },
-  {
-    "name": "Rig B",
-    "model": "Meta Quest",
-    "ip": "192.168.1.42",
-    "port": "8081"
   }
 ]
