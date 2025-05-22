@@ -31,7 +31,7 @@
         />
         <h2>VRUI Interface</h2>
         <select id="systemSelect" onchange="changeSystem(this.value)"></select>
-        <button class="add-btn" onclick="addDevice()">+</button>
+        <button class="add-btn" onclick="addSystem()">+</button>
       </div>
       <div class="button-section">
         <p><strong id="targetLabel"></strong></p>
@@ -60,7 +60,7 @@
           id="btn-disconnect"
           onclick="send('disconnect')"
         >
-          Disconnect Devices
+          Disconnect System
         </button>
 
         <button
@@ -82,7 +82,7 @@
     </div>
 
     <div class="main">
-      <div class="device-section" id="deviceContainer"></div>
+      <div class="system-section" id="systemContainer"></div>
       <div class="console-section">
         <div
           class="console-title"

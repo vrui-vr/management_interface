@@ -145,14 +145,14 @@ body {
   overflow-y: auto;
 }
 
-.device-section {
+.system-section {
   display: flex;
   flex-wrap: wrap;
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.device-card {
+.system-card {
   width: 260px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -163,29 +163,29 @@ body {
   position: relative;
 }
 
-.device-card.disconnected {
+.system-card.disconnected {
   background-color: #f9f9f9;
   border-color: var(--border);
 }
 
-.device-card.disconnected .battery-label,
-.device-card.disconnected .battery-status,
-.device-card.disconnected .battery-percent {
+.system-card.disconnected .battery-label,
+.system-card.disconnected .battery-status,
+.system-card.disconnected .battery-percent {
   opacity: 0.5;
   filter: grayscale(100%);
 }
 
-.device-card.disconnected .device-name {
+.system-card.disconnected .system-name {
   color: var(--text-muted); /* or keep the rig color if preferred */
 }
 
-.device-name {
+.system-name {
   font-weight: 600;
   font-size: 1.05rem;
   margin-bottom: 0.75rem;
 }
 
-.device-name span,
+.system-name span,
 .battery-label,
 span[title^="Edit"],
 span[title*="IP"] {
@@ -193,7 +193,7 @@ span[title*="IP"] {
   transition: background-color 0.2s;
 }
 
-.device-name span:hover,
+.system-name span:hover,
 .battery-label:hover,
 span[title^="Edit"]:hover,
 span[title*="IP"]:hover {
@@ -265,45 +265,45 @@ span[title*="IP"]:hover {
   color: var(--danger);
 }
 
-.device-name.rig-0.connected {
+.system-name.rig-0.connected {
   color: var(--rig-0);
 }
-.device-name.rig-0.disconnected {
+.system-name.rig-0.disconnected {
   color: var(--rig-0-muted);
 }
 
-.device-name.rig-1.connected {
+.system-name.rig-1.connected {
   color: var(--rig-1);
 }
-.device-name.rig-1.disconnected {
+.system-name.rig-1.disconnected {
   color: var(--rig-1-muted);
 }
 
-.device-name.rig-2.connected {
+.system-name.rig-2.connected {
   color: var(--rig-2);
 }
-.device-name.rig-2.disconnected {
+.system-name.rig-2.disconnected {
   color: var(--rig-2-muted);
 }
 
-.device-name.rig-3.connected {
+.system-name.rig-3.connected {
   color: var(--rig-3);
 }
-.device-name.rig-3.disconnected {
+.system-name.rig-3.disconnected {
   color: var(--rig-3-muted);
 }
 
-.device-name.rig-4.connected {
+.system-name.rig-4.connected {
   color: var(--rig-4);
 }
-.device-name.rig-4.disconnected {
+.system-name.rig-4.disconnected {
   color: var(--rig-4-muted);
 }
 
-.device-name.rig-5.connected {
+.system-name.rig-5.connected {
   color: var(--rig-5);
 }
-.device-name.rig-5.disconnected {
+.system-name.rig-5.disconnected {
   color: var(--rig-5-muted);
 }
 

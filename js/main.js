@@ -1,4 +1,4 @@
-let allDevices = [];
+let allSystems = [];
 let currentSystem = "";
 let hasConnected = false;
 const filterState = new Set();
@@ -7,9 +7,9 @@ const lowBatteryWarnings = new Set();
 // Will be set at bottom of  code
 let url;
 
-// Returns list of devices normalized and standardized with latest updates
-function normalizeDevices(rawDevices) {
-  return rawDevices.map((d, index) => ({
+// Returns list of systems normalized and standardized with latest updates
+function normalizeSystems(rawSystems) {
+  return rawSystems.map((d, index) => ({
     name: d.name,
     connected: d.connected,
     headset: d.headset,
@@ -24,27 +24,27 @@ function normalizeDevices(rawDevices) {
   }));
 }
 
-//Saves devices to local storage
-function saveDevicesToLocalStorage() {
-  const toSave = allDevices.map((d) => ({
+//Saves systems to local storage
+function saveSystemsToLocalStorage() {
+  const toSave = allSystems.map((d) => ({
     name: d.name,
     model: d.headset_model,
     ip: d.ip,
     port: d.port,
   }));
-  localStorage.setItem("savedDevices", JSON.stringify(toSave));
+  localStorage.setItem("savedSystems", JSON.stringify(toSave));
 }
 
-// Gets the address of a device using the global url combined with the local data of the device
+// Gets the address of a system using the global url combined with the local data of the system
 // ex): http://192.0.0.1:8080/ServerStatus.html
-function getEndpoint(device) {
-  return `http://${device.ip}:${device.port}/${url}`;
+function getEndpoint(system) {
+  return `http://${system.ip}:${system.port}/${url}`;
 }
 
-// Add device to list of devices
-function addDevice() {
-  const defaultName = `Rig ${String.fromCharCode(65 + allDevices.length)}`;
-  const nameInput = window.prompt("Enter device name:", defaultName);
+// Add system to list of systems
+function addSystem() {
+  const defaultName = `Rig ${String.fromCharCode(65 + allSystems.length)}`;
+  const nameInput = window.prompt("Enter system name:", defaultName);
   const newName =
     nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
 
@@ -63,15 +63,15 @@ function addDevice() {
       : "Unknown";
 
   const ipAddress = window.prompt(
-    "Enter device IP address (e.g., 192.168.1.15):",
+    "Enter system IP address (e.g., 192.168.1.15):",
     "192.168.1.15"
   );
   const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
-  const devicePort = window.prompt("Enter device port  (e.g., 8000):", "8080");
-  const port = devicePort && devicePort.trim() !== "" ? devicePort.trim() : "";
+  const systemPort = window.prompt("Enter system port  (e.g., 8000):", "8080");
+  const port = systemPort && systemPort.trim() !== "" ? systemPort.trim() : "";
 
-  const newDevice = {
+  const newSystem = {
     name: newName,
     headset_model: model,
     ip,
@@ -83,45 +83,45 @@ function addDevice() {
     headset_connected: false,
     left_connected: false,
     right_connected: false,
-    colorClass: `rig-${allDevices.length % 6}`,
+    colorClass: `rig-${allSystems.length % 6}`,
   };
 
-  allDevices.push(newDevice);
+  allSystems.push(newSystem);
   currentSystem = newName;
   updateInterface();
-  autoUpdateConsole(newDevice, "add", `✅ Added device '${newName}'`);
+  autoUpdateConsole(newSystem, "add", `✅ Added system '${newName}'`);
 
-  saveDevicesToLocalStorage();
+  saveSystemsToLocalStorage();
 }
 
-// Remove device from list of devices
+// Remove system from list of systems
 // Protects the Local Host from deletion
-function removeDevice(deviceName) {
-  if (deviceName === "Local Host") {
+function removeSystem(systemName) {
+  if (systemName === "Local Host") {
     alert("Cannot remove 'Local Host'. It is a protected system.");
     return;
   }
 
-  const confirmed = confirm(`Are you sure you want to remove "${deviceName}"?`);
+  const confirmed = confirm(`Are you sure you want to remove "${systemName}"?`);
   if (!confirmed) return;
 
-  allDevices = allDevices.filter((d) => d.name !== deviceName);
-  if (currentSystem === deviceName) {
+  allSystems = allSystems.filter((d) => d.name !== systemName);
+  if (currentSystem === systemName) {
     currentSystem = "Local Host";
   }
   updateInterface();
   autoUpdateConsole(
-    { name: deviceName },
+    { name: systemName },
     "remove",
-    `🗑️ Device '${deviceName}' removed.`
+    `🗑️ System '${systemName}' removed.`
   );
 
-  saveDevicesToLocalStorage();
+  saveSystemsToLocalStorage();
 }
 
-// Gets color of the device theme from css
-function getDeviceColor(device, muted = false) {
-  const varName = `--${device.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
+// Gets color of the system theme from css
+function getSystemColor(system, muted = false) {
+  const varName = `--${system.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
   return (
     getComputedStyle(document.documentElement)
       .getPropertyValue(varName)
@@ -129,8 +129,8 @@ function getDeviceColor(device, muted = false) {
   );
 }
 
-// Changes which device we are talking to
-// Possibly wanna rename to change device
+// Changes which system we are talking to
+// Possibly wanna rename to change system
 function changeSystem(name) {
   currentSystem = name;
   updateInterface();
@@ -138,33 +138,33 @@ function changeSystem(name) {
   const label = document.getElementById("targetLabel");
   label.textContent = `Target: ${name}`;
 
-  const device = allDevices.find((d) => d.name === name);
-  if (device) {
-    label.style.color = getDeviceColor(device);
+  const system = allSystems.find((d) => d.name === name);
+  if (system) {
+    label.style.color = getSystemColor(system);
   }
 }
 
-// Handles dropdown for changing devices
+// Handles dropdown for changing systems
 function updateDropdown() {
   const dropdown = document.getElementById("systemSelect");
   dropdown.innerHTML = "";
-  allDevices.forEach((device) => {
+  allSystems.forEach((system) => {
     const option = document.createElement("option");
-    option.value = device.name;
-    option.textContent = device.name;
-    if (!device.connected) option.className = "offline";
-    if (device.name === currentSystem) option.selected = true;
+    option.value = system.name;
+    option.textContent = system.name;
+    if (!system.connected) option.className = "offline";
+    if (system.name === currentSystem) option.selected = true;
     dropdown.appendChild(option);
   });
 }
 
 // Updates button logic based on the state
 // Subject to heavy logic change as buttons change
-function updateButtonStatesFor(device) {
-  const connected = device.connected;
-  const headsetConnected = device.headset_connected;
-  const leftConnected = device.left_connected;
-  const rightConnected = device.right_connected;
+function updateButtonStatesFor(system) {
+  const connected = system.connected;
+  const headsetConnected = system.headset_connected;
+  const leftConnected = system.left_connected;
+  const rightConnected = system.right_connected;
   const anyControllersConnected = leftConnected || rightConnected;
   const allControllersConnected = leftConnected && rightConnected;
 
@@ -183,20 +183,20 @@ function updateButtonStatesFor(device) {
   document.getElementById("btn-run").disabled = !headsetConnected;
 }
 
-// Updates the UI for the device widgets
-function updateDeviceUI(updatedDevice) {
-  // 1) find the right .device-card
-  const cards = document.querySelectorAll(".device-card");
-  let deviceCard = null;
+// Updates the UI for the system widgets
+function updateSystemUI(updatedSystem) {
+  // 1) find the right .system-card
+  const cards = document.querySelectorAll(".system-card");
+  let systemCard = null;
   cards.forEach((c) => {
-    if (c.querySelector(".device-name .label-text")?.textContent === updatedDevice.name) {
-      deviceCard = c;
+    if (c.querySelector(".system-name .label-text")?.textContent === updatedSystem.name) {
+      systemCard = c;
     }
   });
-  if (!deviceCard) return;
+  if (!systemCard) return;
 
   // 2) grab its battery rows
-  const batteryRows = deviceCard.querySelectorAll(".battery-row");
+  const batteryRows = systemCard.querySelectorAll(".battery-row");
 
   // 3) update battery percentages
   // Headset
@@ -204,40 +204,40 @@ function updateDeviceUI(updatedDevice) {
 
   const hs = batteryRows[0].querySelector(".battery-percent");
   if (hs) {
-    hs.textContent = `${updatedDevice.headset}%`;
-    hs.classList.toggle("zero", updatedDevice.headset === 0);
+    hs.textContent = `${updatedSystem.headset}%`;
+    hs.classList.toggle("zero", updatedSystem.headset === 0);
   }
 
   const lf = batteryRows[1]?.querySelector(".battery-percent");
   if (lf) {
-    lf.textContent = `${updatedDevice.left}%`;
-    lf.classList.toggle("zero", updatedDevice.left === 0);
+    lf.textContent = `${updatedSystem.left}%`;
+    lf.classList.toggle("zero", updatedSystem.left === 0);
   }
 
   const rt = batteryRows[2]?.querySelector(".battery-percent");
   if (rt) {
-    rt.textContent = `${updatedDevice.right}%`;
-    rt.classList.toggle("zero", updatedDevice.right === 0);
+    rt.textContent = `${updatedSystem.right}%`;
+    rt.classList.toggle("zero", updatedSystem.right === 0);
   }
 
   // 4) update connected/disconnected styling
-  if (updatedDevice.connected) {
-    deviceCard.classList.remove("disconnected");
+  if (updatedSystem.connected) {
+    systemCard.classList.remove("disconnected");
   } else {
-    deviceCard.classList.add("disconnected");
+    systemCard.classList.add("disconnected");
   }
 
   // 5) and update the target label color
-  changeTargetColor(updatedDevice.name);
+  changeTargetColor(updatedSystem.name);
 
-  // 6) Update button availability based on current device state
-  if (updatedDevice.name === currentSystem) {
-    updateButtonStatesFor(updatedDevice);
+  // 6) Update button availability based on current system state
+  if (updatedSystem.name === currentSystem) {
+    updateButtonStatesFor(updatedSystem);
   }
 }
 
 // Updates console with new message
-function autoUpdateConsole(device, command, message) {
+function autoUpdateConsole(system, command, message) {
   const consoleBox = document.getElementById("consoleOutput");
 
   // OLD VERSION (worked fine but chatGPT insists new version is better)
@@ -249,12 +249,12 @@ function autoUpdateConsole(device, command, message) {
 
   const logEntry = document.createElement("div");
 
-  // Use latest device info to get colorClass
-  const fullDevice = allDevices.find((d) => d.name === device.name) || device;
-  const colorClass = fullDevice.colorClass;
+  // Use latest system info to get colorClass
+  const fullSystem = allSystems.find((d) => d.name === system.name) || system;
+  const colorClass = fullSystem.colorClass;
   logEntry.className = `log-entry ${colorClass}`;
 
-  const isOffline = !fullDevice.connected;
+  const isOffline = !fullSystem.connected;
   const isError = /error|failed|not connected|cannot/i.test(message);
   const isCritical = /battery low|crash|critical/i.test(message);
 
@@ -266,7 +266,7 @@ function autoUpdateConsole(device, command, message) {
     logEntry.classList.add("log-critical");
   }
 
-  const systemName = `<span class="label">${fullDevice.name}</span>`;
+  const systemName = `<span class="label">${fullSystem.name}</span>`;
   const offlineNote = isOffline
     ? ` <span class="offline">(offline)</span>`
     : "";
@@ -275,7 +275,7 @@ function autoUpdateConsole(device, command, message) {
 
   const labelEl = logEntry.querySelector(".label");
   if (labelEl) {
-    labelEl.style.color = getDeviceColor(fullDevice);
+    labelEl.style.color = getSystemColor(fullSystem);
   }
 
   consoleBox.appendChild(logEntry);
@@ -291,33 +291,33 @@ function autoUpdateConsole(device, command, message) {
   updateInterface();
 }
 
-// Changes color of device
-function changeTargetColor(deviceName) {
+// Changes color of system
+function changeTargetColor(systemName) {
   const targetLabel = document.getElementById("targetLabel");
-  const device = allDevices.find((d) => d.name === deviceName);
-  if (device) {
-    targetLabel.style.color = getDeviceColor(device);
+  const system = allSystems.find((d) => d.name === systemName);
+  if (system) {
+    targetLabel.style.color = getSystemColor(system);
   }
 }
 
-// Renders the individual device widgets
-function renderDevices(devices) {
-  const container = document.getElementById("deviceContainer");
+// Renders the individual system widgets
+function renderSystems(systems) {
+  const container = document.getElementById("systemContainer");
   container.innerHTML = "";
 
-  devices.forEach((device) => {
+  systems.forEach((system) => {
     const card = document.createElement("div");
-    card.className = "device-card";
+    card.className = "system-card";
 
-    if (!device.connected) card.classList.add("disconnected");
+    if (!system.connected) card.classList.add("disconnected");
 
-    if (device.name === currentSystem) {
-      const borderColor = getDeviceColor(device);
+    if (system.name === currentSystem) {
+      const borderColor = getSystemColor(system);
       card.style.border = `2px solid ${borderColor}`;
       card.style.boxShadow = `0 0 6px ${borderColor}`;
     }
 
-    card.onclick = () => changeSystem(device.name);
+    card.onclick = () => changeSystem(system.name);
 
     // Header: name + remove button
     const header = document.createElement("div");
@@ -326,31 +326,31 @@ function renderDevices(devices) {
     header.style.alignItems = "center";
 
     const name = document.createElement("div");
-    const statusClass = device.connected ? "connected" : "disconnected";
-    name.className = `device-name ${statusClass}`;
-    name.style.color = getDeviceColor(device);
+    const statusClass = system.connected ? "connected" : "disconnected";
+    name.className = `system-name ${statusClass}`;
+    name.style.color = getSystemColor(system);
     name.style.display = "flex";
     name.style.flexDirection = "column"; // ✅ stack name + ip
     name.style.alignItems = "flex-start";
     name.style.gap = "0.1rem"; // small vertical gap
 
     const labelSpan = document.createElement("span");
-    labelSpan.textContent = device.name;
+    labelSpan.textContent = system.name;
 
-    if (device.name !== "Local Host" && device.name === currentSystem) {
+    if (system.name !== "Local Host" && system.name === currentSystem) {
       labelSpan.style.cursor = "pointer";
       labelSpan.title = "Edit name";
       labelSpan.onclick = (e) => {
         e.stopPropagation();
-        showEditMenu(e, device, "name");
+        showEditMenu(e, system, "name");
       };
     } else {
       labelSpan.style.cursor = "default";
-      labelSpan.title = "Select this device to edit";
+      labelSpan.title = "Select this system to edit";
     }
 
     const offlineSpan = document.createElement("span");
-    if (!device.connected) {
+    if (!system.connected) {
       offlineSpan.textContent = " (offline)";
       offlineSpan.className = "offline";
       labelSpan.appendChild(offlineSpan);
@@ -364,21 +364,21 @@ function renderDevices(devices) {
     ipSpan.style.marginTop = "-2px";
 
     // Create and prepend the dot
-    ipSpan.textContent = `${device.ip}:${device.port}`;
-    if (device.name === currentSystem) {
+    ipSpan.textContent = `${system.ip}:${system.port}`;
+    if (system.name === currentSystem) {
       ipSpan.style.cursor = "pointer";
       ipSpan.title = "Edit IP/Port";
       ipSpan.onclick = (e) => {
         e.stopPropagation();
-        showEditMenu(e, device, "ipport");
+        showEditMenu(e, system, "ipport");
       };
     } else {
       ipSpan.style.cursor = "default";
-      ipSpan.title = "Select this device to edit";
+      ipSpan.title = "Select this system to edit";
     }
 
-    // Disable editing for non-selected devices
-    if (device.name !== currentSystem) {
+    // Disable editing for non-selected systems
+    if (system.name !== currentSystem) {
       labelSpan.classList.add("inactive-field");
       ipSpan.classList.add("inactive-field");
     }
@@ -388,14 +388,14 @@ function renderDevices(devices) {
 
     header.appendChild(name);
 
-    if (device.name !== "Local Host") {
+    if (system.name !== "Local Host") {
       const removeBtn = document.createElement("button");
       removeBtn.className = "remove-btn";
-      removeBtn.title = "Remove device";
+      removeBtn.title = "Remove system";
       removeBtn.textContent = "x";
       removeBtn.onclick = (e) => {
         e.stopPropagation();
-        removeDevice(device.name);
+        removeSystem(system.name);
       };
       header.appendChild(removeBtn);
     }
@@ -407,26 +407,26 @@ function renderDevices(devices) {
 
     batteryColumn.appendChild(
       createBattery(
-        device,
-        `Headset (${device.headset_model})`,
-        device.headset,
-        device.headset_connected
+        system,
+        `Headset (${system.headset_model})`,
+        system.headset,
+        system.headset_connected
       )
     );
     batteryColumn.appendChild(
       createBattery(
-        device,
+        system,
         "Left Controller",
-        device.left,
-        device.left_connected
+        system.left,
+        system.left_connected
       )
     );
     batteryColumn.appendChild(
       createBattery(
-        device,
+        system,
         "Right Controller",
-        device.right,
-        device.right_connected
+        system.right,
+        system.right_connected
       )
     );
 
@@ -435,15 +435,15 @@ function renderDevices(devices) {
   });
 }
 
-// Creates battery bars within the device widgets
-function createBattery(device, label, percent, isConnected) {
+// Creates battery bars within the system widgets
+function createBattery(system, label, percent, isConnected) {
   const row = document.createElement("div");
   row.className = "battery-row";
 
   const labelSpan = document.createElement("span");
   labelSpan.className = "battery-label";
   labelSpan.textContent = label;
-  if (device.name === currentSystem) {
+  if (system.name === currentSystem) {
     labelSpan.style.cursor = "pointer";
     labelSpan.title = `Edit ${label}`;
     labelSpan.onclick = (e) => {
@@ -453,11 +453,11 @@ function createBattery(device, label, percent, isConnected) {
       if (l.includes("headset")) field = "headset_model";
       else if (l.includes("left")) field = "left";
       else if (l.includes("right")) field = "right";
-      showEditMenu(e, device, field);
+      showEditMenu(e, system, field);
     };
   } else {
     labelSpan.style.cursor = "default";
-    labelSpan.title = "Select this device to edit";
+    labelSpan.title = "Select this system to edit";
     labelSpan.classList.add("inactive-field");
   }
 
@@ -484,11 +484,11 @@ function createBattery(device, label, percent, isConnected) {
     const fill = document.createElement("div");
     fill.className = "battery-fill";
 
-    // 🔁 Always resolve device fresh from allDevices
-    const fullDevice = allDevices.find((d) => d.name === device.name) || device;
+    // 🔁 Always resolve system fresh from allSystems
+    const fullSystem = allSystems.find((d) => d.name === system.name) || system;
 
     fill.style.width = `${percent}%`;
-    fill.style.backgroundColor = getDeviceColor(fullDevice);
+    fill.style.backgroundColor = getSystemColor(fullSystem);
 
     const pct = document.createElement("span");
     pct.className = "battery-percent";
@@ -514,15 +514,15 @@ function makeMenuVisible(menu) {
   menu.classList.add("visible");
 }
 
-// Lets user edit device info
-function showEditMenu(e, device, field) {
+// Lets user edit system info
+function showEditMenu(e, system, field) {
   e.stopPropagation();
 
   const menu = document.getElementById("actionMenu");
   menu.innerHTML = "";
 
   // Prevent editing Local Host name or IP (but allow port)
-  if (device.name === "Local Host") {
+  if (system.name === "Local Host") {
     if (
       field === "name" ||
       (field === "ipport" && e.target.textContent.includes("Change IP"))
@@ -546,7 +546,7 @@ function showEditMenu(e, device, field) {
 
   available.forEach((action) => {
     // Skip "Change IP" if this is the Local Host
-    if (device.name === "Local Host") {
+    if (system.name === "Local Host") {
       if (
         field === "name" ||
         (field === "ipport" && e.target.textContent.includes("Change IP"))
@@ -569,22 +569,22 @@ function showEditMenu(e, device, field) {
 
       switch (action) {
         case "Rename":
-          renameDevice(device);
+          renameSystem(system);
           break;
         case "Change IP":
-          changeIP(device);
+          changeIP(system);
           break;
         case "Change Port":
-          changePort(device);
+          changePort(system);
           break;
         case "Rename Headset":
-          renameHeadset(device);
+          renameHeadset(system);
           break;
         case "Ping":
-          sendCustomCommandTo(device.name, `ping_${field}`);
+          sendCustomCommandTo(system.name, `ping_${field}`);
           break;
         case "Disconnect":
-          sendCustomCommandTo(device.name, `disconnect_${field}`);
+          sendCustomCommandTo(system.name, `disconnect_${field}`);
           break;
       }
     };
@@ -598,39 +598,39 @@ function showEditMenu(e, device, field) {
   menu.style.left = `${rect.left + window.scrollX}px`;
 }
 
-// Functions to change info about a device
-function renameDevice(device) {
-  const newName = window.prompt("New name:", device.name);
+// Functions to change info about a system
+function renameSystem(system) {
+  const newName = window.prompt("New name:", system.name);
   if (newName && newName.trim()) {
-    device.name = newName.trim();
-    saveDevicesToLocalStorage();
+    system.name = newName.trim();
+    saveSystemsToLocalStorage();
     updateInterface();
   }
 }
 
-function changeIP(device) {
-  const newIP = window.prompt("New IP address:", device.ip);
+function changeIP(system) {
+  const newIP = window.prompt("New IP address:", system.ip);
   if (newIP && newIP.trim()) {
-    device.ip = newIP.trim();
-    saveDevicesToLocalStorage();
+    system.ip = newIP.trim();
+    saveSystemsToLocalStorage();
     updateInterface();
   }
 }
 
-function changePort(device) {
-  const newPort = window.prompt("New port:", device.port);
+function changePort(system) {
+  const newPort = window.prompt("New port:", system.port);
   if (newPort && newPort.trim()) {
-    device.port = newPort.trim();
-    saveDevicesToLocalStorage();
+    system.port = newPort.trim();
+    saveSystemsToLocalStorage();
     updateInterface();
   }
 }
 
-function renameHeadset(device) {
-  const newModel = window.prompt("New headset model:", device.headset_model);
+function renameHeadset(system) {
+  const newModel = window.prompt("New headset model:", system.headset_model);
   if (newModel && newModel.trim()) {
-    device.headset_model = newModel.trim();
-    saveDevicesToLocalStorage();
+    system.headset_model = newModel.trim();
+    saveSystemsToLocalStorage();
     updateInterface();
   }
 }
@@ -647,12 +647,12 @@ function sendCustomCommandTo(target, command) {
     });
 }
 
-// Sends command to the server of the active device
+// Sends command to the server of the active system
 // MOST WORK NEEDED HERE
 // TALK TO OLIVER ABOUT HOW TO SET THINGS UP
 function send(command) {
-  const device = allDevices.find((d) => d.name === currentSystem);
-  if (!device) return;
+  const system = allSystems.find((d) => d.name === currentSystem);
+  if (!system) return;
 
   const buttonMap = {
     vrtracker_on: "btn-vrtracker",
@@ -673,23 +673,23 @@ function send(command) {
     button.textContent = "Loading...";
   }
 
-  fetch(getEndpoint(device), {
+  fetch(getEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command }),
   })
     .then((r) => r.json())
     .then((data) => {
-      if (data.status === "success" && data.deviceState) {
-        const i = allDevices.findIndex((d) => d.name === device.name);
+      if (data.status === "success" && data.systemState) {
+        const i = allSystems.findIndex((d) => d.name === system.name);
         if (i !== -1) {
-          allDevices[i] = { ...allDevices[i], ...data.deviceState };
-          updateDeviceUI(allDevices[i]);
-          autoUpdateConsole(device, command, data.message);
+          allSystems[i] = { ...allSystems[i], ...data.systemState };
+          updateSystemUI(allSystems[i]);
+          autoUpdateConsole(system, command, data.message);
         }
       } else {
         autoUpdateConsole(
-          device,
+          system,
           command,
           data.message || "⚠️ Unexpected response"
         );
@@ -697,7 +697,7 @@ function send(command) {
     })
     .catch((err) => {
       console.error("Send failed:", err);
-      autoUpdateConsole(device, command, "❌ Failed to send command");
+      autoUpdateConsole(system, command, "❌ Failed to send command");
     })
     // Runs whether the function succeeds or fails, guaranteeing the buttons update
     .finally(() => {
@@ -723,7 +723,7 @@ function sendCustomCommand() {
   })
     .then((r) => r.json())
     .then((data) => {
-      const targetDevice = allDevices.find((d) => d.name === currentSystem) || {
+      const targetSystem = allSystems.find((d) => d.name === currentSystem) || {
         name: currentSystem,
         connected: true,
         headset: 0,
@@ -733,20 +733,20 @@ function sendCustomCommand() {
       };
 
       // If reset, refresh everything
-      if (Array.isArray(data.devices)) {
-        allDevices = normalizeDevices(data.devices);
+      if (Array.isArray(data.systems)) {
+        allSystems = normalizeSystems(data.systems);
 
-        if (allDevices.length > 0) {
-          allDevices[0].name = "Local Host";
+        if (allSystems.length > 0) {
+          allSystems[0].name = "Local Host";
           currentSystem = "Local Host";
 
           const label = document.getElementById("targetLabel");
-          const currentDevice = allDevices.find(
+          const currentSystem = allSystems.find(
             (d) => d.name === currentSystem
           );
-          if (label && currentDevice) {
+          if (label && currentSystem) {
             label.textContent = `Target: ${currentSystem}`;
-            label.style.color = getDeviceColor(currentDevice);
+            label.style.color = getSystemColor(currentSystem);
           }
         }
 
@@ -754,24 +754,24 @@ function sendCustomCommand() {
 
         if (isReset) {
           clearConsoleMessages();
-          resetFilterCheckboxes(allDevices);
+          resetFilterCheckboxes(allSystems);
           return;
         }
       }
 
-      // Update device if backend gave updated state
-      if (data.deviceState) {
-        const i = allDevices.findIndex((d) => d.name === device.name);
-        if (i !== -1 && data.deviceState) {
-          allDevices[i] = { ...allDevices[i], ...data.deviceState };
-          updateDeviceUI(allDevices[i]);
+      // Update system if backend gave updated state
+      if (data.systemState) {
+        const i = allSystems.findIndex((d) => d.name === system.name);
+        if (i !== -1 && data.systemState) {
+          allSystems[i] = { ...allSystems[i], ...data.systemState };
+          updateSystemUI(allSystems[i]);
         }
-        updateDeviceUI(targetDevice);
+        updateSystemUI(targetSystem);
       }
 
       // Log the response
       autoUpdateConsole(
-        targetDevice,
+        targetSystem,
         rawCommand,
         data.message || "No response"
       );
@@ -806,9 +806,9 @@ function clearConsoleMessages() {
 }
 
 // Resets the chat filter
-function resetFilterCheckboxes(devices) {
+function resetFilterCheckboxes(systems) {
   filterState.clear();
-  devices.forEach((d) => filterState.add(d.name));
+  systems.forEach((d) => filterState.add(d.name));
   updateFilterMenu();
 }
 
@@ -818,7 +818,7 @@ document.getElementById("filterToggle").addEventListener("click", () => {
   menu.style.display = menu.style.display === "block" ? "none" : "block";
 });
 
-// Ad click event for the edit device popups
+// Ad click event for the edit system popups
 document.addEventListener("click", () => {
   const menu = document.getElementById("actionMenu");
   if (menu.classList.contains("visible")) {
@@ -834,32 +834,32 @@ function updateFilterMenu() {
   const menu = document.getElementById("filterMenu");
   menu.innerHTML = "";
 
-  allDevices.forEach((device) => {
+  allSystems.forEach((system) => {
     const label = document.createElement("label");
-    label.className = `filter-option ${device.colorClass} ${
-      device.connected ? "connected" : "disconnected"
+    label.className = `filter-option ${system.colorClass} ${
+      system.connected ? "connected" : "disconnected"
     }`;
 
     const labelText = document.createElement("span");
     labelText.className = "label-text";
-    labelText.textContent = device.name;
+    labelText.textContent = system.name;
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.value = device.name;
+    checkbox.value = system.name;
 
-    // ✅ If device not in filter, add it (default ON)
-    if (!filterState.has(device.name)) {
-      filterState.add(device.name);
+    // ✅ If system not in filter, add it (default ON)
+    if (!filterState.has(system.name)) {
+      filterState.add(system.name);
     }
 
-    checkbox.checked = filterState.has(device.name);
+    checkbox.checked = filterState.has(system.name);
 
     checkbox.onchange = () => {
       if (checkbox.checked) {
-        filterState.add(device.name);
+        filterState.add(system.name);
       } else {
-        filterState.delete(device.name);
+        filterState.delete(system.name);
       }
       applyConsoleFilter();
     };
@@ -898,14 +898,14 @@ function applyConsoleFilter() {
 
 // Updates the states of the main buttons
 function updateButtonStates() {
-  const device = allDevices.find((d) => d.name === currentSystem);
-  if (device) updateButtonStatesFor(device);
+  const system = allSystems.find((d) => d.name === currentSystem);
+  if (system) updateButtonStatesFor(system);
 }
 
 // Helper that updates GUI of entire website
 function updateInterface() {
   updateDropdown();
-  renderDevices(allDevices);
+  renderSystems(allSystems);
   updateButtonStates();
   updateFilterMenu();
   applyConsoleFilter();
@@ -927,11 +927,11 @@ fetch("data/config.json")
 
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
-  const saved = localStorage.getItem("savedDevices");
+  const saved = localStorage.getItem("savedSystems");
 
   if (saved) {
-    const baseDevices = JSON.parse(saved);
-    allDevices = baseDevices.map((d, index) => ({
+    const baseSystems = JSON.parse(saved);
+    allSystems = baseSystems.map((d, index) => ({
       name: d.name,
       headset_model: d.model,
       ip: d.ip,
@@ -946,7 +946,7 @@ document.addEventListener("DOMContentLoaded", () => {
       colorClass: `rig-${index % 6}`,
     }));
 
-    currentSystem = allDevices[0]?.name || "";
+    currentSystem = allSystems[0]?.name || "";
     const label = document.getElementById("targetLabel");
     if (label && currentSystem) {
       label.textContent = `Target: ${currentSystem}`;
@@ -957,10 +957,10 @@ document.addEventListener("DOMContentLoaded", () => {
     applyConsoleFilter();
   } else {
     // fallback if nothing is stored
-    fetch("data/defaultdevice.json")
+    fetch("data/defaultsystem.json")
       .then((response) => response.json())
-      .then((baseDevices) => {
-        allDevices = baseDevices.map((d, index) => ({
+      .then((baseSystems) => {
+        allSystems = baseSystems.map((d, index) => ({
           name: d.name,
           headset_model: d.model,
           ip: d.ip,
@@ -975,8 +975,8 @@ document.addEventListener("DOMContentLoaded", () => {
           colorClass: `rig-${index % 6}`,
         }));
 
-        if (allDevices.length) {
-          currentSystem = allDevices[0].name;
+        if (allSystems.length) {
+          currentSystem = allSystems[0].name;
           const label = document.getElementById("targetLabel");
           if (label) {
             label.textContent = `Target: ${currentSystem}`;
@@ -990,27 +990,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Periodic call to get battery counts for each device, will need to be updated to fit new system
+// Periodic call to get battery counts for each system, will need to be updated to fit new system
 /*
 setInterval(() => {
-  allDevices.forEach((device, index) => {
-    fetch(getEndpoint(device))
+  allSystems.forEach((system, index) => {
+    fetch(getEndpoint(system))
       .then((r) => r.json())
       .then((updated) => {
-        // apply updates to this device
-        const i = allDevices.findIndex((d) => d.name === device.name);
+        // apply updates to this system
+        const i = allSystems.findIndex((d) => d.name === system.name);
         if (i !== -1) {
-          allDevices[i] = { ...allDevices[i], ...updated };
-          updateDeviceUI(allDevices[i]);
+          allSystems[i] = { ...allSystems[i], ...updated };
+          updateSystemUI(allSystems[i]);
 
           [
             { type: "headset", value: updated.headset, connected: updated.headset_connected },
             { type: "left controller", value: updated.left, connected: updated.left_connected },
             { type: "right controller", value: updated.right, connected: updated.right_connected },
           ].forEach(({ type, value, connected }) => {
-            const key = `${device.name}_${type}`;
+            const key = `${system.name}_${type}`;
             if (connected && value < 10 && !lowBatteryWarnings.has(key)) {
-              autoUpdateConsole(device, "battery", `${type} battery low: ${value}%`);
+              autoUpdateConsole(system, "battery", `${type} battery low: ${value}%`);
               lowBatteryWarnings.add(key);
             } else if (value >= 10) {
               lowBatteryWarnings.delete(key);
@@ -1019,7 +1019,7 @@ setInterval(() => {
         }
       })
       .catch((err) => {
-        console.warn(`❌ Failed to poll ${device.name}:`, err);
+        console.warn(`❌ Failed to poll ${system.name}:`, err);
       });
   });
 }, 1000);
