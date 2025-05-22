@@ -189,7 +189,7 @@ function updateDeviceUI(updatedDevice) {
   const cards = document.querySelectorAll(".device-card");
   let deviceCard = null;
   cards.forEach((c) => {
-    if (c.querySelector(".device-name").textContent === updatedDevice.name) {
+    if (c.querySelector(".device-name .label-text")?.textContent === updatedDevice.name) {
       deviceCard = c;
     }
   });
@@ -200,7 +200,7 @@ function updateDeviceUI(updatedDevice) {
 
   // 3) update battery percentages
   // Headset
-  if (!batteryRows.length) return;
+  if (!batteryRows[0]) return;
 
   const hs = batteryRows[0].querySelector(".battery-percent");
   if (hs) {
@@ -240,9 +240,12 @@ function updateDeviceUI(updatedDevice) {
 function autoUpdateConsole(device, command, message) {
   const consoleBox = document.getElementById("consoleOutput");
 
-  const isAtBottom =
-    consoleBox.scrollHeight - consoleBox.clientHeight <=
-    consoleBox.scrollTop + 1;
+  // OLD VERSION (worked fine but chatGPT insists new version is better)
+  // const isAtBottom =
+  //   consoleBox.scrollHeight - consoleBox.clientHeight <=
+  //   consoleBox.scrollTop + 1;
+
+  const isAtBottom = Math.abs(consoleBox.scrollHeight - consoleBox.scrollTop - consoleBox.clientHeight) < 5;
 
   const logEntry = document.createElement("div");
 
@@ -504,6 +507,13 @@ function createBattery(device, label, percent, isConnected) {
   return row;
 }
 
+// Helper function to make the action menu visible
+function makeMenuVisible(menu) {
+  menu.classList.remove("hidden");
+  void menu.offsetWidth;
+  menu.classList.add("visible");
+}
+
 // Lets user edit device info
 function showEditMenu(e, device, field) {
   e.stopPropagation();
@@ -522,10 +532,7 @@ function showEditMenu(e, device, field) {
   }
 
   // Reset for re-render
-  menu.classList.remove("visible");
-  void menu.offsetWidth; // Force reflow for animation
-  menu.classList.remove("hidden");
-  menu.classList.add("visible");
+  makeMenuVisible(menu)
 
   const actions = {
     name: ["Rename"],
