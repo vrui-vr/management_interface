@@ -22,15 +22,15 @@ function normalizeDevices(rawDevices) {
     ip: d.ip || "N/A", // new line
     colorClass: `rig-${index % 6}`,
   }));
-} 
+}
 
 //Saves devices to local storage
 function saveDevicesToLocalStorage() {
-  const toSave = allDevices.map(d => ({
+  const toSave = allDevices.map((d) => ({
     name: d.name,
     model: d.headset_model,
     ip: d.ip,
-    port: d.port
+    port: d.port,
   }));
   localStorage.setItem("savedDevices", JSON.stringify(toSave));
 }
@@ -68,10 +68,7 @@ function addDevice() {
   );
   const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
-  const devicePort = window.prompt(
-    "Enter device port  (e.g., 8000):",
-    "8080"
-  );
+  const devicePort = window.prompt("Enter device port  (e.g., 8000):", "8080");
   const port = devicePort && devicePort.trim() !== "" ? devicePort.trim() : "";
 
   const newDevice = {
@@ -291,10 +288,10 @@ function autoUpdateConsole(device, command, message) {
   updateInterface();
 }
 
-// Changes color of device (called rig NEED TO RENAME)
-function changeTargetColor(rigName) {
+// Changes color of device
+function changeTargetColor(deviceName) {
   const targetLabel = document.getElementById("targetLabel");
-  const device = allDevices.find((d) => d.name === rigName);
+  const device = allDevices.find((d) => d.name === deviceName);
   if (device) {
     targetLabel.style.color = getDeviceColor(device);
   }
@@ -337,6 +334,15 @@ function renderDevices(devices) {
     const labelSpan = document.createElement("span");
     labelSpan.textContent = device.name;
 
+    if (device.name !== "Local Host") {
+      labelSpan.style.cursor = "pointer";
+      labelSpan.title = "Edit name";
+      labelSpan.onclick = (e) => {
+        e.stopPropagation();
+        showEditMenu(e, device, "name");
+      };
+    }
+
     const offlineSpan = document.createElement("span");
     if (!device.connected) {
       offlineSpan.textContent = " (offline)";
@@ -346,15 +352,23 @@ function renderDevices(devices) {
 
     // IP address below the name (contains port now)
     const ipSpan = document.createElement("span");
-    ipSpan.textContent = `${device.ip}:${device.port}` || "";
     ipSpan.style.fontSize = "0.6rem";
     ipSpan.style.color = "gray";
     ipSpan.style.opacity = "0.7";
     ipSpan.style.marginTop = "-2px";
 
+    // Create and prepend the dot
+    ipSpan.textContent = `${device.ip}:${device.port}`;
+    ipSpan.style.cursor = "pointer";
+    ipSpan.title = "Edit IP/Port";
+    ipSpan.onclick = (e) => {
+      e.stopPropagation();
+      showEditMenu(e, device, "ipport");
+    };
+
     name.appendChild(labelSpan);
     name.appendChild(ipSpan);
-    
+
     header.appendChild(name);
 
     if (device.name !== "Local Host") {
@@ -412,6 +426,18 @@ function createBattery(device, label, percent, isConnected) {
   const labelSpan = document.createElement("span");
   labelSpan.className = "battery-label";
   labelSpan.textContent = label;
+  labelSpan.style.cursor = "pointer";
+  labelSpan.title = `Edit ${label}`;
+  labelSpan.onclick = (e) => {
+    e.stopPropagation();
+    let field;
+    const l = label.toLowerCase();
+    if (l.includes("headset")) field = "headset_model";
+    else if (l.includes("left")) field = "left";
+    else if (l.includes("right")) field = "right";
+
+    showEditMenu(e, device, field);
+  };
 
   const statusSpan = document.createElement("span");
   statusSpan.className = "battery-status";
@@ -457,6 +483,142 @@ function createBattery(device, label, percent, isConnected) {
   }
 
   return row;
+}
+
+// Lets user edit device info
+function showEditMenu(e, device, field) {
+  e.stopPropagation();
+
+  const menu = document.getElementById("actionMenu");
+  menu.innerHTML = "";
+
+  // Prevent editing Local Host name or IP (but allow port)
+  if (device.name === "Local Host") {
+    if (
+      field === "name" ||
+      (field === "ipport" && e.target.textContent.includes("Change IP"))
+    ) {
+      return;
+    }
+  }
+
+  // Reset for re-render
+  menu.classList.remove("visible");
+  void menu.offsetWidth; // Force reflow for animation
+  menu.classList.remove("hidden");
+  menu.classList.add("visible");
+
+  const actions = {
+    name: ["Rename"],
+    ipport: ["Change IP", "Change Port"],
+    headset_model: ["Rename Headset"],
+    left: ["Ping", "Disconnect"],
+    right: ["Ping", "Disconnect"],
+  };
+
+  const available = actions[field] || [];
+
+  available.forEach((action) => {
+    // Skip "Change IP" if this is the Local Host
+    if (device.name === "Local Host") {
+      if (
+        field === "name" ||
+        (field === "ipport" && e.target.textContent.includes("Change IP"))
+      ) {
+        const menu = document.getElementById("actionMenu");
+        menu.classList.remove("visible");
+        menu.classList.add("hidden");
+        setTimeout(() => {
+          menu.innerHTML = "";
+        }, 150);
+        return;
+      }
+    }
+
+    const btn = document.createElement("button");
+    btn.textContent = action;
+
+    btn.onclick = () => {
+      menu.classList.add("hidden");
+
+      switch (action) {
+        case "Rename":
+          renameDevice(device);
+          break;
+        case "Change IP":
+          changeIP(device);
+          break;
+        case "Change Port":
+          changePort(device);
+          break;
+        case "Rename Headset":
+          renameHeadset(device);
+          break;
+        case "Ping":
+          sendCustomCommandTo(device.name, `ping_${field}`);
+          break;
+        case "Disconnect":
+          sendCustomCommandTo(device.name, `disconnect_${field}`);
+          break;
+      }
+    };
+
+    menu.appendChild(btn);
+  });
+
+  // Position menu
+  const rect = e.target.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + window.scrollY}px`;
+  menu.style.left = `${rect.left + window.scrollX}px`;
+}
+
+// Functions to change info about a device
+function renameDevice(device) {
+  const newName = window.prompt("New name:", device.name);
+  if (newName && newName.trim()) {
+    device.name = newName.trim();
+    saveDevicesToLocalStorage();
+    updateInterface();
+  }
+}
+
+function changeIP(device) {
+  const newIP = window.prompt("New IP address:", device.ip);
+  if (newIP && newIP.trim()) {
+    device.ip = newIP.trim();
+    saveDevicesToLocalStorage();
+    updateInterface();
+  }
+}
+
+function changePort(device) {
+  const newPort = window.prompt("New port:", device.port);
+  if (newPort && newPort.trim()) {
+    device.port = newPort.trim();
+    saveDevicesToLocalStorage();
+    updateInterface();
+  }
+}
+
+function renameHeadset(device) {
+  const newModel = window.prompt("New headset model:", device.headset_model);
+  if (newModel && newModel.trim()) {
+    device.headset_model = newModel.trim();
+    saveDevicesToLocalStorage();
+    updateInterface();
+  }
+}
+
+function sendCustomCommandTo(target, command) {
+  fetch("/cgi-bin/handler.py", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command, target }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      autoUpdateConsole({ name: target }, command, data.message || "Sent.");
+    });
 }
 
 // Sends command to the server of the active device
@@ -630,6 +792,17 @@ document.getElementById("filterToggle").addEventListener("click", () => {
   menu.style.display = menu.style.display === "block" ? "none" : "block";
 });
 
+// Ad click event for the edit device popups
+document.addEventListener("click", () => {
+  const menu = document.getElementById("actionMenu");
+  if (menu.classList.contains("visible")) {
+    menu.classList.remove("visible");
+    setTimeout(() => {
+      menu.innerHTML = "";
+    }, 150); // Matches CSS transition
+  }
+});
+
 // Updates the chat filter menu
 function updateFilterMenu() {
   const menu = document.getElementById("filterMenu");
@@ -790,7 +963,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   }
 });
-
 
 // Periodic call to get battery counts for each device, will need to be updated to fit new system
 /*
