@@ -344,7 +344,7 @@ function renderDevices(devices) {
       labelSpan.appendChild(offlineSpan);
     }
 
-    // ✅ New: IP address below the name
+    // IP address below the name (contains port now)
     const ipSpan = document.createElement("span");
     ipSpan.textContent = `${device.ip}:${device.port}` || "";
     ipSpan.style.fontSize = "0.6rem";
@@ -353,8 +353,8 @@ function renderDevices(devices) {
     ipSpan.style.marginTop = "-2px";
 
     name.appendChild(labelSpan);
-    name.appendChild(ipSpan); // 👈 append IP below name
-
+    name.appendChild(ipSpan);
+    
     header.appendChild(name);
 
     if (device.name !== "Local Host") {
