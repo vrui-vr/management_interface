@@ -244,6 +244,11 @@ span[title*="IP"]:hover {
   display: none;
 }
 
+.inactive-field {
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 .remove-btn {
   font-size: 1rem;
   padding: 0 0.6rem;

@@ -297,7 +297,7 @@ function changeTargetColor(deviceName) {
   }
 }
 
-// Renders the individual device widges
+// Renders the individual device widgets
 function renderDevices(devices) {
   const container = document.getElementById("deviceContainer");
   container.innerHTML = "";
@@ -334,13 +334,16 @@ function renderDevices(devices) {
     const labelSpan = document.createElement("span");
     labelSpan.textContent = device.name;
 
-    if (device.name !== "Local Host") {
+    if (device.name !== "Local Host" && device.name === currentSystem) {
       labelSpan.style.cursor = "pointer";
       labelSpan.title = "Edit name";
       labelSpan.onclick = (e) => {
         e.stopPropagation();
         showEditMenu(e, device, "name");
       };
+    } else {
+      labelSpan.style.cursor = "default";
+      labelSpan.title = "Select this device to edit";
     }
 
     const offlineSpan = document.createElement("span");
@@ -359,12 +362,23 @@ function renderDevices(devices) {
 
     // Create and prepend the dot
     ipSpan.textContent = `${device.ip}:${device.port}`;
-    ipSpan.style.cursor = "pointer";
-    ipSpan.title = "Edit IP/Port";
-    ipSpan.onclick = (e) => {
-      e.stopPropagation();
-      showEditMenu(e, device, "ipport");
-    };
+    if (device.name === currentSystem) {
+      ipSpan.style.cursor = "pointer";
+      ipSpan.title = "Edit IP/Port";
+      ipSpan.onclick = (e) => {
+        e.stopPropagation();
+        showEditMenu(e, device, "ipport");
+      };
+    } else {
+      ipSpan.style.cursor = "default";
+      ipSpan.title = "Select this device to edit";
+    }
+
+    // Disable editing for non-selected devices
+    if (device.name !== currentSystem) {
+      labelSpan.classList.add("inactive-field");
+      ipSpan.classList.add("inactive-field");
+    }
 
     name.appendChild(labelSpan);
     name.appendChild(ipSpan);
@@ -426,18 +440,23 @@ function createBattery(device, label, percent, isConnected) {
   const labelSpan = document.createElement("span");
   labelSpan.className = "battery-label";
   labelSpan.textContent = label;
-  labelSpan.style.cursor = "pointer";
-  labelSpan.title = `Edit ${label}`;
-  labelSpan.onclick = (e) => {
-    e.stopPropagation();
-    let field;
-    const l = label.toLowerCase();
-    if (l.includes("headset")) field = "headset_model";
-    else if (l.includes("left")) field = "left";
-    else if (l.includes("right")) field = "right";
-
-    showEditMenu(e, device, field);
-  };
+  if (device.name === currentSystem) {
+    labelSpan.style.cursor = "pointer";
+    labelSpan.title = `Edit ${label}`;
+    labelSpan.onclick = (e) => {
+      e.stopPropagation();
+      let field;
+      const l = label.toLowerCase();
+      if (l.includes("headset")) field = "headset_model";
+      else if (l.includes("left")) field = "left";
+      else if (l.includes("right")) field = "right";
+      showEditMenu(e, device, field);
+    };
+  } else {
+    labelSpan.style.cursor = "default";
+    labelSpan.title = "Select this device to edit";
+    labelSpan.classList.add("inactive-field");
+  }
 
   const statusSpan = document.createElement("span");
   statusSpan.className = "battery-status";
