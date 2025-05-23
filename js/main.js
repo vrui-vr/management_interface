@@ -48,7 +48,7 @@ function addSystem() {
   const newName =
     nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
 
-  if (newName.toLowerCase() === "local host") {
+  if (newName.toLowerCase() === "local host" || newName.toLowerCase() === "localhost") {
     alert("The name 'Local Host' is reserved and cannot be used.");
     return;
   }
@@ -255,6 +255,8 @@ function autoUpdateConsole(system, command, message) {
   logEntry.className = `log-entry ${colorClass}`;
 
   const isOffline = !fullSystem.connected;
+
+  // Maybe useful?
   const isError = /error|failed|not connected|cannot/i.test(message);
   const isCritical = /battery low|crash|critical/i.test(message);
 
@@ -708,8 +710,8 @@ function send(command) {
     });
 }
 
-// SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS) (MAYBE RENAME FUNCTION TO BE SEND CHAT COMMEND OR SMTH)
-function sendCustomCommand() {
+// SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS)
+function sendConsoleCommand() {
   const input = document.getElementById("commandInput");
   const rawCommand = input.value.trim();
   if (!rawCommand) return;
