@@ -454,6 +454,7 @@ function createBattery(system, label, percent, isConnected) {
   const labelSpan = document.createElement("span");
   labelSpan.className = "battery-label";
   labelSpan.textContent = label;
+
   if (system.name === currentSystem) {
     labelSpan.style.cursor = "pointer";
     labelSpan.title = `Edit ${label}`;
@@ -475,17 +476,32 @@ function createBattery(system, label, percent, isConnected) {
   const statusSpan = document.createElement("span");
   statusSpan.className = "battery-status";
 
+  // Always show "Not Connected" if not connected
   if (!isConnected) {
     statusSpan.textContent = "Not Connected";
     statusSpan.style.color = "gray";
-    statusSpan.style.fontSize = "0.75rem";
-    statusSpan.style.marginLeft = "0.5rem";
+    statusSpan.style.fontSize = ".8rem";
+    statusSpan.style.marginLeft = "1rem";
+    statusSpan.style.textAlign = "right";
+
   }
 
+  // If connected and battery is -1 (no battery), show "Connected"
+  else if (percent === -1) {
+    statusSpan.textContent = "Connected";
+    statusSpan.style.color = getSystemColor(system);
+    statusSpan.style.fontSize = ".8rem";
+    statusSpan.style.marginLeft = "1rem";
+    statusSpan.style.fontWeight = "bold";
+    statusSpan.style.textAlign = "right";
+  }
+
+  // Append in correct left-to-right visual order
   row.appendChild(labelSpan);
   row.appendChild(statusSpan);
 
-  if (isConnected) {
+  // If connected and has a battery, show battery bar
+  if (isConnected && percent !== -1) {
     const container = document.createElement("div");
     container.className = "battery-bar-container";
 
@@ -495,7 +511,6 @@ function createBattery(system, label, percent, isConnected) {
     const fill = document.createElement("div");
     fill.className = "battery-fill";
 
-    // 🔁 Always resolve system fresh from allSystems
     const fullSystem = allSystems.find((d) => d.name === system.name) || system;
 
     fill.style.width = `${percent}%`;
@@ -674,7 +689,7 @@ function updateSystemWithJsonData(system, jsonData) {
 
     if (name === "hmd") {
       system.headset_connected = !!device.isTracked;
-      system.headset_model = "HMD"; // optionally update this
+      system.headset = device.batteryLevel != null ? device.batteryLevel : -1;
     } else if (name.includes("controller")) {
       const isLeft = name.includes("1");
       const isRight = name.includes("2");
@@ -725,7 +740,9 @@ function send(command) {
     button.textContent = "Loading...";
   }
 
-  fetch(getEndpoint(system), {
+  //FOR TESTING PURPOSES
+  //fetch(getEndpoint(system), {
+  fetch("http://localhost:8000/cgi-bin/handler.py", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command }),
@@ -736,13 +753,10 @@ function send(command) {
       if (i === -1) return;
 
       if (command === "getServerStatus") {
-        updateSystemWithJsonData(allSystems[i], data);
+        updateSystemWithJsonData(allSystems[i], data.data);
+        allSystems[i].connected = true; // mark system online if it responded
         updateSystemUI(allSystems[i]);
-        autoUpdateConsole(
-          system,
-          command,
-          data.message || "Status updated."
-        );
+        autoUpdateConsole(system, command, data.message || "Status updated.");
       } else if (data.status === "success" && data.systemState) {
         allSystems[i] = { ...allSystems[i], ...data.systemState };
         updateSystemUI(allSystems[i]);

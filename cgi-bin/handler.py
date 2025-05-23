@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
+
 import json, os, cgi, warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-print("Content-Type: application/json\n")
+print("Content-Type: application/json")
+print("Access-Control-Allow-Origin: http://127.0.0.1:8000")
+print()
 
 # Ensure request method is POST
 if os.environ.get("REQUEST_METHOD", "") != "POST":
