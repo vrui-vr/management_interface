@@ -740,9 +740,9 @@ function send(command) {
     button.textContent = "Loading...";
   }
 
-  //FOR TESTING PURPOSES
-  //fetch(getEndpoint(system), {
+  // FOR TESTING PURPOSES
   fetch("http://localhost:8000/cgi-bin/handler.py", {
+  //fetch(getEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command }),
