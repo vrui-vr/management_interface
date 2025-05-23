@@ -48,7 +48,10 @@ function addSystem() {
   const newName =
     nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
 
-  if (newName.toLowerCase() === "local host" || newName.toLowerCase() === "localhost") {
+  if (
+    newName.toLowerCase() === "local host" ||
+    newName.toLowerCase() === "localhost"
+  ) {
     alert("The name 'Local Host' is reserved and cannot be used.");
     return;
   }
@@ -189,7 +192,10 @@ function updateSystemUI(updatedSystem) {
   const cards = document.querySelectorAll(".system-card");
   let systemCard = null;
   cards.forEach((c) => {
-    if (c.querySelector(".system-name .label-text")?.textContent === updatedSystem.name) {
+    if (
+      c.querySelector(".system-name .label-text")?.textContent ===
+      updatedSystem.name
+    ) {
       systemCard = c;
     }
   });
@@ -245,7 +251,10 @@ function autoUpdateConsole(system, command, message) {
   //   consoleBox.scrollHeight - consoleBox.clientHeight <=
   //   consoleBox.scrollTop + 1;
 
-  const isAtBottom = Math.abs(consoleBox.scrollHeight - consoleBox.scrollTop - consoleBox.clientHeight) < 5;
+  const isAtBottom =
+    Math.abs(
+      consoleBox.scrollHeight - consoleBox.scrollTop - consoleBox.clientHeight
+    ) < 5;
 
   const logEntry = document.createElement("div");
 
@@ -534,7 +543,7 @@ function showEditMenu(e, system, field) {
   }
 
   // Reset for re-render
-  makeMenuVisible(menu)
+  makeMenuVisible(menu);
 
   const actions = {
     name: ["Rename"],
@@ -638,7 +647,7 @@ function renameHeadset(system) {
 }
 
 function sendCustomCommandTo(target, command) {
-  fetch("/cgi-bin/handler.py", {
+  fetch(getEndpoint(target), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command, target }),
@@ -647,6 +656,47 @@ function sendCustomCommandTo(target, command) {
     .then((data) => {
       autoUpdateConsole({ name: target }, command, data.message || "Sent.");
     });
+}
+
+function updateSystemWithJsonData(system, jsonData) {
+  if (!jsonData || !Array.isArray(jsonData.devices)) return;
+
+  // Reset values to default in case data is missing
+  system.headset = 0;
+  system.left = 0;
+  system.right = 0;
+  system.headset_connected = false;
+  system.left_connected = false;
+  system.right_connected = false;
+
+  for (const device of jsonData.devices) {
+    const name = device.name?.toLowerCase();
+
+    if (name === "hmd") {
+      system.headset_connected = !!device.isTracked;
+      system.headset_model = "HMD"; // optionally update this
+    } else if (name.includes("controller")) {
+      const isLeft = name.includes("1");
+      const isRight = name.includes("2");
+      const side = isLeft ? "left" : isRight ? "right" : null;
+      if (!side) continue;
+
+      system[`${side}_connected`] = !!device.isTracked;
+      system[side] = device.batteryLevel || 0;
+
+      // Optionally store extra info
+      if (!system.devices) system.devices = {};
+      system.devices[side] = {
+        name: device.name,
+        battery: device.batteryLevel || 0,
+        connected: !!device.isTracked,
+        buttonsPressed:
+          device.buttons?.filter((b) => b.value).map((b) => b.name) || [],
+        orientation: device.trackerState?.rotation || [],
+        position: device.trackerState?.translation || [],
+      };
+    }
+  }
 }
 
 // Sends command to the server of the active system
@@ -682,24 +732,32 @@ function send(command) {
   })
     .then((r) => r.json())
     .then((data) => {
-      if (data.status === "success" && data.systemState) {
-        const i = allSystems.findIndex((d) => d.name === system.name);
-        if (i !== -1) {
-          allSystems[i] = { ...allSystems[i], ...data.systemState };
-          updateSystemUI(allSystems[i]);
-          autoUpdateConsole(system, command, data.message);
-        }
+      const i = allSystems.findIndex((d) => d.name === system.name);
+      if (i === -1) return;
+
+      if (command === "getServerStatus") {
+        updateSystemWithJsonData(allSystems[i], data);
+        updateSystemUI(allSystems[i]);
+        autoUpdateConsole(
+          system,
+          command,
+          data.message || "Status updated."
+        );
+      } else if (data.status === "success" && data.systemState) {
+        allSystems[i] = { ...allSystems[i], ...data.systemState };
+        updateSystemUI(allSystems[i]);
+        autoUpdateConsole(system, command, data.message);
       } else {
         autoUpdateConsole(
           system,
           command,
-          data.message || "⚠️ Unexpected response"
+          data.message || "Unexpected response"
         );
       }
     })
     .catch((err) => {
       console.error("Send failed:", err);
-      autoUpdateConsole(system, command, "❌ Failed to send command");
+      autoUpdateConsole(system, command, "Failed to send command");
     })
     // Runs whether the function succeeds or fails, guaranteeing the buttons update
     .finally(() => {
@@ -718,7 +776,7 @@ function sendConsoleCommand() {
 
   const isReset = rawCommand.toLowerCase() === "reset";
 
-  fetch("/cgi-bin/handler.py", {
+  fetch(getEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: rawCommand, target: currentSystem }),
@@ -820,7 +878,7 @@ document.getElementById("filterToggle").addEventListener("click", () => {
   menu.style.display = menu.style.display === "block" ? "none" : "block";
 });
 
-// Ad click event for the edit system popups
+// Add click event for the edit system popups
 document.addEventListener("click", () => {
   const menu = document.getElementById("actionMenu");
   if (menu.classList.contains("visible")) {
