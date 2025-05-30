@@ -119,31 +119,33 @@
           <div class="file-drop-header">Upload file</div>
 
           <div class="file-drop-box">
-            <div class="file-drop-icon">
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#666"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M12 19V5M5 12l7-7 7 7" />
-                <path d="M5 19h14" />
-              </svg>
-            </div>
+            <label for="fileInput" class="file-drop-label">
+              <div class="file-drop-icon">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#666"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                  <path d="M5 19h14" />
+                </svg>
+              </div>
 
-            <span class="file-drop-text">
-              Drop items here or <label for="fileInput">Browse files</label>
-            </span>
+              <span class="file-drop-text">
+                Drop items here or <span class="browse-text">Browse files</span>
+              </span>
+            </label>
+
             <input type="file" id="fileInput" hidden />
           </div>
         </div>
       </div>
     </div>
-
     <script src="js/Main.js"></script>
   </body>
 </html>
