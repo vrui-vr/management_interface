@@ -595,3 +595,70 @@ span[title*="IP"]:hover {
 #commandPrompt button:hover {
   background-color: #009966;
 }
+
+.file-drop-wrapper {
+  display: flex;
+  justify-content: center;  /* centers horizontally */
+  margin-top: 1.5rem;
+}
+
+.file-drop {
+  display: inline-block;  /* keeps label close to box */
+  margin: 1rem 1rem 2rem 1rem;
+}
+
+.file-drop-header {
+  margin-left: 0.1rem;  /* aligns with box padding/left */
+  margin-bottom: 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.file-drop-box {         /* fills parent */
+  width: 500px;    /* does not grow past console width */
+  min-height: 90px;
+  margin: 0 auto;      /* center it horizontally */
+  border: 1.5px dashed #bbb;
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.file-drop-icon svg {
+  opacity: 0.7;
+}
+
+.file-drop-box:hover {
+  background-color: #fafafa;
+  border-color: #888;
+}
+
+.file-drop-box.dragover {
+  background-color: #f0f8ff;
+  border-color: #3399ff;
+}
+
+.file-drop-text {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.file-drop-text label {
+  color: #000;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.file-drop-text label:hover {
+  color: #3399ff;
+}
+
+

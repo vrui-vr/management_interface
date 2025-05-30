@@ -4,6 +4,48 @@ let hasConnected = false;
 const filterState = new Set();
 const lowBatteryWarnings = new Set();
 
+const fileDropBox = document.querySelector(".file-drop-box");
+const fileInput = document.getElementById("fileInput");
+
+fileDropBox.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  fileDropBox.classList.add("dragover");
+});
+
+fileDropBox.addEventListener("dragleave", () => {
+  fileDropBox.classList.remove("dragover");
+});
+
+fileDropBox.addEventListener("drop", (e) => {
+  e.preventDefault();
+  fileDropBox.classList.remove("dragover");
+
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    handleFile(files[0]);
+  }
+});
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) {
+    handleFile(fileInput.files[0]);
+  }
+});
+
+function handleFile(file) {
+  console.log("📄 File received:", file.name, file);
+
+  // Example: log to console area
+  autoUpdateConsole(
+    { name: currentSystem },
+    "upload",
+    `Received file: ${file.name} (${file.size} bytes)`
+  );
+
+  // TODO: process file here
+}
+
+
 // Will be set at bottom of  code
 let url;
 

@@ -43,7 +43,11 @@
         >
           Get Server Status
         </button>
-        <button class="button" id="btn-headset" onclick="send('getServerStatus')">
+        <button
+          class="button"
+          id="btn-headset"
+          onclick="send('getServerStatus')"
+        >
           Start VR Compositor
         </button>
 
@@ -108,6 +112,34 @@
             placeholder="Enter command (e.g. reset)"
           />
           <button onclick="sendConsoleCommand()">Send</button>
+        </div>
+      </div>
+      <div class="file-drop-wrapper">
+        <div id="fileDropArea" class="file-drop">
+          <div class="file-drop-header">Upload file</div>
+
+          <div class="file-drop-box">
+            <div class="file-drop-icon">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#666"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 19V5M5 12l7-7 7 7" />
+                <path d="M5 19h14" />
+              </svg>
+            </div>
+
+            <span class="file-drop-text">
+              Drop items here or <label for="fileInput">Browse files</label>
+            </span>
+            <input type="file" id="fileInput" hidden />
+          </div>
         </div>
       </div>
     </div>
