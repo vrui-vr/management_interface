@@ -782,8 +782,8 @@ function send(command) {
   }
 
   // FOR TESTING PURPOSES
-  fetch("http://localhost:8000/cgi-bin/handler.py", {
-    //fetch(getEndpoint(system), {
+  //fetch("http://localhost:8000/cgi-bin/handler.py", {
+  fetch(getEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command }),
