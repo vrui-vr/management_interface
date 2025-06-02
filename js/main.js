@@ -835,6 +835,7 @@ function sendConsoleCommand() {
     clearConsoleMessages();
     resetFilterCheckboxes(allSystems);
     localStorage.clear();
+    updateInterface();
     return;
   }
 
