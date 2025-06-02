@@ -340,6 +340,7 @@ span[title*="IP"]:hover {
 
 .battery-bar {
   width: 80px;
+  height: 10px;
   background-color: #e5e5e5;
   border-radius: 3px;
   overflow: hidden;

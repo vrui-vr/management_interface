@@ -490,6 +490,7 @@ function renderSystems(systems) {
 
 // Creates battery bars within the system widgets
 function createBattery(system, label, percent, isConnected) {
+  console.log(`Battery "${label}" - connected: ${isConnected}, percent: ${percent}`);
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -714,10 +715,7 @@ function sendCustomCommandTo(target, command) {
     });
 }
 
-function updateSystemWithJsonData(system, jsonData) {
-	
-  console.log(JSON.stringify(jsonData));
-	
+function updateSystemWithJsonData(system, jsonData) {	
   if (!jsonData || !Array.isArray(jsonData.devices)) return;
   
   // Reset values to default in case data is missing
@@ -868,7 +866,6 @@ function send(command) {
       if (i === -1) return;
 
       if (command === "getServerStatus") {
-        console.log(JSON.stringify(data));
         updateSystemWithJsonData(allSystems[i], data);
         allSystems[i].connected = true; // mark system online if it responded
         updateSystemUI(allSystems[i]);
