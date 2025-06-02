@@ -827,6 +827,47 @@ function sendPlainPost(cmd, endPoint) {
 //   }
 // }
 
+function sendToSystem(systemName, command) {
+  const system = allSystems.find((d) => d.name === systemName);
+  if (!system) return;
+
+  const endpoint = getEndpoint(system);
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      // same logic as your send()
+      const i = allSystems.findIndex((d) => d.name === system.name);
+      if (i === -1) return;
+
+      if (command === "getServerStatus") {
+        updateSystemWithJsonData(allSystems[i], data);
+        allSystems[i].connected = true;
+        updateSystemUI(allSystems[i]);
+        autoUpdateConsole(system, command, data.message || "Status updated.");
+      } else if (data.status === "success" && data.systemState) {
+        allSystems[i] = { ...allSystems[i], ...data.systemState };
+        updateSystemUI(allSystems[i]);
+        autoUpdateConsole(system, command, data.message);
+      } else {
+        autoUpdateConsole(
+          system,
+          command,
+          data.message || "Unexpected response"
+        );
+      }
+    })
+    .catch((err) => {
+      console.error(`Send to ${system.name} failed:`, err);
+      autoUpdateConsole(system, command, "Failed to send command");
+    });
+}
+
+
 // OLD SEND USING FETCH
 function send(command) {
   const system = allSystems.find((d) => d.name === currentSystem);
@@ -1182,6 +1223,13 @@ document.addEventListener("DOMContentLoaded", () => {
     applyConsoleFilter();
   }
 });
+
+setInterval(() => {
+  allSystems.forEach((system) => {
+    // If the system is connected, poll it
+    sendToSystem(system.name, "getServerStatus");
+  });
+}, 5000); // every 5 seconds
 
 // Periodic call to get battery counts for each system, will need to be updated to fit new system
 /*
