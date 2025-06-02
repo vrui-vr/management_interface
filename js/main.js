@@ -490,7 +490,7 @@ function renderSystems(systems) {
 
 // Creates battery bars within the system widgets
 function createBattery(system, label, percent, isConnected) {
-  console.log(`Battery "${label}" - connected: ${isConnected}, percent: ${percent}`);
+  // console.log(`Battery "${label}" - connected: ${isConnected}, percent: ${percent}`);
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -756,80 +756,32 @@ function updateSystemWithJsonData(system, jsonData) {
   }
 }
 
-// Sends a http request that does not require CORS
-// This lets us avoid problems with CORS requirements
-// NOTE: this is being used instead of fetch() and post
-// This can only change the website to be the json, it cannot stay on the same page
-// Allowed through cors because it is a "Simple" call
-function sendPlainPost(cmd, endPoint) {
-  const form = document.createElement('form');
-  form.method = 'post';
-  form.action = endPoint;
-
-  const input = document.createElement('input');
-  input.type = 'hidden';
-  input.name = 'command';
-  input.value = cmd;
-  form.appendChild(input);
-
-  document.body.appendChild(form);
-  form.submit();
-}
-
-// ISSUE HERE:
-// Fetch requires CORS
-// A plain post can only load the json as a new webpage
-// It cannot be edited or processed by my webpage
-// Oliver's server at the moment is a raw TCP Protocol, not a http handling one
-// MessageIdType message=client->pipe->read<MessageIdType>();
-// It is not reading an HTTP header — it expects the first 4 bytes to be a MessageIdType, not an HTTP string
-
-
-// Sends command to the server of the active system
-// MOST WORK NEEDED HERE
-// TALK TO OLIVER ABOUT HOW TO SET THINGS UP
-// function send(command) {
-//   const system = allSystems.find((d) => d.name === currentSystem);
-//   if (!system) return;
-
-//   const buttonMap = {
-//     vrtracker_on: "btn-vrtracker",
-//     headset: "btn-headset",
-//     connect: "btn-connect",
-//     disconnect: "btn-disconnect",
-//     restart: "btn-restart",
-//     shutdown: "btn-shutdown",
-//     run: "btn-run",
-//   };
-
-//   const btnId = buttonMap[command];
-//   const button = document.getElementById(btnId);
-//   let originalText = "";
-//   if (button) {
-//     button.disabled = true;
-//     originalText = button.textContent;
-//     button.textContent = "Loading...";
-//   }
-
-//   // Instead of fetch(), use your plain POST
-//   try {
-//     const endPoint = getEndpoint(system)
-//     sendPlainPost(command, endPoint);
-//     autoUpdateConsole(system, command, "Command sent.");
-//   } catch (err) {
-//     console.error("Send failed:", err);
-//     autoUpdateConsole(system, command, "Failed to send command.");
-//   } finally {
-//     if (button) {
-//       button.disabled = false;
-//       button.textContent = originalText;
-//     }
-//   }
-// }
-
-function sendToSystem(systemName, command) {
+// Sends command to CORS
+// Fetch requires CORS - server needs to have reply<<"Access-Control-Allow-Origin: *\n";
+function send(command, systemName = currentSystem) {
+  console.log(`Command: ${command}`);
+  console.log(`System: ${systemName}`);
   const system = allSystems.find((d) => d.name === systemName);
   if (!system) return;
+
+  const buttonMap = {
+    vrtracker_on: "btn-vrtracker",
+    headset: "btn-headset",
+    connect: "btn-connect",
+    disconnect: "btn-disconnect",
+    restart: "btn-restart",
+    shutdown: "btn-shutdown",
+    run: "btn-run",
+  };
+
+  const btnId = buttonMap[command];
+  const button = btnId ? document.getElementById(btnId) : null;
+
+  if (button) {
+    button.disabled = true;
+    button._originalText = button.textContent;
+    button.textContent = "Loading...";
+  }
 
   const endpoint = getEndpoint(system);
 
@@ -840,13 +792,15 @@ function sendToSystem(systemName, command) {
   })
     .then((r) => r.json())
     .then((data) => {
-      // same logic as your send()
       const i = allSystems.findIndex((d) => d.name === system.name);
       if (i === -1) return;
 
       if (command === "getServerStatus") {
         updateSystemWithJsonData(allSystems[i], data);
         allSystems[i].connected = true;
+        
+        allSystems[i].lastSeen = Date.now();
+        
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message || "Status updated.");
       } else if (data.status === "success" && data.systemState) {
@@ -864,73 +818,11 @@ function sendToSystem(systemName, command) {
     .catch((err) => {
       console.error(`Send to ${system.name} failed:`, err);
       autoUpdateConsole(system, command, "Failed to send command");
-    });
-}
-
-
-// OLD SEND USING FETCH
-function send(command) {
-  const system = allSystems.find((d) => d.name === currentSystem);
-  if (!system) return;
-
-  const buttonMap = {
-    vrtracker_on: "btn-vrtracker",
-    headset: "btn-headset",
-    connect: "btn-connect",
-    disconnect: "btn-disconnect",
-    restart: "btn-restart",
-    shutdown: "btn-shutdown",
-    run: "btn-run",
-  };
-
-  const btnId = buttonMap[command];
-  const button = document.getElementById(btnId);
-
-  let originalText = "";
-  if (button) {
-    button.disabled = true;
-    originalText = button.textContent;
-    button.textContent = "Loading...";
-  }
-
-  const endpoint = getEndpoint(system);
-
-  fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      // Update the correct system in allSystems
-      const i = allSystems.findIndex((d) => d.name === system.name);
-      if (i === -1) return;
-
-      if (command === "getServerStatus") {
-        updateSystemWithJsonData(allSystems[i], data);
-        allSystems[i].connected = true; // mark system online if it responded
-        updateSystemUI(allSystems[i]);
-        autoUpdateConsole(system, command, data.message || "Status updated.");
-      } else if (data.status === "success" && data.systemState) {
-        allSystems[i] = { ...allSystems[i], ...data.systemState };
-        updateSystemUI(allSystems[i]);
-        autoUpdateConsole(system, command, data.message);
-      } else {
-        autoUpdateConsole(
-          system,
-          command,
-          data.message || "Unexpected response"
-        );
-      }
-    })
-    .catch((err) => {
-      console.error("Send failed:", err);
-      autoUpdateConsole(system, command, "Failed to send command");
     })
     .finally(() => {
       if (button) {
         button.disabled = false;
-        button.textContent = originalText;
+        button.textContent = button._originalText;
       }
     });
 }
@@ -1224,12 +1116,34 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+const getServerStatusInterval = 5000
+
 setInterval(() => {
+  const now = Date.now();
+
   allSystems.forEach((system) => {
-    // If the system is connected, poll it
-    sendToSystem(system.name, "getServerStatus");
+    // If system was recently updated, keep it online
+    if (system.lastSeen && now - system.lastSeen > getServerStatusInterval * 2) {
+      // Timeout > twice as long as a regular interval = mark as offline
+      if (system.connected !== false) {
+        console.warn(`⚠️ ${system.name} marked offline (timeout)`);
+        system.connected = false;
+        system.headset_connected = false;
+        system.left_connected = false;
+        system.right_connected = false;
+        system.headset = 0;
+        system.left = 0;
+        system.right = 0;
+        updateSystemUI(system);
+        autoUpdateConsole(system, "timeout", "Marked as offline (no response)");
+      }
+    }
+
+    // Always attempt to ping
+    send("getServerStatus", system.name);
   });
-}, 5000); // every 5 seconds
+}, getServerStatusInterval); // every 5 seconds
+
 
 // Periodic call to get battery counts for each system, will need to be updated to fit new system
 /*
