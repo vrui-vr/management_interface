@@ -9,7 +9,7 @@ const fileInput = document.getElementById("fileInput");
 
 //LOAD DEFAULT CONFIG IN FILE FOR NOW
 //TODO: FIND A BETTER OPTION
-url = "ServerStatus.html";
+url = "VRDeviceServer.cgi";
 
 fileDropBox.addEventListener("dragover", (e) => {
   e.preventDefault();
