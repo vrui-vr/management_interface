@@ -831,6 +831,13 @@ function sendConsoleCommand() {
 
   const isReset = rawCommand.toLowerCase() === "reset";
 
+  if (isReset) {
+    clearConsoleMessages();
+    resetFilterCheckboxes(allSystems);
+    localStorage.clear();
+    return;
+  }
+
   fetch(getEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -870,6 +877,7 @@ function sendConsoleCommand() {
         if (isReset) {
           clearConsoleMessages();
           resetFilterCheckboxes(allSystems);
+          localStorage.clear();
           return;
         }
       }
