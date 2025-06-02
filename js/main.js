@@ -801,7 +801,7 @@ function send(command) {
 
   // Instead of fetch(), use your plain POST
   try {
-    const endPoint = getEndpoint(target)
+    const endPoint = getEndpoint(system)
     sendPlainPost(command, endPoint);
     autoUpdateConsole(system, command, "Command sent.");
   } catch (err) {
