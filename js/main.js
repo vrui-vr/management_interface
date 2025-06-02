@@ -846,6 +846,7 @@ function send(command) {
 
   const btnId = buttonMap[command];
   const button = document.getElementById(btnId);
+
   let originalText = "";
   if (button) {
     button.disabled = true;
@@ -853,20 +854,21 @@ function send(command) {
     button.textContent = "Loading...";
   }
 
-  // FOR TESTING PURPOSES
-  //fetch("http://localhost:8000/cgi-bin/handler.py", {
-  fetch(getEndpoint(system), {
+  const endpoint = getEndpoint(system);
+
+  fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command }),
   })
     .then((r) => r.json())
     .then((data) => {
+      // Update the correct system in allSystems
       const i = allSystems.findIndex((d) => d.name === system.name);
       if (i === -1) return;
 
       if (command === "getServerStatus") {
-		console.log(JSON.stringify(data.data));
+        console.log(JSON.stringify(data.data));
         updateSystemWithJsonData(allSystems[i], data.data);
         allSystems[i].connected = true; // mark system online if it responded
         updateSystemUI(allSystems[i]);
@@ -887,7 +889,6 @@ function send(command) {
       console.error("Send failed:", err);
       autoUpdateConsole(system, command, "Failed to send command");
     })
-    // Runs whether the function succeeds or fails, guaranteeing the buttons update
     .finally(() => {
       if (button) {
         button.disabled = false;
