@@ -715,8 +715,11 @@ function sendCustomCommandTo(target, command) {
 }
 
 function updateSystemWithJsonData(system, jsonData) {
+	
+  console.log(JSON.stringify(jsonData));
+	
   if (!jsonData || !Array.isArray(jsonData.devices)) return;
-
+  
   // Reset values to default in case data is missing
   system.headset = 0;
   system.left = 0;
@@ -863,6 +866,7 @@ function send(command) {
       if (i === -1) return;
 
       if (command === "getServerStatus") {
+		console.log(JSON.stringify(data.data));
         updateSystemWithJsonData(allSystems[i], data.data);
         allSystems[i].connected = true; // mark system online if it responded
         updateSystemUI(allSystems[i]);
