@@ -755,6 +755,24 @@ function updateSystemWithJsonData(system, jsonData) {
   }
 }
 
+// Sends a http request that does not require CORS
+// This lets us avoid problems with CORS requirements
+// NOTE: this is being used instead of fetch() and post
+function sendPlainPost(cmd, endPoint) {
+  const form = document.createElement('form');
+  form.method = 'post';
+  form.action = endPoint;
+
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'command';
+  input.value = cmd;
+  form.appendChild(input);
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 // Sends command to the server of the active system
 // MOST WORK NEEDED HERE
 // TALK TO OLIVER ABOUT HOW TO SET THINGS UP
@@ -781,46 +799,20 @@ function send(command) {
     button.textContent = "Loading...";
   }
 
-  // FOR TESTING PURPOSES
-  //fetch("http://localhost:8000/cgi-bin/handler.py", {
-  fetch(getEndpoint(system), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      const i = allSystems.findIndex((d) => d.name === system.name);
-      if (i === -1) return;
-
-      if (command === "getServerStatus") {
-        updateSystemWithJsonData(allSystems[i], data.data);
-        allSystems[i].connected = true; // mark system online if it responded
-        updateSystemUI(allSystems[i]);
-        autoUpdateConsole(system, command, data.message || "Status updated.");
-      } else if (data.status === "success" && data.systemState) {
-        allSystems[i] = { ...allSystems[i], ...data.systemState };
-        updateSystemUI(allSystems[i]);
-        autoUpdateConsole(system, command, data.message);
-      } else {
-        autoUpdateConsole(
-          system,
-          command,
-          data.message || "Unexpected response"
-        );
-      }
-    })
-    .catch((err) => {
-      console.error("Send failed:", err);
-      autoUpdateConsole(system, command, "Failed to send command");
-    })
-    // Runs whether the function succeeds or fails, guaranteeing the buttons update
-    .finally(() => {
-      if (button) {
-        button.disabled = false;
-        button.textContent = originalText;
-      }
-    });
+  // Instead of fetch(), use your plain POST
+  try {
+    const endPoint = getEndpoint(target)
+    sendPlainPost(command, endPoint);
+    autoUpdateConsole(system, command, "Command sent.");
+  } catch (err) {
+    console.error("Send failed:", err);
+    autoUpdateConsole(system, command, "Failed to send command.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 // SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS)
@@ -1033,7 +1025,7 @@ function updateInterface() {
   for (system in allSystems) {
     updateSystemUI(system)
   }
-  
+
   renderSystems(allSystems);
   updateButtonStates();
   updateFilterMenu();
