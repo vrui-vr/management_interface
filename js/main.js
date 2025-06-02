@@ -7,6 +7,10 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
+//LOAD DEFAULT CONFIG IN FILE FOR NOW
+//TODO: FIND A BETTER OPTION
+url = "ServerStatus.html";
+
 fileDropBox.addEventListener("dragover", (e) => {
   e.preventDefault();
   fileDropBox.classList.add("dragover");
@@ -44,10 +48,6 @@ function handleFile(file) {
 
   // TODO: process file here
 }
-
-
-// Will be set at bottom of  code
-let url;
 
 // Returns list of systems normalized and standardized with latest updates
 function normalizeSystems(rawSystems) {
@@ -525,7 +525,6 @@ function createBattery(system, label, percent, isConnected) {
     statusSpan.style.fontSize = ".8rem";
     statusSpan.style.marginLeft = "1rem";
     statusSpan.style.textAlign = "right";
-
   }
 
   // If connected and battery is -1 (no battery), show "Connected"
@@ -784,7 +783,7 @@ function send(command) {
 
   // FOR TESTING PURPOSES
   fetch("http://localhost:8000/cgi-bin/handler.py", {
-  //fetch(getEndpoint(system), {
+    //fetch(getEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command }),
@@ -1033,14 +1032,6 @@ function updateInterface() {
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-// Load config.json to set variables
-fetch("data/config.json")
-  .then((response) => response.json())
-  .then((data) => {
-    url = data.url;
-  })
-  .catch((error) => console.error("Error loading JSON:", error));
-
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
   const saved = localStorage.getItem("savedSystems");
@@ -1072,37 +1063,42 @@ document.addEventListener("DOMContentLoaded", () => {
     updateInterface();
     applyConsoleFilter();
   } else {
-    // fallback if nothing is stored
-    fetch("data/defaultsystem.json")
-      .then((response) => response.json())
-      .then((baseSystems) => {
-        allSystems = baseSystems.map((d, index) => ({
-          name: d.name,
-          headset_model: d.model,
-          ip: d.ip,
-          port: d.port,
-          connected: false,
-          headset: 0,
-          left: 0,
-          right: 0,
-          headset_connected: false,
-          left_connected: false,
-          right_connected: false,
-          colorClass: `rig-${index % 6}`,
-        }));
+    // fallback if nothing is stored — hardcoded default system
+    const baseSystems = [
+      {
+        name: "Local Host",
+        model: "Valve Index",
+        ip: "127.0.0.1",
+        port: "8081",
+      },
+    ];
 
-        if (allSystems.length) {
-          currentSystem = allSystems[0].name;
-          const label = document.getElementById("targetLabel");
-          if (label) {
-            label.textContent = `Target: ${currentSystem}`;
-            changeTargetColor(currentSystem);
-          }
-        }
+    allSystems = baseSystems.map((d, index) => ({
+      name: d.name,
+      headset_model: d.model,
+      ip: d.ip,
+      port: d.port,
+      connected: false,
+      headset: 0,
+      left: 0,
+      right: 0,
+      headset_connected: false,
+      left_connected: false,
+      right_connected: false,
+      colorClass: `rig-${index % 6}`,
+    }));
 
-        updateInterface();
-        applyConsoleFilter();
-      });
+    if (allSystems.length) {
+      currentSystem = allSystems[0].name;
+      const label = document.getElementById("targetLabel");
+      if (label) {
+        label.textContent = `Target: ${currentSystem}`;
+        changeTargetColor(currentSystem);
+      }
+    }
+
+    updateInterface();
+    applyConsoleFilter();
   }
 });
 
