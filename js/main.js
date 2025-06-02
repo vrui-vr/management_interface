@@ -758,6 +758,8 @@ function updateSystemWithJsonData(system, jsonData) {
 // Sends a http request that does not require CORS
 // This lets us avoid problems with CORS requirements
 // NOTE: this is being used instead of fetch() and post
+// This can only change the website to be the json, it cannot stay on the same page
+// Allowed through cors because it is a "Simple" call
 function sendPlainPost(cmd, endPoint) {
   const form = document.createElement('form');
   form.method = 'post';
@@ -773,9 +775,58 @@ function sendPlainPost(cmd, endPoint) {
   form.submit();
 }
 
+// ISSUE HERE:
+// Fetch requires CORS
+// A plain post can only load the json as a new webpage
+// It cannot be edited or processed by my webpage
+// Oliver's server at the moment is a raw TCP Protocol, not a http handling one
+// MessageIdType message=client->pipe->read<MessageIdType>();
+// It is not reading an HTTP header — it expects the first 4 bytes to be a MessageIdType, not an HTTP string
+
+
 // Sends command to the server of the active system
 // MOST WORK NEEDED HERE
 // TALK TO OLIVER ABOUT HOW TO SET THINGS UP
+// function send(command) {
+//   const system = allSystems.find((d) => d.name === currentSystem);
+//   if (!system) return;
+
+//   const buttonMap = {
+//     vrtracker_on: "btn-vrtracker",
+//     headset: "btn-headset",
+//     connect: "btn-connect",
+//     disconnect: "btn-disconnect",
+//     restart: "btn-restart",
+//     shutdown: "btn-shutdown",
+//     run: "btn-run",
+//   };
+
+//   const btnId = buttonMap[command];
+//   const button = document.getElementById(btnId);
+//   let originalText = "";
+//   if (button) {
+//     button.disabled = true;
+//     originalText = button.textContent;
+//     button.textContent = "Loading...";
+//   }
+
+//   // Instead of fetch(), use your plain POST
+//   try {
+//     const endPoint = getEndpoint(system)
+//     sendPlainPost(command, endPoint);
+//     autoUpdateConsole(system, command, "Command sent.");
+//   } catch (err) {
+//     console.error("Send failed:", err);
+//     autoUpdateConsole(system, command, "Failed to send command.");
+//   } finally {
+//     if (button) {
+//       button.disabled = false;
+//       button.textContent = originalText;
+//     }
+//   }
+// }
+
+// OLD SEND USING FETCH
 function send(command) {
   const system = allSystems.find((d) => d.name === currentSystem);
   if (!system) return;
@@ -799,20 +850,46 @@ function send(command) {
     button.textContent = "Loading...";
   }
 
-  // Instead of fetch(), use your plain POST
-  try {
-    const endPoint = getEndpoint(system)
-    sendPlainPost(command, endPoint);
-    autoUpdateConsole(system, command, "Command sent.");
-  } catch (err) {
-    console.error("Send failed:", err);
-    autoUpdateConsole(system, command, "Failed to send command.");
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = originalText;
-    }
-  }
+  // FOR TESTING PURPOSES
+  //fetch("http://localhost:8000/cgi-bin/handler.py", {
+  fetch(getEndpoint(system), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      const i = allSystems.findIndex((d) => d.name === system.name);
+      if (i === -1) return;
+
+      if (command === "getServerStatus") {
+        updateSystemWithJsonData(allSystems[i], data.data);
+        allSystems[i].connected = true; // mark system online if it responded
+        updateSystemUI(allSystems[i]);
+        autoUpdateConsole(system, command, data.message || "Status updated.");
+      } else if (data.status === "success" && data.systemState) {
+        allSystems[i] = { ...allSystems[i], ...data.systemState };
+        updateSystemUI(allSystems[i]);
+        autoUpdateConsole(system, command, data.message);
+      } else {
+        autoUpdateConsole(
+          system,
+          command,
+          data.message || "Unexpected response"
+        );
+      }
+    })
+    .catch((err) => {
+      console.error("Send failed:", err);
+      autoUpdateConsole(system, command, "Failed to send command");
+    })
+    // Runs whether the function succeeds or fails, guaranteeing the buttons update
+    .finally(() => {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    });
 }
 
 // SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS)
