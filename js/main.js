@@ -1103,11 +1103,6 @@ function updateButtonStates() {
 // Helper that updates GUI of entire website
 function updateInterface() {
   updateDropdown();
-
-  for (system in allSystems) {
-    updateSystemUI(system)
-  }
-
   renderSystems(allSystems);
   updateButtonStates();
   updateFilterMenu();
