@@ -868,8 +868,8 @@ function send(command) {
       if (i === -1) return;
 
       if (command === "getServerStatus") {
-        console.log(JSON.stringify(data.data));
-        updateSystemWithJsonData(allSystems[i], data.data);
+        console.log(JSON.stringify(data));
+        updateSystemWithJsonData(allSystems[i], data);
         allSystems[i].connected = true; // mark system online if it responded
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message || "Status updated.");
