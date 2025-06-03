@@ -652,7 +652,7 @@ function showEditMenu(e, system, field) {
           renameHeadset(system);
           break;
         case "Ping":
-          sendCustomCommandTo(system.name, `ping_${field}`);
+          send("hapticTick&hapticFeatureIndex=0&duration=100&frequency=100&amplitude=255", system.name)
           break;
         case "Disconnect":
           sendCustomCommandTo(system.name, `disconnect_${field}`);
@@ -817,6 +817,10 @@ function send(command, systemName = currentSystem) {
           data.message || "Unexpected response"
         );
       }
+      
+      if (command.startsWith("hapticTick") {
+		  pass;
+	}
     })
     .catch((err) => {
       console.error(`Send to ${system.name} failed:`, err);
