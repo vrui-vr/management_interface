@@ -369,6 +369,38 @@ span[title*="IP"]:hover {
   color: var(--text-muted);
 }
 
+.tracked-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-muted); /* gray dot */
+  margin-left: 0.5rem;
+  vertical-align: middle;
+  cursor: default;
+}
+
+.tracked-dot.tracked {
+  background-color: green;
+  animation: pulseAnim 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseAnim {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+
 .console-section {
   flex: 1;
   border-top: 1px solid var(--border);

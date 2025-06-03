@@ -8,7 +8,7 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
-const getServerStatusInterval = 5000
+const getServerStatusInterval = 5000;
 
 //LOAD DEFAULT CONFIG IN FILE FOR NOW
 //TODO: FIND A BETTER OPTION
@@ -57,12 +57,15 @@ function normalizeSystems(rawSystems) {
   return rawSystems.map((d, index) => ({
     name: d.name,
     connected: d.connected,
+    tracked: d.tracked,
     headset: d.headset,
     left: d.left,
     right: d.right,
     headset_connected: d.headset_connected,
     left_connected: d.left_connected,
     right_connected: d.right_connected,
+    left_tracked: d.left_tracked,
+    right_tracked: d.right_tracked,
     headset_model: d.headset_model || "Unknown",
     ip: d.ip || "N/A", // new line
     colorClass: `rig-${index % 6}`,
@@ -131,6 +134,8 @@ function addSystem() {
     headset_connected: false,
     left_connected: false,
     right_connected: false,
+    left_tracked: false,
+    right_tracked: false,
     colorClass: `rig-${allSystems.length % 6}`,
   };
 
@@ -466,7 +471,8 @@ function renderSystems(systems) {
         system,
         `Headset (${system.headset_model})`,
         system.headset,
-        system.headset_connected
+        system.headset_connected,
+        system.headset_tracked
       )
     );
     batteryColumn.appendChild(
@@ -474,7 +480,8 @@ function renderSystems(systems) {
         system,
         "Left Controller",
         system.left,
-        system.left_connected
+        system.left_connected,
+        system.left_tracked
       )
     );
     batteryColumn.appendChild(
@@ -482,7 +489,8 @@ function renderSystems(systems) {
         system,
         "Right Controller",
         system.right,
-        system.right_connected
+        system.right_connected,
+        system.right_tracked
       )
     );
 
@@ -491,9 +499,8 @@ function renderSystems(systems) {
   });
 }
 
-// Creates battery bars within the system widgets
-function createBattery(system, label, percent, isConnected) {
-  // console.log(`Battery "${label}" - connected: ${isConnected}, percent: ${percent}`);
+//creates battery widgets for the systems
+function createBattery(system, label, percent, isConnected, isTracked) {
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -522,57 +529,65 @@ function createBattery(system, label, percent, isConnected) {
   const statusSpan = document.createElement("span");
   statusSpan.className = "battery-status";
 
-  // Always show "Not Connected" if not connected
+  // Not Connected
   if (!isConnected) {
     statusSpan.textContent = "Not Connected";
     statusSpan.style.color = "gray";
     statusSpan.style.fontSize = ".8rem";
     statusSpan.style.marginLeft = "1rem";
     statusSpan.style.textAlign = "right";
+    row.appendChild(labelSpan);
+    row.appendChild(statusSpan);
   }
 
-  // If connected and battery is -1 (no battery), show "Connected"
-  else if (percent === -1) {
-    statusSpan.textContent = "Connected";
-    statusSpan.style.color = getSystemColor(system);
-    statusSpan.style.fontSize = ".8rem";
-    statusSpan.style.marginLeft = "1rem";
-    statusSpan.style.fontWeight = "bold";
-    statusSpan.style.textAlign = "right";
-  }
+  // Connected (Connected label or battery bar + tracking dot)
+  else {
+    // Connected, no battery
+    if (percent === -1) {
+      statusSpan.textContent = "Connected";
+      statusSpan.style.color = getSystemColor(system);
+      statusSpan.style.fontSize = ".8rem";
+      statusSpan.style.marginLeft = "1rem";
+      statusSpan.style.fontWeight = "bold";
+      statusSpan.style.textAlign = "right";
+      row.appendChild(labelSpan);
+      row.appendChild(statusSpan);
+    }
+    // Connected, with battery
+    else {
+      row.appendChild(labelSpan);
 
-  // Append in correct left-to-right visual order
-  row.appendChild(labelSpan);
-  row.appendChild(statusSpan);
+      const container = document.createElement("div");
+      container.className = "battery-bar-container";
 
-  // If connected and has a battery, show battery bar
-  if (isConnected && percent !== -1) {
-    const container = document.createElement("div");
-    container.className = "battery-bar-container";
+      const bar = document.createElement("div");
+      bar.className = "battery-bar";
 
-    const bar = document.createElement("div");
-    bar.className = "battery-bar";
+      const fill = document.createElement("div");
+      fill.className = "battery-fill";
 
-    const fill = document.createElement("div");
-    fill.className = "battery-fill";
+      const fullSystem = allSystems.find((d) => d.name === system.name) || system;
 
-    const fullSystem = allSystems.find((d) => d.name === system.name) || system;
+      fill.style.width = `${percent}%`;
+      fill.style.backgroundColor = getSystemColor(fullSystem);
 
-    fill.style.width = `${percent}%`;
-    fill.style.backgroundColor = getSystemColor(fullSystem);
+      const pct = document.createElement("span");
+      pct.className = "battery-percent";
+      pct.textContent = `${percent}%`;
+      pct.style.color = "var(--text-dark)";
+      if (percent === 0) pct.classList.add("zero");
 
-    const pct = document.createElement("span");
-    pct.className = "battery-percent";
-    pct.textContent = `${percent}%`;
-    pct.style.color = "var(--text-dark)";
+      bar.appendChild(fill);
+      container.appendChild(bar);
+      container.appendChild(pct);
+      row.appendChild(container);
+    }
 
-    if (percent === 0) pct.classList.add("zero");
-
-    bar.appendChild(fill);
-    container.appendChild(bar);
-    container.appendChild(pct);
-
-    row.appendChild(container);
+    // Tracking dot for all connected devices
+    const trackedDot = document.createElement("span");
+    trackedDot.className = isTracked ? "tracked-dot tracked" : "tracked-dot";
+    trackedDot.title = isTracked ? "Device tracked" : "Device connected (not tracked)";
+    row.appendChild(trackedDot);
   }
 
   return row;
@@ -652,7 +667,10 @@ function showEditMenu(e, system, field) {
           renameHeadset(system);
           break;
         case "Ping":
-          send("hapticTick&hapticFeatureIndex=0&duration=100&frequency=100&amplitude=255", system.name)
+          send(
+            "hapticTick&hapticFeatureIndex=0&duration=100&frequency=100&amplitude=255",
+            system.name
+          );
           break;
         case "Disconnect":
           sendCustomCommandTo(system.name, `disconnect_${field}`);
@@ -718,9 +736,9 @@ function sendCustomCommandTo(target, command) {
     });
 }
 
-function updateSystemWithJsonData(system, jsonData) {	
+function updateSystemWithJsonData(system, jsonData) {
   if (!jsonData || !Array.isArray(jsonData.devices)) return;
-  
+
   // Reset values to default in case data is missing
   system.headset = 0;
   system.left = 0;
@@ -733,7 +751,8 @@ function updateSystemWithJsonData(system, jsonData) {
     const name = device.name?.toLowerCase();
 
     if (name === "hmd") {
-      system.headset_connected = !!device.isTracked;
+      system.headset_connected = !!device.isConnected;
+      system.headset_tracked = !!device.isTracked;
       system.headset = device.batteryLevel != null ? device.batteryLevel : -1;
     } else if (name.includes("controller")) {
       const isLeft = name.includes("1");
@@ -741,7 +760,8 @@ function updateSystemWithJsonData(system, jsonData) {
       const side = isLeft ? "left" : isRight ? "right" : null;
       if (!side) continue;
 
-      system[`${side}_connected`] = !!device.isTracked;
+      system[`${side}_connected`] = !!device.isConnected;
+      system[`${side}_tracked`] = !!device.isTracked;
       system[side] = device.batteryLevel || 0;
 
       // Optionally store extra info
@@ -749,7 +769,8 @@ function updateSystemWithJsonData(system, jsonData) {
       system.devices[side] = {
         name: device.name,
         battery: device.batteryLevel || 0,
-        connected: !!device.isTracked,
+        connected: !!device.isConnected,
+        tracked: !!device.isTracked,
         buttonsPressed:
           device.buttons?.filter((b) => b.value).map((b) => b.name) || [],
         orientation: device.trackerState?.rotation || [],
@@ -801,26 +822,30 @@ function send(command, systemName = currentSystem) {
       if (command === "getServerStatus") {
         updateSystemWithJsonData(allSystems[i], data);
         allSystems[i].connected = true;
-        
+
         allSystems[i].lastSeen = Date.now();
-        
+
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message || "Status updated.");
-      } else if (data.status === "success" && data.systemState) {
+      } 
+      
+      else if (command.startsWith("hapticTick")) {
+        pass;
+      } 
+      
+      else if (data.status === "success" && data.systemState) {
         allSystems[i] = { ...allSystems[i], ...data.systemState };
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message);
-      } else {
+      } 
+      
+      else {
         autoUpdateConsole(
           system,
           command,
           data.message || "Unexpected response"
         );
       }
-      
-      if (command.startsWith("hapticTick") {
-		  pass;
-	}
     })
     .catch((err) => {
       console.error(`Send to ${system.name} failed:`, err);
@@ -1127,7 +1152,10 @@ setInterval(() => {
 
   allSystems.forEach((system) => {
     // If system was recently updated, keep it online
-    if (system.lastSeen && now - system.lastSeen > getServerStatusInterval * 2) {
+    if (
+      system.lastSeen &&
+      now - system.lastSeen > getServerStatusInterval * 2
+    ) {
       // Timeout > twice as long as a regular interval = mark as offline
       if (system.connected !== false) {
         console.warn(`⚠️ ${system.name} marked offline (timeout)`);
