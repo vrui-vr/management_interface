@@ -1,11 +1,14 @@
 let allSystems = [];
 let currentSystem = "";
 let hasConnected = false;
+
 const filterState = new Set();
 const lowBatteryWarnings = new Set();
 
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
+
+const getServerStatusInterval = 5000
 
 //LOAD DEFAULT CONFIG IN FILE FOR NOW
 //TODO: FIND A BETTER OPTION
@@ -113,7 +116,7 @@ function addSystem() {
   );
   const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
-  const systemPort = window.prompt("Enter system port  (e.g., 8000):", "8080");
+  const systemPort = window.prompt("Enter system port  (e.g., 8081):", "8081");
   const port = systemPort && systemPort.trim() !== "" ? systemPort.trim() : "";
 
   const newSystem = {
@@ -134,7 +137,7 @@ function addSystem() {
   allSystems.push(newSystem);
   currentSystem = newName;
   updateInterface();
-  autoUpdateConsole(newSystem, "add", `✅ Added system '${newName}'`);
+  autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
 
   saveSystemsToLocalStorage();
 }
@@ -158,7 +161,7 @@ function removeSystem(systemName) {
   autoUpdateConsole(
     { name: systemName },
     "remove",
-    `🗑️ System '${systemName}' removed.`
+    `System '${systemName}' removed.`
   );
 
   saveSystemsToLocalStorage();
@@ -1037,7 +1040,6 @@ function updateInterface() {
   updateButtonStates();
   updateFilterMenu();
   applyConsoleFilter();
-  
 }
 
 //----------------------------------------------------------------------------
@@ -1116,8 +1118,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-const getServerStatusInterval = 5000
-
 setInterval(() => {
   const now = Date.now();
 
@@ -1142,40 +1142,4 @@ setInterval(() => {
     // Always attempt to ping
     send("getServerStatus", system.name);
   });
-}, getServerStatusInterval); // every 5 seconds
-
-
-// Periodic call to get battery counts for each system, will need to be updated to fit new system
-/*
-setInterval(() => {
-  allSystems.forEach((system, index) => {
-    fetch(getEndpoint(system))
-      .then((r) => r.json())
-      .then((updated) => {
-        // apply updates to this system
-        const i = allSystems.findIndex((d) => d.name === system.name);
-        if (i !== -1) {
-          allSystems[i] = { ...allSystems[i], ...updated };
-          updateSystemUI(allSystems[i]);
-
-          [
-            { type: "headset", value: updated.headset, connected: updated.headset_connected },
-            { type: "left controller", value: updated.left, connected: updated.left_connected },
-            { type: "right controller", value: updated.right, connected: updated.right_connected },
-          ].forEach(({ type, value, connected }) => {
-            const key = `${system.name}_${type}`;
-            if (connected && value < 10 && !lowBatteryWarnings.has(key)) {
-              autoUpdateConsole(system, "battery", `${type} battery low: ${value}%`);
-              lowBatteryWarnings.add(key);
-            } else if (value >= 10) {
-              lowBatteryWarnings.delete(key);
-            }
-          });
-        }
-      })
-      .catch((err) => {
-        console.warn(`❌ Failed to poll ${system.name}:`, err);
-      });
-  });
-}, 1000);
-*/
+}, getServerStatusInterval); // every certain amount of seconds
