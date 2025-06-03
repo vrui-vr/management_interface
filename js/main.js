@@ -566,7 +566,8 @@ function createBattery(system, label, percent, isConnected, isTracked) {
       const fill = document.createElement("div");
       fill.className = "battery-fill";
 
-      const fullSystem = allSystems.find((d) => d.name === system.name) || system;
+      const fullSystem =
+        allSystems.find((d) => d.name === system.name) || system;
 
       fill.style.width = `${percent}%`;
       fill.style.backgroundColor = getSystemColor(fullSystem);
@@ -586,7 +587,9 @@ function createBattery(system, label, percent, isConnected, isTracked) {
     // Tracking dot for all connected devices
     const trackedDot = document.createElement("span");
     trackedDot.className = isTracked ? "tracked-dot tracked" : "tracked-dot";
-    trackedDot.title = isTracked ? "Device tracked" : "Device connected (not tracked)";
+    trackedDot.title = isTracked
+      ? "Device tracked"
+      : "Device connected (not tracked)";
     row.appendChild(trackedDot);
   }
 
@@ -666,15 +669,28 @@ function showEditMenu(e, system, field) {
         case "Rename Headset":
           renameHeadset(system);
           break;
-        case "Ping":
-          send(
-            "hapticTick&hapticFeatureIndex=0&duration=100&frequency=100&amplitude=255",
-            system.name
-          );
+        case "Ping": {
+          const featureIndex = field === "left" ? 1 : field === "right" ? 2 : 0;
+
+          if (featureIndex > 0) {
+            const cmd = `hapticTick&hapticFeatureIndex=${featureIndex}&duration=100&frequency=100&amplitude=255`;
+            send(cmd, system.name);
+          } else {
+            console.warn("Unknown device field for Ping:", field);
+          }
           break;
-        case "Disconnect":
-          sendCustomCommandTo(system.name, `disconnect_${field}`);
+        }
+        case "Disconnect": {
+          const featureIndex = field === "left" ? 1 : field === "right" ? 2 : 0;
+
+          if (featureIndex > 0) {
+            const cmd = `powerOff&powerFeatureIndex=${featureIndex}`;
+            send(cmd, system.name);
+          } else {
+            console.warn("Unknown device field for Disconnect:", field);
+          }
           break;
+        }
       }
     };
 
@@ -827,19 +843,13 @@ function send(command, systemName = currentSystem) {
 
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message || "Status updated.");
-      } 
-      
-      else if (command.startsWith("hapticTick")) {
+      } else if (command.startsWith("hapticTick")) {
         pass;
-      } 
-      
-      else if (data.status === "success" && data.systemState) {
+      } else if (data.status === "success" && data.systemState) {
         allSystems[i] = { ...allSystems[i], ...data.systemState };
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message);
-      } 
-      
-      else {
+      } else {
         autoUpdateConsole(
           system,
           command,
