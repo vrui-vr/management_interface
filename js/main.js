@@ -844,7 +844,29 @@ function send(command, systemName = currentSystem) {
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message || "Status updated.");
       } else if (command.startsWith("hapticTick")) {
-        pass;
+        const match = command.match(/hapticFeatureIndex=(\d+)/);
+        const featureIndex = match ? parseInt(match[1], 10) : 0;
+
+        let defaultMsg = "Request sent for haptic tick in controller";
+
+        if (featureIndex === 1) {
+          defaultMsg = "Sent haptic tick in left controller";
+        } else if (featureIndex === 2) {
+          defaultMsg = "Sent haptic tick in right controller";
+        }
+
+        autoUpdateConsole(system, command, data.message || defaultMsg);
+      } else if (
+        data.status === "success" &&
+        command.startsWith("powerOff&powerFeatureIndex=")
+      ) {
+        // Trigger a fresh getServerStatus to update UI
+        send("getServerStatus", system.name);
+        autoUpdateConsole(
+          system,
+          command,
+          data.message || "Controller disconnect sent. Refreshing status..."
+        );
       } else if (data.status === "success" && data.systemState) {
         allSystems[i] = { ...allSystems[i], ...data.systemState };
         updateSystemUI(allSystems[i]);
