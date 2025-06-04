@@ -354,9 +354,10 @@ span[title*="IP"]:hover {
 }
 
 .battery-percent {
-  font-size: 0.75rem;
-  width: 2.5ch;
+  font-size: 0.7rem; 
+  width: 2ch;       
   text-align: right;
+  margin-right: 0.4rem;
 }
 
 .battery-percent.zero {
@@ -371,18 +372,18 @@ span[title*="IP"]:hover {
 
 .tracked-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px; /* smaller */
+  height: 6px; /* smaller */
   border-radius: 50%;
   background-color: var(--text-muted); /* gray dot */
-  margin-left: 0.5rem;
+  margin-left: 0.4rem; /* tighter spacing */
   vertical-align: middle;
   cursor: default;
 }
 
 .tracked-dot.tracked {
   background-color: green;
-  animation: pulseAnim 1.2s infinite ease-in-out;
+  animation: pulseAnim 3s infinite ease-in-out; /* was 1.2s → now 2s */
 }
 
 @keyframes pulseAnim {
@@ -391,7 +392,7 @@ span[title*="IP"]:hover {
     opacity: 1;
   }
   50% {
-    transform: scale(1.6);
+    transform: scale(1.1);
     opacity: 0.5;
   }
   100% {

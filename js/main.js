@@ -8,7 +8,7 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
-const getServerStatusInterval = 5000;
+const getServerStatusInterval = 3000;
 
 //LOAD DEFAULT CONFIG IN FILE FOR NOW
 //TODO: FIND A BETTER OPTION
@@ -603,6 +603,38 @@ function makeMenuVisible(menu) {
   menu.classList.add("visible");
 }
 
+// Sends a haptic tick command to the system
+function sendHapticTick(systemName, featureIndex) {
+  const system = allSystems.find((d) => d.name === systemName);
+  if (!system) return;
+
+  const endpoint = getEndpoint(system);
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      command: "hapticTick",
+      hapticFeatureIndex: featureIndex,
+      duration: 100,
+      frequency: 100,
+      amplitude: 100
+    })
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      let msg = featureIndex === 1 ? "Sent haptic tick in left controller" :
+                featureIndex === 2 ? "Sent haptic tick in right controller" :
+                "Sent haptic tick";
+
+      autoUpdateConsole(system, "hapticTick", data.message || msg);
+    })
+    .catch((err) => {
+      console.error(`HapticTick to ${system.name} failed:`, err);
+      autoUpdateConsole(system, "hapticTick", "Failed to send command");
+    });
+}
+
 // Lets user edit system info
 function showEditMenu(e, system, field) {
   e.stopPropagation();
@@ -673,8 +705,7 @@ function showEditMenu(e, system, field) {
           const featureIndex = field === "left" ? 1 : field === "right" ? 2 : 0;
 
           if (featureIndex > 0) {
-            const cmd = `hapticTick&hapticFeatureIndex=${featureIndex}&duration=100&frequency=100&amplitude=255`;
-            send(cmd, system.name);
+            sendHapticTick(system.name, featureIndex);
           } else {
             console.warn("Unknown device field for Ping:", field);
           }
@@ -1139,6 +1170,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateInterface();
     applyConsoleFilter();
+    send("getServerStatus", currentSystem);
   } else {
     // fallback if nothing is stored — hardcoded default system
     const baseSystems = [
@@ -1176,6 +1208,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateInterface();
     applyConsoleFilter();
+    send("getServerStatus", currentSystem);
   }
 });
 
@@ -1207,3 +1240,112 @@ setInterval(() => {
     send("getServerStatus", system.name);
   });
 }, getServerStatusInterval); // every certain amount of seconds
+
+//void VRDeviceServer::newHttpConnectionCallback(Threads::EventDispatcher::IOEvent& event)
+	//{
+	//VRDeviceServer* thisPtr=static_cast<VRDeviceServer*>(event.getUserData());
+	
+	//try
+		//{
+		///* Allow valid commands to pass the CORS protocol */
+		//bool sendCORS = false;
+		///* Open a new TCP connection to the HTTP client: */
+		//Comm::PipePtr pipe(thisPtr->httpListeningSocket->accept());
+		
+		///* Parse an HTTP POST request: */
+		//Comm::HttpPostRequest request(*pipe);
+		//const Comm::HttpPostRequest::NameValueList& nvl=request.getNameValueList();
+		
+		///* Check that there is a command in the POST request: */
+		//if(request.getActionUrl()=="/VRDeviceServer.cgi"&&nvl.size()>=1&&nvl.front().name=="command")
+			//{
+			///* Compose the server's reply as a JSON-encoded object: */
+			//IO::JsonPointer replyRoot;
+			
+			///* Process the command: */
+			//if(nvl.front().value=="getServerStatus")
+				//{
+				///* Compose the JSON object representing the current server state: */
+				//replyRoot=thisPtr->getServerStatus();
+				//sendCORS = true;
+				//}
+			//else if(nvl.front().value=="getDeviceStates")
+				//{
+				//}
+			//else if(nvl.front().value=="hapticTick"&&nvl.size()>1&&nvl[1].name=="hapticFeatureIndex")
+				//{
+				///* Extract the haptic feature index: */
+				//unsigned int hapticFeatureIndex(strtoul(nvl[1].value.c_str(),0,10));
+				
+				///* Extract optional haptic tick duration, frequency, and amplitude: */
+				//unsigned int duration=100;
+				//unsigned int frequency=100;
+				//unsigned int amplitude=255;
+				//for(unsigned int i=2;i<nvl.size();++i)
+					//{
+					//if(nvl[i].name=="duration")
+						//duration=(unsigned int)(strtoul(nvl[i].value.c_str(),0,10));
+					//else if(nvl[i].name=="frequency")
+						//frequency=(unsigned int)(strtoul(nvl[i].value.c_str(),0,10));
+					//else if(nvl[i].name=="amplitude")
+						//amplitude=Math::clamp((unsigned int)(strtoul(nvl[i].value.c_str(),0,10)),0U,255U);
+					//}
+				
+				///* Request a haptic tick: */
+				//if(hapticFeatureIndex<thisPtr->deviceManager->getNumHapticFeatures())
+					//thisPtr->deviceManager->hapticTick(hapticFeatureIndex,duration,frequency,amplitude);
+				
+				//IO::JsonObjectPointer replyObject = new IO::JsonObject;
+				//replyObject->setProperty("status", "success");
+				//replyObject->setProperty("message", "Haptic tick sent.");
+
+				//// Now assign it to replyRoot:
+				//replyRoot = replyObject;
+				//sendCORS = true;
+				//}
+				
+			//else if(nvl.front().value=="powerOff"&&nvl.size()>=2&&nvl[1].name=="powerFeatureIndex")
+				//{
+				///* Extract the power feature index: */
+				//unsigned int powerFeatureIndex(strtoul(nvl[1].value.c_str(),0,10));
+				
+				///* Power off the device: */
+				//if(powerFeatureIndex<thisPtr->deviceManager->getNumPowerFeatures())
+					//thisPtr->deviceManager->powerOff(powerFeatureIndex);
+				
+				//replyRoot = new IO::JsonObject;
+				//sendCORS = true;
+				//}
+				
+			///* Send the server's reply as a json file embedded in an HTTP reply: */
+			//IO::OStream reply(pipe);
+			//reply << "HTTP/1.1 200 OK\n";
+			//if(replyRoot != 0)
+			//{
+				//reply << "Content-Type: application/json\n";
+			//}
+
+			//if(sendCORS)
+			//{
+				//reply << "Access-Control-Allow-Origin: *\n";
+			//}
+
+			//reply << "\n";
+
+			//if(replyRoot != 0)
+				//reply << *replyRoot;
+
+			//reply << std::endl;
+			
+			///* Send the reply: */
+			//pipe->flush();
+			//}
+		//}
+	//catch(const std::runtime_error& err)
+		//{
+		//#ifdef VERBOSE
+		//// printf("VRDeviceServer: Ignoring HTTP request due to exception %s\n",err.what());
+		//// fflush(stdout);
+		//#endif
+		//}
+	//}
