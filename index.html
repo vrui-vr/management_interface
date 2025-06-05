@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
+    <div id="actionMenu" class="action-menu hidden"></div>
+
     <div class="sidebar">
       <div
         class="title-row"
@@ -29,7 +31,7 @@
         />
         <h2>VRUI Interface</h2>
         <select id="systemSelect" onchange="changeSystem(this.value)"></select>
-        <button class="add-btn" onclick="addDevice()">+</button>
+        <button class="add-btn" onclick="addSystem()">+</button>
       </div>
       <div class="button-section">
         <p><strong id="targetLabel"></strong></p>
@@ -37,11 +39,15 @@
         <button
           class="button"
           id="btn-vrtracker"
-          onclick="send('vrtracker_on')"
+          onclick="send('getServerStatus')"
         >
-          Start VR Tracker
+          Get Server Status
         </button>
-        <button class="button" id="btn-headset" onclick="send('headset')">
+        <button
+          class="button"
+          id="btn-headset"
+          onclick="send('getServerStatus')"
+        >
           Start VR Compositor
         </button>
 
@@ -58,7 +64,7 @@
           id="btn-disconnect"
           onclick="send('disconnect')"
         >
-          Disconnect Devices
+          Disconnect System
         </button>
 
         <button
@@ -80,7 +86,7 @@
     </div>
 
     <div class="main">
-      <div class="device-section" id="deviceContainer"></div>
+      <div class="system-section" id="systemContainer"></div>
       <div class="console-section">
         <div
           class="console-title"
@@ -105,11 +111,41 @@
             id="commandInput"
             placeholder="Enter command (e.g. reset)"
           />
-          <button onclick="sendCustomCommand()">Send</button>
+          <button onclick="sendConsoleCommand()">Send</button>
+        </div>
+      </div>
+      <div class="file-drop-wrapper">
+        <div id="fileDropArea" class="file-drop">
+          <div class="file-drop-header">Upload file</div>
+
+          <div class="file-drop-box">
+            <label for="fileInput" class="file-drop-label">
+              <div class="file-drop-icon">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#666"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                  <path d="M5 19h14" />
+                </svg>
+              </div>
+
+              <span class="file-drop-text">
+                Drop items here or <span class="browse-text">Browse files</span>
+              </span>
+            </label>
+
+            <input type="file" id="fileInput" hidden />
+          </div>
         </div>
       </div>
     </div>
-
-    <script src="js/Main.js"></script>
+    <script src="js/main.js"></script>
   </body>
 </html>
