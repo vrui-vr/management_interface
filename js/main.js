@@ -114,15 +114,6 @@ function addSystem() {
     return;
   }
 
-  const headsetModel = window.prompt(
-    "Enter headset model (e.g., HTC Vive Pro, Valve Index):",
-    "HTC Vive Pro"
-  );
-  const model =
-    headsetModel && headsetModel.trim() !== ""
-      ? headsetModel.trim()
-      : "Unknown";
-
   const ipAddress = window.prompt(
     "Enter system IP address (e.g., 192.168.1.15):",
     "192.168.1.15"
@@ -150,7 +141,6 @@ function addSystem() {
 
   const newSystem = {
     name: newName,
-    headset_model: model,
     ip,
     port,
     connected: false,
@@ -1223,7 +1213,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseSystems = JSON.parse(saved);
     allSystems = baseSystems.map((d, index) => ({
       name: d.name,
-      headset_model: d.model,
       ip: d.ip,
       port: d.port,
       connected: false,
@@ -1251,7 +1240,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseSystems = [
       {
         name: "Local Host",
-        model: "Valve Index",
         ip: "127.0.0.1",
         port: "8081",
       },
@@ -1259,16 +1247,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     allSystems = baseSystems.map((d, index) => ({
       name: d.name,
-      headset_model: d.model,
       ip: d.ip,
       port: d.port,
       connected: false,
-      headset: 0,
-      left: 0,
-      right: 0,
-      headset_connected: false,
-      left_connected: false,
-      right_connected: false,
+      devices: {},
       colorClass: `rig-${index % 6}`,
     }));
 

@@ -152,7 +152,7 @@ body {
 }
 
 .system-card {
-  width: 260px;
+  width: 220px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem;
@@ -339,7 +339,7 @@ span[title*="IP"]:hover {
 }
 
 .battery-bar {
-  width: 80px;
+  width: 70px; 
   height: 10px;
   background-color: #e5e5e5;
   border-radius: 3px;
@@ -347,17 +347,17 @@ span[title*="IP"]:hover {
   position: relative;
 }
 
+.battery-percent {
+  font-size: 0.7rem; 
+  white-space: nowrap;
+  margin-left: 0.1rem; 
+  color: var(--text-dark);
+}
+
 .battery-fill {
   height: 100%;
   background-color: var(--primary);
   transition: width 0.3s ease;
-}
-
-.battery-percent {
-  font-size: 0.7rem; 
-  width: 2ch;       
-  text-align: right;
-  margin-right: 0.4rem;
 }
 
 .battery-percent.zero {
