@@ -54,29 +54,39 @@ function handleFile(file) {
 
 // Returns list of systems normalized and standardized with latest updates
 function normalizeSystems(rawSystems) {
-  return rawSystems.map((d, index) => ({
-    name: d.name,
-    connected: d.connected,
-    tracked: d.tracked,
-    headset: d.headset,
-    left: d.left,
-    right: d.right,
-    headset_connected: d.headset_connected,
-    left_connected: d.left_connected,
-    right_connected: d.right_connected,
-    left_tracked: d.left_tracked,
-    right_tracked: d.right_tracked,
-    headset_model: d.headset_model || "Unknown",
-    ip: d.ip || "N/A", // new line
-    colorClass: `rig-${index % 6}`,
-  }));
+  return rawSystems.map((d, index) => {
+    const normalizedDevices = {};
+
+    // Loop over all devices in this system
+    for (const [key, device] of Object.entries(d.devices || {})) {
+      normalizedDevices[key] = {
+        connected: device?.connected || false,
+        tracked: device?.tracked || false,
+        battery: device?.battery ?? -1,
+        hasBattery: device?.hasBattery || false,
+        canPowerOff: device?.canPowerOff || false,
+        powerFeatureIndexes: device?.powerFeatureIndexes || [],
+        hapticFeedbackIndexes: device?.hapticFeedbackIndexes || [],
+        buttonsPressed: device?.buttonsPressed || [],
+        orientation: device?.orientation || [],
+        position: device?.position || [],
+      };
+    }
+
+    return {
+      name: d.name,
+      connected: !!normalizedDevices?.hmd?.connected, // fallback to headset connected if available
+      ip: d.ip || "N/A",
+      colorClass: `rig-${index % 6}`,
+      devices: normalizedDevices,
+    };
+  });
 }
 
 //Saves systems to local storage
 function saveSystemsToLocalStorage() {
   const toSave = allSystems.map((d) => ({
     name: d.name,
-    model: d.headset_model,
     ip: d.ip,
     port: d.port,
   }));
@@ -119,24 +129,34 @@ function addSystem() {
   );
   const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
-  const systemPort = window.prompt("Enter system port  (e.g., 8081):", "8081");
+  const systemPort = window.prompt("Enter system port (e.g., 8081):", "8081");
   const port = systemPort && systemPort.trim() !== "" ? systemPort.trim() : "";
+
+  // Helper to create default device object
+  function defaultDevice() {
+    return {
+      connected: false,
+      tracked: false,
+      battery: 0,
+      hasBattery: false,
+      canPowerOff: false,
+      powerFeatureIndexes: [],
+      hapticFeedbackIndexes: [],
+      buttonsPressed: [],
+      orientation: [],
+      position: [],
+    };
+  }
 
   const newSystem = {
     name: newName,
     headset_model: model,
     ip,
-    port, // optionally prompt for port (TODO)
+    port,
     connected: false,
-    headset: 0,
-    left: 0,
-    right: 0,
-    headset_connected: false,
-    left_connected: false,
-    right_connected: false,
-    left_tracked: false,
-    right_tracked: false,
     colorClass: `rig-${allSystems.length % 6}`,
+    devices: {
+    },
   };
 
   allSystems.push(newSystem);
@@ -254,26 +274,31 @@ function updateSystemUI(updatedSystem) {
   // 2) grab its battery rows
   const batteryRows = systemCard.querySelectorAll(".battery-row");
 
-  // 3) update battery percentages
-  // Headset
+  // 3) update battery percentages using .devices
   if (!batteryRows[0]) return;
 
+  // Headset
   const hs = batteryRows[0].querySelector(".battery-percent");
   if (hs) {
-    hs.textContent = `${updatedSystem.headset}%`;
-    hs.classList.toggle("zero", updatedSystem.headset === 0);
+    const battery = updatedSystem.devices?.headset?.battery ?? -1;
+    hs.textContent = battery >= 0 ? `${battery}%` : "--";
+    hs.classList.toggle("zero", battery === 0);
   }
 
+  // Left controller
   const lf = batteryRows[1]?.querySelector(".battery-percent");
   if (lf) {
-    lf.textContent = `${updatedSystem.left}%`;
-    lf.classList.toggle("zero", updatedSystem.left === 0);
+    const battery = updatedSystem.devices?.left?.battery ?? -1;
+    lf.textContent = battery >= 0 ? `${battery}%` : "--";
+    lf.classList.toggle("zero", battery === 0);
   }
 
+  // Right controller
   const rt = batteryRows[2]?.querySelector(".battery-percent");
   if (rt) {
-    rt.textContent = `${updatedSystem.right}%`;
-    rt.classList.toggle("zero", updatedSystem.right === 0);
+    const battery = updatedSystem.devices?.right?.battery ?? -1;
+    rt.textContent = battery >= 0 ? `${battery}%` : "--";
+    rt.classList.toggle("zero", battery === 0);
   }
 
   // 4) update connected/disconnected styling
@@ -370,7 +395,9 @@ function renderSystems(systems) {
     const card = document.createElement("div");
     card.className = "system-card";
 
-    if (!system.connected) card.classList.add("disconnected");
+    // Connected state (based on hmd device if present)
+    const isConnected = !!system.devices?.hmd?.connected;
+    if (!isConnected) card.classList.add("disconnected");
 
     if (system.name === currentSystem) {
       const borderColor = getSystemColor(system);
@@ -387,13 +414,13 @@ function renderSystems(systems) {
     header.style.alignItems = "center";
 
     const name = document.createElement("div");
-    const statusClass = system.connected ? "connected" : "disconnected";
+    const statusClass = isConnected ? "connected" : "disconnected";
     name.className = `system-name ${statusClass}`;
     name.style.color = getSystemColor(system);
     name.style.display = "flex";
-    name.style.flexDirection = "column"; // ✅ stack name + ip
+    name.style.flexDirection = "column";
     name.style.alignItems = "flex-start";
-    name.style.gap = "0.1rem"; // small vertical gap
+    name.style.gap = "0.1rem";
 
     const labelSpan = document.createElement("span");
     labelSpan.textContent = system.name;
@@ -411,7 +438,7 @@ function renderSystems(systems) {
     }
 
     const offlineSpan = document.createElement("span");
-    if (!system.connected) {
+    if (!isConnected) {
       offlineSpan.textContent = " (offline)";
       offlineSpan.className = "offline";
       labelSpan.appendChild(offlineSpan);
@@ -423,9 +450,8 @@ function renderSystems(systems) {
     ipSpan.style.color = "gray";
     ipSpan.style.opacity = "0.7";
     ipSpan.style.marginTop = "-2px";
-
-    // Create and prepend the dot
     ipSpan.textContent = `${system.ip}:${system.port}`;
+
     if (system.name === currentSystem) {
       ipSpan.style.cursor = "pointer";
       ipSpan.title = "Edit IP/Port";
@@ -463,36 +489,25 @@ function renderSystems(systems) {
 
     card.appendChild(header);
 
+    // Battery column → now fully dynamic
     const batteryColumn = document.createElement("div");
     batteryColumn.className = "battery-column";
 
-    batteryColumn.appendChild(
-      createBattery(
-        system,
-        `Headset (${system.headset_model})`,
-        system.headset,
-        system.headset_connected,
-        system.headset_tracked
-      )
-    );
-    batteryColumn.appendChild(
-      createBattery(
-        system,
-        "Left Controller",
-        system.left,
-        system.left_connected,
-        system.left_tracked
-      )
-    );
-    batteryColumn.appendChild(
-      createBattery(
-        system,
-        "Right Controller",
-        system.right,
-        system.right_connected,
-        system.right_tracked
-      )
-    );
+    const deviceKeys = Object.keys(system.devices || {});
+	deviceKeys.forEach((key) => {
+	  const device = system.devices[key];
+
+	  batteryColumn.appendChild(
+		createBattery(
+		  system,
+		  key, // use raw device name as label
+		  device?.battery ?? -1,
+		  device?.connected || false,
+		  device?.tracked || false,
+		  device?.hasBattery || false
+		)
+	  );
+	});
 
     card.appendChild(batteryColumn);
     container.appendChild(card);
@@ -500,7 +515,7 @@ function renderSystems(systems) {
 }
 
 //creates battery widgets for the systems
-function createBattery(system, label, percent, isConnected, isTracked) {
+function createBattery(system, label, percent, isConnected, isTracked, hasBattery) {
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -540,23 +555,23 @@ function createBattery(system, label, percent, isConnected, isTracked) {
     row.appendChild(statusSpan);
   }
 
-  // Connected (Connected label or battery bar + tracking dot)
+  // Connected
   else {
-    // Connected, no battery
-    if (percent === -1) {
+    row.appendChild(labelSpan);
+
+    // No battery → just "Connected"
+    if (!hasBattery) {
       statusSpan.textContent = "Connected";
       statusSpan.style.color = getSystemColor(system);
       statusSpan.style.fontSize = ".8rem";
       statusSpan.style.marginLeft = "1rem";
       statusSpan.style.fontWeight = "bold";
       statusSpan.style.textAlign = "right";
-      row.appendChild(labelSpan);
       row.appendChild(statusSpan);
     }
-    // Connected, with battery
-    else {
-      row.appendChild(labelSpan);
 
+    // Has battery → show battery bar
+    else {
       const container = document.createElement("div");
       container.className = "battery-bar-container";
 
@@ -604,9 +619,34 @@ function makeMenuVisible(menu) {
 }
 
 // Sends a haptic tick command to the system
-function sendHapticTick(systemName, featureIndex) {
-  const system = allSystems.find((d) => d.name === systemName);
-  if (!system) return;
+function sendHapticTick(system, deviceName, featureIndex) {
+  if (!system) {
+    console.warn(`System not found.`);
+    return;
+  }
+
+  const device = system.devices?.[deviceName];
+  if (!device) {
+    console.warn(`Device '${deviceName}' not found in system '${system.name}'.`);
+    return;
+  }
+
+  if (
+    !device.hapticFeedbackIndexes ||
+    device.hapticFeedbackIndexes.length === 0
+  ) {
+    console.warn(
+      `Device '${deviceName}' in '${system.name}' has no haptic feedback features.`
+    );
+    return;
+  }
+
+  if (!device.hapticFeedbackIndexes.includes(featureIndex)) {
+    console.warn(
+      `Feature index ${featureIndex} not available in device '${deviceName}' in '${system.name}'.`
+    );
+    return;
+  }
 
   const endpoint = getEndpoint(system);
 
@@ -616,22 +656,70 @@ function sendHapticTick(systemName, featureIndex) {
     body: new URLSearchParams({
       command: "hapticTick",
       hapticFeatureIndex: featureIndex,
-      duration: 100,
+      duration: 300,
       frequency: 100,
-      amplitude: 100
-    })
+      amplitude: 255,
+    }),
   })
     .then((r) => r.json())
     .then((data) => {
-      let msg = featureIndex === 1 ? "Sent haptic tick in left controller" :
-                featureIndex === 2 ? "Sent haptic tick in right controller" :
-                "Sent haptic tick";
-
+      const msg = `Sent haptic tick to '${deviceName}' (featureIndex=${featureIndex})`;
       autoUpdateConsole(system, "hapticTick", data.message || msg);
     })
     .catch((err) => {
-      console.error(`HapticTick to ${system.name} failed:`, err);
+      console.error(`HapticTick to '${deviceName}' in ${system.name} failed:`, err);
       autoUpdateConsole(system, "hapticTick", "Failed to send command");
+    });
+}
+
+//Power off command function
+function sendPowerOff(system, deviceName, featureIndex) {
+  if (!system) {
+    console.warn(`System not found.`);
+    return;
+  }
+
+  const device = system.devices?.[deviceName];
+  if (!device) {
+    console.warn(`Device '${deviceName}' not found in system '${system.name}'.`);
+    return;
+  }
+
+  if (
+    !device.powerFeatureIndexes ||
+    device.powerFeatureIndexes.length === 0
+  ) {
+    console.warn(
+      `Device '${deviceName}' in '${system.name}' has no power off features.`
+    );
+    return;
+  }
+
+  if (!device.powerFeatureIndexes.includes(featureIndex)) {
+    console.warn(
+      `Feature index ${featureIndex} not available in device '${deviceName}' in '${system.name}'.`
+    );
+    return;
+  }
+
+  const endpoint = getEndpoint(system);
+
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      command: "powerOff",
+      powerFeatureIndex: featureIndex,
+    }),
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      const msg = `Sent power off to '${deviceName}' (featureIndex=${featureIndex})`;
+      autoUpdateConsole(system, "powerOff", data.message || msg);
+    })
+    .catch((err) => {
+      console.error(`PowerOff to '${deviceName}' in ${system.name} failed:`, err);
+      autoUpdateConsole(system, "powerOff", "Failed to send command");
     });
 }
 
@@ -655,33 +743,27 @@ function showEditMenu(e, system, field) {
   // Reset for re-render
   makeMenuVisible(menu);
 
-  const actions = {
-    name: ["Rename"],
-    ipport: ["Change IP", "Change Port"],
-    headset_model: ["Rename Headset"],
-    left: ["Ping", "Disconnect"],
-    right: ["Ping", "Disconnect"],
-  };
+  const available = [];
 
-  const available = actions[field] || [];
-
-  available.forEach((action) => {
-    // Skip "Change IP" if this is the Local Host
-    if (system.name === "Local Host") {
-      if (
-        field === "name" ||
-        (field === "ipport" && e.target.textContent.includes("Change IP"))
-      ) {
-        const menu = document.getElementById("actionMenu");
-        menu.classList.remove("visible");
-        menu.classList.add("hidden");
-        setTimeout(() => {
-          menu.innerHTML = "";
-        }, 150);
-        return;
+  if (field === "name") {
+    available.push("Rename");
+  } else if (field === "ipport") {
+    available.push("Change IP", "Change Port");
+  } else {
+    // Treat as device if exists
+    const device = system.devices?.[field];
+    if (device) {
+      if (device.hapticFeedbackIndexes?.length > 0) {
+        available.push("Ping");
+      }
+      if (device.canPowerOff) {
+        available.push("Power Off");
       }
     }
+  }
 
+  // Build buttons
+  available.forEach((action) => {
     const btn = document.createElement("button");
     btn.textContent = action;
 
@@ -698,32 +780,37 @@ function showEditMenu(e, system, field) {
         case "Change Port":
           changePort(system);
           break;
-        case "Rename Headset":
-          renameHeadset(system);
-          break;
         case "Ping": {
-          const featureIndex = field === "left" ? 1 : field === "right" ? 2 : 0;
-
-          if (featureIndex > 0) {
-            sendHapticTick(system.name, featureIndex);
+          const device = system.devices?.[field];
+          const featureIndex = device?.hapticFeedbackIndexes?.[0];
+          if (featureIndex != null) {
+            sendHapticTick(system, field, featureIndex);
           } else {
-            console.warn("Unknown device field for Ping:", field);
+            console.warn("No haptic feedback index for Ping:", field);
           }
           break;
         }
-        case "Disconnect": {
-          const featureIndex = field === "left" ? 1 : field === "right" ? 2 : 0;
-
-          if (featureIndex > 0) {
-            const cmd = `powerOff&powerFeatureIndex=${featureIndex}`;
-            send(cmd, system.name);
+        case "Power Off": {
+          const device = system.devices?.[field];
+          const powerIndex = device?.powerFeatureIndexes?.[0];
+          if (powerIndex != null) {
+            sendPowerOff(system, field, powerIndex);
           } else {
-            console.warn("Unknown device field for Disconnect:", field);
+            console.warn("No power feature index for:", field);
           }
           break;
         }
       }
     };
+	
+	if (available.length === 0) {
+	  const emptyNotice = document.createElement("div");
+	  emptyNotice.textContent = "No actions available";
+	  emptyNotice.style.padding = "0.5rem";
+	  emptyNotice.style.fontSize = "0.8rem";
+	  emptyNotice.style.color = "gray";
+	  menu.appendChild(emptyNotice);
+	}
 
     menu.appendChild(btn);
   });
@@ -762,15 +849,6 @@ function changePort(system) {
   }
 }
 
-function renameHeadset(system) {
-  const newModel = window.prompt("New headset model:", system.headset_model);
-  if (newModel && newModel.trim()) {
-    system.headset_model = newModel.trim();
-    saveSystemsToLocalStorage();
-    updateInterface();
-  }
-}
-
 function sendCustomCommandTo(target, command) {
   fetch(getEndpoint(target), {
     method: "POST",
@@ -784,47 +862,46 @@ function sendCustomCommandTo(target, command) {
 }
 
 function updateSystemWithJsonData(system, jsonData) {
-  if (!jsonData || !Array.isArray(jsonData.devices)) return;
+	if (!jsonData || !Array.isArray(jsonData.devices)) return;
 
-  // Reset values to default in case data is missing
-  system.headset = 0;
-  system.left = 0;
-  system.right = 0;
-  system.headset_connected = false;
-  system.left_connected = false;
-  system.right_connected = false;
+	// Ensure devices object exists
+	if (!system.devices) {
+	  system.devices = {};
+	}
 
-  for (const device of jsonData.devices) {
-    const name = device.name?.toLowerCase();
+	system.connected = true;
 
-    if (name === "hmd") {
-      system.headset_connected = !!device.isConnected;
-      system.headset_tracked = !!device.isTracked;
-      system.headset = device.batteryLevel != null ? device.batteryLevel : -1;
-    } else if (name.includes("controller")) {
-      const isLeft = name.includes("1");
-      const isRight = name.includes("2");
-      const side = isLeft ? "left" : isRight ? "right" : null;
-      if (!side) continue;
+	for (const device of jsonData.devices) {
+	  const deviceName = device.name?.trim() || `device_${Math.random().toString(36).substring(2, 8)}`;
 
-      system[`${side}_connected`] = !!device.isConnected;
-      system[`${side}_tracked`] = !!device.isTracked;
-      system[side] = device.batteryLevel || 0;
+	  // Safe key for object — you can also sanitize it here if needed
+	  const key = deviceName.toLowerCase();
 
-      // Optionally store extra info
-      if (!system.devices) system.devices = {};
-      system.devices[side] = {
-        name: device.name,
-        battery: device.batteryLevel || 0,
-        connected: !!device.isConnected,
-        tracked: !!device.isTracked,
-        buttonsPressed:
-          device.buttons?.filter((b) => b.value).map((b) => b.name) || [],
-        orientation: device.trackerState?.rotation || [],
-        position: device.trackerState?.translation || [],
-      };
-    }
-  }
+	  const commonInfo = {
+		name: device.name,
+		connected: !!device.isConnected,
+		tracked: !!device.isTracked,
+		hasBattery: !!device.hasBattery,
+		canPowerOff: !!device.canPowerOff,
+		powerFeatureIndexes:
+		  device.canPowerOff && device.powerFeatureIndex != null
+			? [device.powerFeatureIndex]
+			: [],
+		hapticFeedbackIndexes: Array.isArray(device.hapticFeatures)
+		  ? device.hapticFeatures.map((hf) => hf.index)
+		  : [],
+		buttonsPressed:
+		  device.buttons?.filter((b) => b.value).map((b) => b.name) || [],
+		orientation: device.trackerState?.rotation || [],
+		position: device.trackerState?.translation || [],
+		battery: device.batteryLevel != null ? device.batteryLevel : -1,
+	  };
+
+	  // Save device by its name
+	  system.devices[key] = commonInfo;
+	}
+
+	console.log(JSON.stringify(system, null, 2));
 }
 
 // Sends command to CORS
@@ -868,46 +945,16 @@ function send(command, systemName = currentSystem) {
 
       if (command === "getServerStatus") {
         updateSystemWithJsonData(allSystems[i], data);
-        allSystems[i].connected = true;
-
+        const normalized = normalizeSystems(allSystems);
+		//console.log("Normalized systems:\n", JSON.stringify(normalized, null, 2));
+        // Mark as online
         allSystems[i].lastSeen = Date.now();
 
         updateSystemUI(allSystems[i]);
         autoUpdateConsole(system, command, data.message || "Status updated.");
-      } else if (command.startsWith("hapticTick")) {
-        const match = command.match(/hapticFeatureIndex=(\d+)/);
-        const featureIndex = match ? parseInt(match[1], 10) : 0;
-
-        let defaultMsg = "Request sent for haptic tick in controller";
-
-        if (featureIndex === 1) {
-          defaultMsg = "Sent haptic tick in left controller";
-        } else if (featureIndex === 2) {
-          defaultMsg = "Sent haptic tick in right controller";
-        }
-
-        autoUpdateConsole(system, command, data.message || defaultMsg);
-      } else if (
-        data.status === "success" &&
-        command.startsWith("powerOff&powerFeatureIndex=")
-      ) {
-        // Trigger a fresh getServerStatus to update UI
-        send("getServerStatus", system.name);
-        autoUpdateConsole(
-          system,
-          command,
-          data.message || "Controller disconnect sent. Refreshing status..."
-        );
-      } else if (data.status === "success" && data.systemState) {
-        allSystems[i] = { ...allSystems[i], ...data.systemState };
-        updateSystemUI(allSystems[i]);
-        autoUpdateConsole(system, command, data.message);
       } else {
-        autoUpdateConsole(
-          system,
-          command,
-          data.message || "Unexpected response"
-        );
+        // For any other command, just log the result
+        autoUpdateConsole(system, command, data.message || "Command sent.");
       }
     })
     .catch((err) => {
@@ -1212,6 +1259,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+
 setInterval(() => {
   const now = Date.now();
 
@@ -1221,16 +1269,15 @@ setInterval(() => {
       system.lastSeen &&
       now - system.lastSeen > getServerStatusInterval * 2
     ) {
-      // Timeout > twice as long as a regular interval = mark as offline
+      // Timeout → mark as offline
       if (system.connected !== false) {
         console.warn(`⚠️ ${system.name} marked offline (timeout)`);
+
         system.connected = false;
-        system.headset_connected = false;
-        system.left_connected = false;
-        system.right_connected = false;
-        system.headset = 0;
-        system.left = 0;
-        system.right = 0;
+
+        // Clear devices → when offline, show no devices
+        system.devices = {};
+
         updateSystemUI(system);
         autoUpdateConsole(system, "timeout", "Marked as offline (no response)");
       }
