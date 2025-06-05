@@ -152,7 +152,7 @@ body {
 }
 
 .system-card {
-  width: 260px;
+  width: 220px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem;
@@ -339,7 +339,7 @@ span[title*="IP"]:hover {
 }
 
 .battery-bar {
-  width: 80px;
+  width: 70px; 
   height: 10px;
   background-color: #e5e5e5;
   border-radius: 3px;
@@ -347,16 +347,17 @@ span[title*="IP"]:hover {
   position: relative;
 }
 
+.battery-percent {
+  font-size: 0.7rem; 
+  white-space: nowrap;
+  margin-left: 0.1rem; 
+  color: var(--text-dark);
+}
+
 .battery-fill {
   height: 100%;
   background-color: var(--primary);
   transition: width 0.3s ease;
-}
-
-.battery-percent {
-  font-size: 0.75rem;
-  width: 2.5ch;
-  text-align: right;
 }
 
 .battery-percent.zero {
@@ -367,6 +368,41 @@ span[title*="IP"]:hover {
   font-size: 0.75rem;
   margin-left: 0.5rem;
   color: var(--text-muted);
+}
+
+.tracked-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--border); /* outer ring */
+  background-color: var(--bg-light); /* light inner fill */
+  box-sizing: border-box; /* important! ensures border does NOT change size */
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  cursor: default;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.tracked-dot.tracked {
+  border: 1px solid green; /* keep border to preserve size */
+  background-color: green;
+  animation: pulseAnim 3s infinite ease-in-out;
+}
+
+@keyframes pulseAnim {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .console-section {
