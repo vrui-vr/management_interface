@@ -372,18 +372,22 @@ span[title*="IP"]:hover {
 
 .tracked-dot {
   display: inline-block;
-  width: 6px; /* smaller */
-  height: 6px; /* smaller */
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background-color: var(--text-muted); /* gray dot */
-  margin-left: 0.4rem; /* tighter spacing */
+  border: 1px solid var(--border); /* outer ring */
+  background-color: var(--bg-light); /* light inner fill */
+  box-sizing: border-box; /* important! ensures border does NOT change size */
+  margin-left: 0.4rem;
   vertical-align: middle;
   cursor: default;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .tracked-dot.tracked {
+  border: 1px solid green; /* keep border to preserve size */
   background-color: green;
-  animation: pulseAnim 3s infinite ease-in-out; /* was 1.2s → now 2s */
+  animation: pulseAnim 3s infinite ease-in-out;
 }
 
 @keyframes pulseAnim {
@@ -400,7 +404,6 @@ span[title*="IP"]:hover {
     opacity: 1;
   }
 }
-
 
 .console-section {
   flex: 1;
