@@ -736,32 +736,27 @@ function showEditMenu(e, system, field) {
   console.log(`[DEBUG] Field: '${field}'`);
   console.log(`[DEBUG] Devices:`, Object.keys(system.devices || {}));
 
-  // Prevent editing Local Host name or IP (but allow port)
-  if (system.name === "Local Host") {
-    if (
-      field === "name" ||
-      (field === "ipport" && e.target.textContent.includes("Change IP"))
-    ) {
-      console.log("[DEBUG] Edit blocked for Local Host.");
-      return;
-    }
-  }
-
   // Reset for re-render
   makeMenuVisible(menu);
 
   const available = [];
 
-  if (field === "name") {
-    console.log("[DEBUG] Adding action: Rename");
-    available.push("Rename");
+  if (field === "name" && system.name !== "Local Host") {
+	console.log("[DEBUG] Adding action: Rename");
+	available.push("Rename");
   } else if (field === "ipport") {
-    console.log("[DEBUG] Adding actions: Change IP, Change Port");
-    available.push("Change IP", "Change Port");
+	if (system.name === "Local Host") {
+		console.log("[DEBUG] Adding actions: Change Port");
+		available.push("Change Port");
+	}
+    else {
+		console.log("[DEBUG] Adding actions: Change IP, Change Port");
+		available.push("Change IP", "Change Port");
+	}
   } else {
     // Treat as device if exists
     const device = system.devices?.[field];
-    if (device) {
+    if (device && device.connected) {
       console.log("[DEBUG] Device found:", device);
 
       if (device.hapticFeedbackIndexes?.length > 0) {
