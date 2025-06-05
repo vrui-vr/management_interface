@@ -524,22 +524,23 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
   labelSpan.textContent = label;
 
   if (system.name === currentSystem) {
-    labelSpan.style.cursor = "pointer";
-    labelSpan.title = `Edit ${label}`;
-    labelSpan.onclick = (e) => {
-      e.stopPropagation();
-      let field;
-      const l = label.toLowerCase();
-      if (l.includes("headset")) field = "headset_model";
-      else if (l.includes("left")) field = "left";
-      else if (l.includes("right")) field = "right";
-      showEditMenu(e, system, field);
-    };
-  } else {
-    labelSpan.style.cursor = "default";
-    labelSpan.title = "Select this system to edit";
-    labelSpan.classList.add("inactive-field");
-  }
+  labelSpan.style.cursor = "pointer";
+  labelSpan.title = `Edit ${label}`;
+  labelSpan.onclick = (e) => {
+    e.stopPropagation();
+
+    // 🚀 Just use the label (which is the device key!)
+    const field = label;
+
+    console.log(`[DEBUG] label click → label='${label}', field='${field}'`);
+
+    showEditMenu(e, system, field);
+  };
+} else {
+  labelSpan.style.cursor = "default";
+  labelSpan.title = "Select this system to edit";
+  labelSpan.classList.add("inactive-field");
+}
 
   const statusSpan = document.createElement("span");
   statusSpan.className = "battery-status";
@@ -730,12 +731,18 @@ function showEditMenu(e, system, field) {
   const menu = document.getElementById("actionMenu");
   menu.innerHTML = "";
 
+  console.log("========== showEditMenu ==========");
+  console.log(`[DEBUG] System: '${system.name}'`);
+  console.log(`[DEBUG] Field: '${field}'`);
+  console.log(`[DEBUG] Devices:`, Object.keys(system.devices || {}));
+
   // Prevent editing Local Host name or IP (but allow port)
   if (system.name === "Local Host") {
     if (
       field === "name" ||
       (field === "ipport" && e.target.textContent.includes("Change IP"))
     ) {
+      console.log("[DEBUG] Edit blocked for Local Host.");
       return;
     }
   }
@@ -746,80 +753,106 @@ function showEditMenu(e, system, field) {
   const available = [];
 
   if (field === "name") {
+    console.log("[DEBUG] Adding action: Rename");
     available.push("Rename");
   } else if (field === "ipport") {
+    console.log("[DEBUG] Adding actions: Change IP, Change Port");
     available.push("Change IP", "Change Port");
   } else {
     // Treat as device if exists
     const device = system.devices?.[field];
     if (device) {
+      console.log("[DEBUG] Device found:", device);
+
       if (device.hapticFeedbackIndexes?.length > 0) {
+        console.log("[DEBUG] Device supports: Ping");
         available.push("Ping");
+      } else {
+        console.log("[DEBUG] Device has NO hapticFeedbackIndexes.");
       }
+
       if (device.canPowerOff) {
+        console.log("[DEBUG] Device supports: Power Off");
         available.push("Power Off");
+      } else {
+        console.log("[DEBUG] Device has NO canPowerOff.");
       }
+
+    } else {
+      console.log(`[DEBUG] No matching device for field='${field}'`);
     }
   }
 
-  // Build buttons
-  available.forEach((action) => {
-    const btn = document.createElement("button");
-    btn.textContent = action;
+  console.log(`[DEBUG] Final available actions:`, available);
 
-    btn.onclick = () => {
-      menu.classList.add("hidden");
+  // Build buttons or show empty state
+  if (available.length === 0) {
+    console.log("[DEBUG] No actions available - showing empty notice.");
+    const emptyNotice = document.createElement("div");
+    emptyNotice.textContent = "No actions available";
+    emptyNotice.style.padding = "0.5rem";
+    emptyNotice.style.fontSize = "0.8rem";
+    emptyNotice.style.color = "gray";
+    menu.appendChild(emptyNotice);
+  } else {
+    console.log(`[DEBUG] Building ${available.length} button(s).`);
+    available.forEach((action) => {
+      console.log(`[DEBUG] Creating button: ${action}`);
+      const btn = document.createElement("button");
+      btn.textContent = action;
 
-      switch (action) {
-        case "Rename":
-          renameSystem(system);
-          break;
-        case "Change IP":
-          changeIP(system);
-          break;
-        case "Change Port":
-          changePort(system);
-          break;
-        case "Ping": {
-          const device = system.devices?.[field];
-          const featureIndex = device?.hapticFeedbackIndexes?.[0];
-          if (featureIndex != null) {
-            sendHapticTick(system, field, featureIndex);
-          } else {
-            console.warn("No haptic feedback index for Ping:", field);
+      btn.onclick = () => {
+        console.log(`[DEBUG] Button clicked: ${action}`);
+        menu.classList.add("hidden");
+
+        switch (action) {
+          case "Rename":
+            renameSystem(system);
+            break;
+          case "Change IP":
+            changeIP(system);
+            break;
+          case "Change Port":
+            changePort(system);
+            break;
+          case "Ping": {
+            const device = system.devices?.[field];
+            const featureIndex = device?.hapticFeedbackIndexes?.[0];
+            if (featureIndex != null) {
+              console.log(`[DEBUG] Sending Ping (featureIndex=${featureIndex})`);
+              sendHapticTick(system, field, featureIndex);
+            } else {
+              console.warn("No haptic feedback index for Ping:", field);
+            }
+            break;
           }
-          break;
-        }
-        case "Power Off": {
-          const device = system.devices?.[field];
-          const powerIndex = device?.powerFeatureIndexes?.[0];
-          if (powerIndex != null) {
-            sendPowerOff(system, field, powerIndex);
-          } else {
-            console.warn("No power feature index for:", field);
+          case "Power Off": {
+            const device = system.devices?.[field];
+            const powerIndex = device?.powerFeatureIndexes?.[0];
+            if (powerIndex != null) {
+              console.log(`[DEBUG] Sending Power Off (powerIndex=${powerIndex})`);
+              sendPowerOff(system, field, powerIndex);
+            } else {
+              console.warn("No power feature index for:", field);
+            }
+            break;
           }
-          break;
         }
-      }
-    };
-	
-	if (available.length === 0) {
-	  const emptyNotice = document.createElement("div");
-	  emptyNotice.textContent = "No actions available";
-	  emptyNotice.style.padding = "0.5rem";
-	  emptyNotice.style.fontSize = "0.8rem";
-	  emptyNotice.style.color = "gray";
-	  menu.appendChild(emptyNotice);
-	}
+      };
 
-    menu.appendChild(btn);
-  });
+      menu.appendChild(btn);
+    });
+  }
 
   // Position menu
   const rect = e.target.getBoundingClientRect();
   menu.style.top = `${rect.bottom + window.scrollY}px`;
   menu.style.left = `${rect.left + window.scrollX}px`;
+
+  console.log(`[DEBUG] Menu positioned at top=${menu.style.top}, left=${menu.style.left}`);
+  console.log("===================================");
 }
+
 
 // Functions to change info about a system
 function renameSystem(system) {
