@@ -328,14 +328,8 @@ function updateSystemUI(updatedSystem) {
   updateButtonStates;
 }
 
-// Updates console with new message
-function autoUpdateConsole(system, command, message) {
+function autoUpdateConsole(system, command, message, severity = "") {
   const consoleBox = document.getElementById("consoleOutput");
-
-  // OLD VERSION (worked fine but chatGPT insists new version is better)
-  // const isAtBottom =
-  //   consoleBox.scrollHeight - consoleBox.clientHeight <=
-  //   consoleBox.scrollTop + 1;
 
   const isAtBottom =
     Math.abs(
@@ -344,22 +338,18 @@ function autoUpdateConsole(system, command, message) {
 
   const logEntry = document.createElement("div");
 
-  // Use latest system info to get colorClass
   const fullSystem = allSystems.find((d) => d.name === system.name) || system;
   const colorClass = fullSystem.colorClass;
-  logEntry.className = `log-entry ${colorClass}`;
+  
+  // Base class
+  logEntry.classList.add("log-entry", colorClass);
 
   const isOffline = !fullSystem.connected;
 
-  // Maybe useful?
-  const isError = /error|failed|not connected|cannot/i.test(message);
-  const isCritical = /battery low|crash|critical/i.test(message);
-
-  if (isError) {
+  // Apply severity tag if provided
+  if (severity === "error") {
     logEntry.classList.add("log-error");
-  }
-
-  if (isCritical) {
+  } else if (severity === "critical") {
     logEntry.classList.add("log-critical");
   }
 
@@ -397,6 +387,7 @@ function changeTargetColor(systemName) {
   }
 }
 
+// Renders all systems, creating the containers for each
 function renderSystems(systems) {
   const container = document.getElementById("systemContainer");
   container.innerHTML = "";
@@ -509,8 +500,8 @@ function renderSystems(systems) {
       connectBtn.textContent = "Connect";
       connectBtn.onclick = (e) => {
         e.stopPropagation();
-        console.log(`Attempting to connect to ${system.name}...`);
-        getServerStatus(system);
+		autoUpdateConsole(system, "getServerStatus", "Attempting to contact device...");
+		getServerStatus(system);
       };
 
       connectContainer.appendChild(connectBtn);
@@ -541,8 +532,7 @@ function renderSystems(systems) {
   });
 }
 
-
-//creates battery widgets for the systems
+//creates battery widgets a system
 function createBattery(system, label, percent, isConnected, isTracked, hasBattery) {
   const row = document.createElement("div");
   row.className = "battery-row";
@@ -640,7 +630,7 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
   return row;
 }
 
-// Helper function to make the action menu visible
+// Helper function to make the action menu visible when interacting with a system
 function makeMenuVisible(menu) {
   menu.classList.remove("hidden");
   void menu.offsetWidth;
@@ -771,26 +761,36 @@ function showEditMenu(e, system, field) {
   //console.log("===================================");
 }
 
-// Handls server response in our console
+function fetchWithTimeout(resource, options = {}, timeout = 5000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  return fetch(resource, {
+    ...options,
+    signal: controller.signal
+  }).finally(() => clearTimeout(id));
+}
+
 function handleServerResponse(system, command, data) {
-  if (data?.status === "Success") {
-    autoUpdateConsole(system, command, data.message || "Success.");
-  } else {
-    const errorMsg = data?.message || "Error / Unknown failure.";
-    autoUpdateConsole(system, command, `⚠️ ${errorMsg}`);
-  }
+	// Handls server response in our console
+	if (data?.status === "Success") {
+	  autoUpdateConsole(system, command, data.message || "Success.");
+	} else {
+	  const errorMsg = data?.message || "Error / Unknown failure.";
+	  autoUpdateConsole(system, command, `⚠️ ${errorMsg}`, "error"); // ADD "error" HERE
+	}
 }
 
 // Sends a haptic tick command to the system
 function sendHapticTick(system, deviceName, featureIndex) {
   if (!system) {
-    console.warn(`System not found.`);
+    autoUpdateConsole({ name: "Unknown" }, "hapticTick", "System not found.", "error");
     return;
   }
 
   const device = system.devices?.[deviceName];
   if (!device) {
-    console.warn(`Device '${deviceName}' not found in system '${system.name}'.`);
+    autoUpdateConsole(system, "hapticTick", `Device '${deviceName}' not found.`, "error");
     return;
   }
 
@@ -798,16 +798,12 @@ function sendHapticTick(system, deviceName, featureIndex) {
     !device.hapticFeedbackIndexes ||
     device.hapticFeedbackIndexes.length === 0
   ) {
-    console.warn(
-      `Device '${deviceName}' in '${system.name}' has no haptic feedback features.`
-    );
+    autoUpdateConsole(system, "hapticTick", `Device '${deviceName}' has no haptic feedback features.`, "error");
     return;
   }
 
   if (!device.hapticFeedbackIndexes.includes(featureIndex)) {
-    console.warn(
-      `Feature index ${featureIndex} not available in device '${deviceName}' in '${system.name}'.`
-    );
+    autoUpdateConsole(system, "hapticTick", `Feature index ${featureIndex} not available in device '${deviceName}'.`, "error");
     return;
   }
 
@@ -830,19 +826,19 @@ function sendHapticTick(system, deviceName, featureIndex) {
     })
     .catch((err) => {
       console.error(`HapticTick to '${deviceName}' in ${system.name} failed:`, err);
-      autoUpdateConsole(system, "hapticTick", "Failed to send command");
+      autoUpdateConsole(system, "hapticTick", "Failed to send command", "error");
     });
 }
 
 function sendPowerOff(system, deviceName, featureIndex) {
   if (!system) {
-    console.warn(`System not found.`);
+    autoUpdateConsole({ name: "Unknown" }, "powerOff", "System not found.", "error");
     return;
   }
 
   const device = system.devices?.[deviceName];
   if (!device) {
-    console.warn(`Device '${deviceName}' not found in system '${system.name}'.`);
+    autoUpdateConsole(system, "powerOff", `Device '${deviceName}' not found.`, "error");
     return;
   }
 
@@ -850,16 +846,12 @@ function sendPowerOff(system, deviceName, featureIndex) {
     !device.powerFeatureIndexes ||
     device.powerFeatureIndexes.length === 0
   ) {
-    console.warn(
-      `Device '${deviceName}' in '${system.name}' has no power off features.`
-    );
+    autoUpdateConsole(system, "powerOff", `Device '${deviceName}' has no power off features.`, "error");
     return;
   }
 
   if (!device.powerFeatureIndexes.includes(featureIndex)) {
-    console.warn(
-      `Feature index ${featureIndex} not available in device '${deviceName}' in '${system.name}'.`
-    );
+    autoUpdateConsole(system, "powerOff", `Feature index ${featureIndex} not available in device '${deviceName}'.`, "error");
     return;
   }
 
@@ -879,9 +871,10 @@ function sendPowerOff(system, deviceName, featureIndex) {
     })
     .catch((err) => {
       console.error(`PowerOff to '${deviceName}' in ${system.name} failed:`, err);
-      autoUpdateConsole(system, "powerOff", "Failed to send command");
+      autoUpdateConsole(system, "powerOff", "Failed to send command", "error");
     });
 }
+
 
 // Functions to change info about a system
 function renameSystem(system) {
@@ -893,6 +886,7 @@ function renameSystem(system) {
   }
 }
 
+// Change a system's IP
 function changeIP(system) {
   const newIP = window.prompt("New IP address:", system.ip);
   if (newIP && newIP.trim()) {
@@ -902,6 +896,7 @@ function changeIP(system) {
   }
 }
 
+// Change a system's Port
 function changePort(system) {
   const newPort = window.prompt("New port:", system.port);
   if (newPort && newPort.trim()) {
@@ -911,6 +906,7 @@ function changePort(system) {
   }
 }
 
+// Called by getServerStatus, updating system with data from the server
 function updateSystemWithJsonData(system, jsonData) {
 	if (!jsonData || !Array.isArray(jsonData.devices)) return;
 
@@ -954,41 +950,52 @@ function updateSystemWithJsonData(system, jsonData) {
 	//console.log(JSON.stringify(system, null, 2));
 }
 
+// Clls to server about system status
 function getServerStatus(system) {
   if (!system) return;
 
   const endpoint = getEndpoint(system);
 
-  fetch(endpoint, {
+  fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
-  })
+  }, 3000) // 3000 ms timeout
     .then((r) => r.json())
     .then((data) => {
-	  const i = allSystems.findIndex((d) => d.name === system.name);
-	  if (i === -1) return;
+      const i = allSystems.findIndex((d) => d.name === system.name);
+      if (i === -1) return;
 
-	  updateSystemWithJsonData(allSystems[i], data);
+      updateSystemWithJsonData(allSystems[i], data);
 
-	  // Mark as online
-	  allSystems[i].lastSeen = Date.now();
+      // Mark as online
+      allSystems[i].lastSeen = Date.now();
 
-	  // Add to activeSystems if success
-	  if (data?.status === "Success") {
-		if (!activeSystems.has(system.name)) {
-		  console.log(`✅ ${system.name} added to activeSystems`);
-		  activeSystems.add(system.name);
-		}
-	  }
+      // Add to activeSystems if success
+      if (data?.status === "Success") {
+        if (!activeSystems.has(system.name)) {
+          console.log(`✅ ${system.name} added to activeSystems`);
+          activeSystems.add(system.name);
+        }
+      }
 
-	  updateSystemUI(allSystems[i]);
+      updateSystemUI(allSystems[i]);
 
-	  handleServerResponse(system, "getServerStatus", data);
-	})
+      handleServerResponse(system, "getServerStatus", data);
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        console.error(`⏱️ Timeout contacting ${system.name}`);
+        autoUpdateConsole(system, "getServerStatus", "Timed out contacting device", "error");
+      } else {
+        console.error(`❌ Failed to contact ${system.name} (${system.ip}:${system.port}):`, err);
+        autoUpdateConsole(system, "getServerStatus", "Failed to contact device — connection error", "error");
+      }
+    });
 }
 
 // SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS)
+// TODO: CURRENTLY NOT VERY USEFUL, NEEDS FUTURE UPDATE
 function sendConsoleCommand() {
   const input = document.getElementById("commandInput");
   const rawCommand = input.value.trim();

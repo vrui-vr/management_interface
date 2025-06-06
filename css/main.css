@@ -583,21 +583,49 @@ span[title*="IP"]:hover {
   margin-bottom: 0.5rem;
 }
 
+.log-entry.rig-0 {
+  color: var(--rig-0);
+}
+.log-entry.rig-1 {
+  color: var(--rig-1);
+}
+.log-entry.rig-2 {
+  color: var(--rig-2);
+}
+.log-entry.rig-3 {
+  color: var(--rig-3);
+}
+.log-entry.rig-4 {
+  color: var(--rig-4);
+}
+.log-entry.rig-5 {
+  color: var(--rig-5);
+}
+
+.log-entry .label {
+  font-weight: bold;
+}
+
+.log-entry .offline {
+  font-weight: normal;
+  color: var(--text-muted);
+}
+
 .log-entry.log-alert {
   color: var(--danger);
   font-weight: 600;
 }
 
-.log-error {
-  color: var(--error);
-  font-weight: bold;
+.log-entry.log-error {
+  color: #e63963;
+  font-weight: 600;
 }
 
-.log-critical {
+.log-entry.log-critical {
   color: var(--critical);
   font-weight: bold;
-  background-color: #ffe0e0;
-  border-left: 4px solid red;
+  background-color: var(--critical-bg);
+  border-left: 4px solid var(--critical);
   padding-left: 6px;
 }
 
@@ -639,34 +667,6 @@ span[title*="IP"]:hover {
 
 .filter-option.focused .label-text {
   font-weight: 700;
-}
-
-.log-entry.rig-0 {
-  color: var(--rig-0);
-}
-.log-entry.rig-1 {
-  color: var(--rig-1);
-}
-.log-entry.rig-2 {
-  color: var(--rig-2);
-}
-.log-entry.rig-3 {
-  color: var(--rig-3);
-}
-.log-entry.rig-4 {
-  color: var(--rig-4);
-}
-.log-entry.rig-5 {
-  color: var(--rig-5);
-}
-
-.log-entry .label {
-  font-weight: bold;
-}
-
-.log-entry .offline {
-  font-weight: normal;
-  color: var(--text-muted);
 }
 
 #commandPrompt {
