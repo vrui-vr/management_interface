@@ -36,52 +36,13 @@
       <div class="button-section">
         <p><strong id="targetLabel"></strong></p>
 
-        <button
-          class="button"
-          id="btn-vrtracker"
-          onclick="send('getServerStatus')"
-        >
-          Get Server Status
-        </button>
-        <button
-          class="button"
-          id="btn-headset"
-          onclick="send('getServerStatus')"
-        >
-          Start VR Compositor
-        </button>
-
-        <button class="button" id="btn-connect" onclick="send('connect')">
-          Connect Controllers
-        </button>
-
-        <button class="button" id="btn-run" onclick="send('run')">
-          Run Program
-        </button>
-
-        <button
-          class="button button-danger"
-          id="btn-disconnect"
-          onclick="send('disconnect')"
-        >
-          Disconnect System
-        </button>
-
-        <button
-          class="button button-danger"
-          id="btn-restart"
-          onclick="send('restart')"
-        >
-          Restart VR Tracker
-        </button>
-
-        <button
-          class="button button-danger"
-          id="btn-shutdown"
-          onclick="send('shutdown')"
-        >
-          Shutdown System
-        </button>
+        <button class="button" id="btn-1" onclick="sendButton(1)">Toggle Status Requests</button>
+		<button class="button" id="btn-2" onclick="sendButton(2)">...</button>
+		<button class="button" id="btn-3" onclick="sendButton(3)">...</button>
+		<button class="button" id="btn-4" onclick="sendButton(4)">...</button>
+		<button class="button button-danger" id="btn-5" onclick="sendButton(5)">...</button>
+		<button class="button button-danger" id="btn-6" onclick="sendButton(6)">...</button>
+		<button class="button button-danger" id="btn-7" onclick="sendButton(7)">...</button>
       </div>
     </div>
 

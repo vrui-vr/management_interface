@@ -1,4 +1,5 @@
 let allSystems = [];
+const activeSystems = new Set();
 let currentSystem = "";
 let hasConnected = false;
 
@@ -8,11 +9,40 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
+url = "VRDeviceServer.cgi";
+
 const getServerStatusInterval = 3000;
 
-//LOAD DEFAULT CONFIG IN FILE FOR NOW
-//TODO: FIND A BETTER OPTION
-url = "VRDeviceServer.cgi";
+let getStatusUpdates = false;   // global flag (default OFF)
+
+function sendButton(buttonNumber) {
+  if (buttonNumber === 1) {
+    // Toggle the global variable
+    getStatusUpdates = !getStatusUpdates;
+    console.log(`🔄 getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`);
+	
+    // Optional: Update button label to reflect state
+    const btn = document.getElementById(`btn-1`);
+    if (btn) {
+      btn.textContent = getStatusUpdates ? "Disable Status Requests" : "Enable Status Requests";
+    }
+
+    // Optional: Log to console box
+    autoUpdateConsole(
+      { name: currentSystem },
+      "toggleStatusUpdates",
+      `getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`
+    );
+  }
+  else {
+    console.log(`Button ${buttonNumber} pressed — no action yet.`);
+    autoUpdateConsole(
+      { name: currentSystem },
+      `button${buttonNumber}`,
+      "No action assigned yet."
+    );
+  }
+}
 
 fileDropBox.addEventListener("dragover", (e) => {
   e.preventDefault();
@@ -223,27 +253,20 @@ function updateDropdown() {
 
 // Updates button logic based on the state
 // Subject to heavy logic change as buttons change
-function updateButtonStatesFor(system) {
-  const connected = system.connected;
-  const headsetConnected = system.headset_connected;
-  const leftConnected = system.left_connected;
-  const rightConnected = system.right_connected;
-  const anyControllersConnected = leftConnected || rightConnected;
-  const allControllersConnected = leftConnected && rightConnected;
+function updateButtonStates() {
+  const btn1 = document.getElementById("btn-1");
+  if (btn1) {
+    btn1.textContent = getStatusUpdates ? "Disable Status Requests" : "Enable Status Requests";
+    btn1.classList.toggle("button-danger", getStatusUpdates);
+  }
 
-  document.getElementById("btn-vrtracker").disabled = connected;
-  document.getElementById("btn-headset").disabled =
-    !connected || headsetConnected;
-  document.getElementById("btn-connect").disabled =
-    !headsetConnected || allControllersConnected;
-  document.getElementById("btn-disconnect").disabled = !(
-    headsetConnected ||
-    leftConnected ||
-    rightConnected
-  );
-  document.getElementById("btn-shutdown").disabled = !connected;
-  document.getElementById("btn-restart").disabled = !connected;
-  document.getElementById("btn-run").disabled = !headsetConnected;
+  // Grey out buttons 2-7
+  for (let i = 2; i <= 7; i++) {
+    const btn = document.getElementById(`btn-${i}`);
+    if (btn) {
+      btn.disabled = true;  // greyed out
+    }
+  }
 }
 
 // Updates the UI for the system widgets
@@ -302,9 +325,7 @@ function updateSystemUI(updatedSystem) {
   changeTargetColor(updatedSystem.name);
 
   // 6) Update button availability based on current system state
-  if (updatedSystem.name === currentSystem) {
-    updateButtonStatesFor(updatedSystem);
-  }
+  updateButtonStates;
 }
 
 // Updates console with new message
@@ -376,7 +397,6 @@ function changeTargetColor(systemName) {
   }
 }
 
-// Renders the individual system widgets
 function renderSystems(systems) {
   const container = document.getElementById("systemContainer");
   container.innerHTML = "";
@@ -385,7 +405,6 @@ function renderSystems(systems) {
     const card = document.createElement("div");
     card.className = "system-card";
 
-    // Connected state (based on hmd device if present)
     const isConnected = !!system.devices?.hmd?.connected;
     if (!isConnected) card.classList.add("disconnected");
 
@@ -434,7 +453,6 @@ function renderSystems(systems) {
       labelSpan.appendChild(offlineSpan);
     }
 
-    // IP address below the name (contains port now)
     const ipSpan = document.createElement("span");
     ipSpan.style.fontSize = "0.6rem";
     ipSpan.style.color = "gray";
@@ -454,7 +472,6 @@ function renderSystems(systems) {
       ipSpan.title = "Select this system to edit";
     }
 
-    // Disable editing for non-selected systems
     if (system.name !== currentSystem) {
       labelSpan.classList.add("inactive-field");
       ipSpan.classList.add("inactive-field");
@@ -462,12 +479,11 @@ function renderSystems(systems) {
 
     name.appendChild(labelSpan);
     name.appendChild(ipSpan);
-
     header.appendChild(name);
 
     if (system.name !== "Local Host") {
       const removeBtn = document.createElement("button");
-      removeBtn.className = "remove-btn";
+      removeBtn.className = `remove-btn ${system.colorClass}`;
       removeBtn.title = "Remove system";
       removeBtn.textContent = "x";
       removeBtn.onclick = (e) => {
@@ -479,30 +495,52 @@ function renderSystems(systems) {
 
     card.appendChild(header);
 
-    // Battery column → now fully dynamic
+    // Connect button if needed
+    if (!system.connected && !activeSystems.has(system.name)) {
+      const connectContainer = document.createElement("div");
+      connectContainer.style.display = "flex";
+      connectContainer.style.justifyContent = "center";
+      connectContainer.style.alignItems = "center";
+      connectContainer.style.height = "5rem";
+      connectContainer.style.margin = "0.75rem 0";
+
+      const connectBtn = document.createElement("button");
+      connectBtn.className = `connect-btn ${system.colorClass}`;
+      connectBtn.textContent = "Connect";
+      connectBtn.onclick = (e) => {
+        e.stopPropagation();
+        console.log(`Attempting to connect to ${system.name}...`);
+        getServerStatus(system);
+      };
+
+      connectContainer.appendChild(connectBtn);
+      card.appendChild(connectContainer);
+    }
+
+    // Battery column
     const batteryColumn = document.createElement("div");
     batteryColumn.className = "battery-column";
 
     const deviceKeys = Object.keys(system.devices || {});
-	deviceKeys.forEach((key) => {
-	  const device = system.devices[key];
-
-	  batteryColumn.appendChild(
-		createBattery(
-		  system,
-		  key, // use raw device name as label
-		  device?.battery ?? -1,
-		  device?.connected || false,
-		  device?.tracked || false,
-		  device?.hasBattery || false
-		)
-	  );
-	});
+    deviceKeys.forEach((key) => {
+      const device = system.devices[key];
+      batteryColumn.appendChild(
+        createBattery(
+          system,
+          key,
+          device?.battery ?? -1,
+          device?.connected || false,
+          device?.tracked || false,
+          device?.hasBattery || false
+        )
+      );
+    });
 
     card.appendChild(batteryColumn);
     container.appendChild(card);
   });
 }
+
 
 //creates battery widgets for the systems
 function createBattery(system, label, percent, isConnected, isTracked, hasBattery) {
@@ -522,7 +560,7 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
     // 🚀 Just use the label (which is the device key!)
     const field = label;
 
-    console.log(`[DEBUG] label click → label='${label}', field='${field}'`);
+    // console.log(`[DEBUG] label click → label='${label}', field='${field}'`);
 
     showEditMenu(e, system, field);
   };
@@ -609,6 +647,140 @@ function makeMenuVisible(menu) {
   menu.classList.add("visible");
 }
 
+// Lets user edit system info
+function showEditMenu(e, system, field) {
+  e.stopPropagation();
+
+  const menu = document.getElementById("actionMenu");
+  menu.innerHTML = "";
+
+  // console.log("========== showEditMenu ==========");
+  // console.log(`[DEBUG] System: '${system.name}'`);
+  // console.log(`[DEBUG] Field: '${field}'`);
+  // console.log(`[DEBUG] Devices:`, Object.keys(system.devices || {}));
+
+  // Reset for re-render
+  makeMenuVisible(menu);
+
+  const available = [];
+
+  if (field === "name" && system.name !== "Local Host") {
+	// console.log("[DEBUG] Adding action: Rename");
+	available.push("Rename");
+  } else if (field === "ipport") {
+	if (system.name === "Local Host") {
+		// console.log("[DEBUG] Adding actions: Change Port");
+		available.push("Change Port");
+	}
+    else {
+		// console.log("[DEBUG] Adding actions: Change IP, Change Port");
+		available.push("Change IP", "Change Port");
+	}
+  } else {
+    // Treat as device if exists
+    const device = system.devices?.[field];
+    if (device && device.connected) {
+      // console.log("[DEBUG] Device found:", device);
+
+      if (device.hapticFeedbackIndexes?.length > 0) {
+        // console.log("[DEBUG] Device supports: Ping");
+        available.push("Ping");
+      } else {
+        // console.log("[DEBUG] Device has NO hapticFeedbackIndexes.");
+      }
+
+      if (device.canPowerOff) {
+        // console.log("[DEBUG] Device supports: Power Off");
+        available.push("Power Off");
+      } else {
+        // console.log("[DEBUG] Device has NO canPowerOff.");
+      }
+
+    } else {
+      // console.log(`[DEBUG] No matching device for field='${field}'`);
+    }
+  }
+
+  // console.log(`[DEBUG] Final available actions:`, available);
+
+  // Build buttons or show empty state
+  if (available.length === 0) {
+    // console.log("[DEBUG] No actions available - showing empty notice.");
+    const emptyNotice = document.createElement("div");
+    emptyNotice.textContent = "No actions available";
+    emptyNotice.style.padding = "0.5rem";
+    emptyNotice.style.fontSize = "0.8rem";
+    emptyNotice.style.color = "gray";
+    menu.appendChild(emptyNotice);
+  } else {
+    // console.log(`[DEBUG] Building ${available.length} button(s).`);
+    available.forEach((action) => {
+      // console.log(`[DEBUG] Creating button: ${action}`);
+      const btn = document.createElement("button");
+      btn.textContent = action;
+
+      btn.onclick = () => {
+        // console.log(`[DEBUG] Button clicked: ${action}`);
+        menu.classList.add("hidden");
+
+        switch (action) {
+          case "Rename":
+            renameSystem(system);
+            break;
+          case "Change IP":
+            changeIP(system);
+            break;
+          case "Change Port":
+            changePort(system);
+            break;
+          case "Ping": {
+            const device = system.devices?.[field];
+            const featureIndex = device?.hapticFeedbackIndexes?.[0];
+            if (featureIndex != null) {
+              // console.log(`[DEBUG] Sending Ping (featureIndex=${featureIndex})`);
+              sendHapticTick(system, field, featureIndex);
+            } else {
+              console.warn("No haptic feedback index for Ping:", field);
+            }
+            break;
+          }
+          case "Power Off": {
+            const device = system.devices?.[field];
+            const powerIndex = device?.powerFeatureIndexes?.[0];
+            if (powerIndex != null) {
+              // console.log(`[DEBUG] Sending Power Off (powerIndex=${powerIndex})`);
+              sendPowerOff(system, field, powerIndex);
+            } else {
+              console.warn("No power feature index for:", field);
+            }
+            break;
+          }
+        }
+      };
+
+      menu.appendChild(btn);
+    });
+  }
+
+  // Position menu
+  const rect = e.target.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + window.scrollY}px`;
+  menu.style.left = `${rect.left + window.scrollX}px`;
+
+  // console.log(`[DEBUG] Menu positioned at top=${menu.style.top}, left=${menu.style.left}`);
+  //console.log("===================================");
+}
+
+// Handls server response in our console
+function handleServerResponse(system, command, data) {
+  if (data?.status === "Success") {
+    autoUpdateConsole(system, command, data.message || "Success.");
+  } else {
+    const errorMsg = data?.message || "Error / Unknown failure.";
+    autoUpdateConsole(system, command, `⚠️ ${errorMsg}`);
+  }
+}
+
 // Sends a haptic tick command to the system
 function sendHapticTick(system, deviceName, featureIndex) {
   if (!system) {
@@ -654,8 +826,7 @@ function sendHapticTick(system, deviceName, featureIndex) {
   })
     .then((r) => r.json())
     .then((data) => {
-      const msg = `Sent haptic tick to '${deviceName}' (featureIndex=${featureIndex})`;
-      autoUpdateConsole(system, "hapticTick", data.message || msg);
+      handleServerResponse(system, "hapticTick", data);
     })
     .catch((err) => {
       console.error(`HapticTick to '${deviceName}' in ${system.name} failed:`, err);
@@ -663,7 +834,6 @@ function sendHapticTick(system, deviceName, featureIndex) {
     });
 }
 
-//Power off command function
 function sendPowerOff(system, deviceName, featureIndex) {
   if (!system) {
     console.warn(`System not found.`);
@@ -705,139 +875,13 @@ function sendPowerOff(system, deviceName, featureIndex) {
   })
     .then((r) => r.json())
     .then((data) => {
-      const msg = `Sent power off to '${deviceName}' (featureIndex=${featureIndex})`;
-      autoUpdateConsole(system, "powerOff", data.message || msg);
+      handleServerResponse(system, "powerOff", data);
     })
     .catch((err) => {
       console.error(`PowerOff to '${deviceName}' in ${system.name} failed:`, err);
       autoUpdateConsole(system, "powerOff", "Failed to send command");
     });
 }
-
-// Lets user edit system info
-function showEditMenu(e, system, field) {
-  e.stopPropagation();
-
-  const menu = document.getElementById("actionMenu");
-  menu.innerHTML = "";
-
-  console.log("========== showEditMenu ==========");
-  console.log(`[DEBUG] System: '${system.name}'`);
-  console.log(`[DEBUG] Field: '${field}'`);
-  console.log(`[DEBUG] Devices:`, Object.keys(system.devices || {}));
-
-  // Reset for re-render
-  makeMenuVisible(menu);
-
-  const available = [];
-
-  if (field === "name" && system.name !== "Local Host") {
-	console.log("[DEBUG] Adding action: Rename");
-	available.push("Rename");
-  } else if (field === "ipport") {
-	if (system.name === "Local Host") {
-		console.log("[DEBUG] Adding actions: Change Port");
-		available.push("Change Port");
-	}
-    else {
-		console.log("[DEBUG] Adding actions: Change IP, Change Port");
-		available.push("Change IP", "Change Port");
-	}
-  } else {
-    // Treat as device if exists
-    const device = system.devices?.[field];
-    if (device && device.connected) {
-      console.log("[DEBUG] Device found:", device);
-
-      if (device.hapticFeedbackIndexes?.length > 0) {
-        console.log("[DEBUG] Device supports: Ping");
-        available.push("Ping");
-      } else {
-        console.log("[DEBUG] Device has NO hapticFeedbackIndexes.");
-      }
-
-      if (device.canPowerOff) {
-        console.log("[DEBUG] Device supports: Power Off");
-        available.push("Power Off");
-      } else {
-        console.log("[DEBUG] Device has NO canPowerOff.");
-      }
-
-    } else {
-      console.log(`[DEBUG] No matching device for field='${field}'`);
-    }
-  }
-
-  console.log(`[DEBUG] Final available actions:`, available);
-
-  // Build buttons or show empty state
-  if (available.length === 0) {
-    console.log("[DEBUG] No actions available - showing empty notice.");
-    const emptyNotice = document.createElement("div");
-    emptyNotice.textContent = "No actions available";
-    emptyNotice.style.padding = "0.5rem";
-    emptyNotice.style.fontSize = "0.8rem";
-    emptyNotice.style.color = "gray";
-    menu.appendChild(emptyNotice);
-  } else {
-    console.log(`[DEBUG] Building ${available.length} button(s).`);
-    available.forEach((action) => {
-      console.log(`[DEBUG] Creating button: ${action}`);
-      const btn = document.createElement("button");
-      btn.textContent = action;
-
-      btn.onclick = () => {
-        console.log(`[DEBUG] Button clicked: ${action}`);
-        menu.classList.add("hidden");
-
-        switch (action) {
-          case "Rename":
-            renameSystem(system);
-            break;
-          case "Change IP":
-            changeIP(system);
-            break;
-          case "Change Port":
-            changePort(system);
-            break;
-          case "Ping": {
-            const device = system.devices?.[field];
-            const featureIndex = device?.hapticFeedbackIndexes?.[0];
-            if (featureIndex != null) {
-              console.log(`[DEBUG] Sending Ping (featureIndex=${featureIndex})`);
-              sendHapticTick(system, field, featureIndex);
-            } else {
-              console.warn("No haptic feedback index for Ping:", field);
-            }
-            break;
-          }
-          case "Power Off": {
-            const device = system.devices?.[field];
-            const powerIndex = device?.powerFeatureIndexes?.[0];
-            if (powerIndex != null) {
-              console.log(`[DEBUG] Sending Power Off (powerIndex=${powerIndex})`);
-              sendPowerOff(system, field, powerIndex);
-            } else {
-              console.warn("No power feature index for:", field);
-            }
-            break;
-          }
-        }
-      };
-
-      menu.appendChild(btn);
-    });
-  }
-
-  // Position menu
-  const rect = e.target.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY}px`;
-  menu.style.left = `${rect.left + window.scrollX}px`;
-
-  console.log(`[DEBUG] Menu positioned at top=${menu.style.top}, left=${menu.style.left}`);
-  console.log("===================================");
-}
-
 
 // Functions to change info about a system
 function renameSystem(system) {
@@ -865,18 +909,6 @@ function changePort(system) {
     saveSystemsToLocalStorage();
     updateInterface();
   }
-}
-
-function sendCustomCommandTo(target, command) {
-  fetch(getEndpoint(target), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command, target }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      autoUpdateConsole({ name: target }, command, data.message || "Sent.");
-    });
 }
 
 function updateSystemWithJsonData(system, jsonData) {
@@ -919,72 +951,41 @@ function updateSystemWithJsonData(system, jsonData) {
 	  system.devices[key] = commonInfo;
 	}
 
-	console.log(JSON.stringify(system, null, 2));
+	//console.log(JSON.stringify(system, null, 2));
 }
 
-// Sends command to CORS
-// Fetch requires CORS - server needs to have reply<<"Access-Control-Allow-Origin: *\n";
-function send(command, systemName = currentSystem) {
-  console.log(`Command: ${command}`);
-  console.log(`System: ${systemName}`);
-  const system = allSystems.find((d) => d.name === systemName);
+function getServerStatus(system) {
   if (!system) return;
-
-  const buttonMap = {
-    vrtracker_on: "btn-vrtracker",
-    headset: "btn-headset",
-    connect: "btn-connect",
-    disconnect: "btn-disconnect",
-    restart: "btn-restart",
-    shutdown: "btn-shutdown",
-    run: "btn-run",
-  };
-
-  const btnId = buttonMap[command];
-  const button = btnId ? document.getElementById(btnId) : null;
-
-  if (button) {
-    button.disabled = true;
-    button._originalText = button.textContent;
-    button.textContent = "Loading...";
-  }
 
   const endpoint = getEndpoint(system);
 
   fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command }),
+    body: new URLSearchParams({ command: "getServerStatus" }),
   })
     .then((r) => r.json())
     .then((data) => {
-      const i = allSystems.findIndex((d) => d.name === system.name);
-      if (i === -1) return;
+	  const i = allSystems.findIndex((d) => d.name === system.name);
+	  if (i === -1) return;
 
-      if (command === "getServerStatus") {
-        updateSystemWithJsonData(allSystems[i], data);
-        const normalized = normalizeSystems(allSystems);
-		//console.log("Normalized systems:\n", JSON.stringify(normalized, null, 2));
-        // Mark as online
-        allSystems[i].lastSeen = Date.now();
+	  updateSystemWithJsonData(allSystems[i], data);
 
-        updateSystemUI(allSystems[i]);
-        autoUpdateConsole(system, command, data.message || "Status updated.");
-      } else {
-        // For any other command, just log the result
-        autoUpdateConsole(system, command, data.message || "Command sent.");
-      }
-    })
-    .catch((err) => {
-      console.error(`Send to ${system.name} failed:`, err);
-      autoUpdateConsole(system, command, "Failed to send command");
-    })
-    .finally(() => {
-      if (button) {
-        button.disabled = false;
-        button.textContent = button._originalText;
-      }
-    });
+	  // Mark as online
+	  allSystems[i].lastSeen = Date.now();
+
+	  // Add to activeSystems if success
+	  if (data?.status === "Success") {
+		if (!activeSystems.has(system.name)) {
+		  console.log(`✅ ${system.name} added to activeSystems`);
+		  activeSystems.add(system.name);
+		}
+	  }
+
+	  updateSystemUI(allSystems[i]);
+
+	  handleServerResponse(system, "getServerStatus", data);
+	})
 }
 
 // SIMILAR TO SEND, but NOT RELATED TO BUTTONS (EX CHAT COMMANDS)
@@ -1184,12 +1185,6 @@ function applyConsoleFilter() {
   }
 }
 
-// Updates the states of the main buttons
-function updateButtonStates() {
-  const system = allSystems.find((d) => d.name === currentSystem);
-  if (system) updateButtonStatesFor(system);
-}
-
 // Helper that updates GUI of entire website
 function updateInterface() {
   updateDropdown();
@@ -1234,7 +1229,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateInterface();
     applyConsoleFilter();
-    send("getServerStatus", currentSystem);
   } else {
     // fallback if nothing is stored — hardcoded default system
     const baseSystems = [
@@ -1265,144 +1259,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
     updateInterface();
     applyConsoleFilter();
-    send("getServerStatus", currentSystem);
   }
 });
-
 
 setInterval(() => {
   const now = Date.now();
 
-  allSystems.forEach((system) => {
-    // If system was recently updated, keep it online
-    if (
-      system.lastSeen &&
-      now - system.lastSeen > getServerStatusInterval * 2
-    ) {
-      // Timeout → mark as offline
-      if (system.connected !== false) {
-        console.warn(`⚠️ ${system.name} marked offline (timeout)`);
+  if (getStatusUpdates) {
+    allSystems.forEach((system) => {
+	  if (!activeSystems.has(system.name)) return; // Only ping active ones
+	  
+      // If system was recently updated, keep it online
+      if (
+        system.lastSeen &&
+        now - system.lastSeen > getServerStatusInterval * 2
+      ) {
+        // Timeout → mark as offline
+        if (system.connected !== false) {
+          console.warn(`⚠️ ${system.name} marked offline (timeout)`);
 
-        system.connected = false;
+          system.connected = false;
 
-        // Clear devices → when offline, show no devices
-        system.devices = {};
+          // Clear devices → when offline, show no devices
+          system.devices = {};
 
-        updateSystemUI(system);
-        autoUpdateConsole(system, "timeout", "Marked as offline (no response)");
+          updateSystemUI(system);
+          autoUpdateConsole(system, "timeout", "Marked as offline (no response)");
+        }
       }
-    }
 
-    // Always attempt to ping
-    send("getServerStatus", system.name);
-  });
+      // Attempt to ping
+      getServerStatus(system);
+    });
+  }
 }, getServerStatusInterval); // every certain amount of seconds
 
-//void VRDeviceServer::newHttpConnectionCallback(Threads::EventDispatcher::IOEvent& event)
-	//{
-	//VRDeviceServer* thisPtr=static_cast<VRDeviceServer*>(event.getUserData());
-	
-	//try
-		//{
-		///* Allow valid commands to pass the CORS protocol */
-		//bool sendCORS = false;
-		///* Open a new TCP connection to the HTTP client: */
-		//Comm::PipePtr pipe(thisPtr->httpListeningSocket->accept());
-		
-		///* Parse an HTTP POST request: */
-		//Comm::HttpPostRequest request(*pipe);
-		//const Comm::HttpPostRequest::NameValueList& nvl=request.getNameValueList();
-		
-		///* Check that there is a command in the POST request: */
-		//if(request.getActionUrl()=="/VRDeviceServer.cgi"&&nvl.size()>=1&&nvl.front().name=="command")
-			//{
-			///* Compose the server's reply as a JSON-encoded object: */
-			//IO::JsonPointer replyRoot;
-			
-			///* Process the command: */
-			//if(nvl.front().value=="getServerStatus")
-				//{
-				///* Compose the JSON object representing the current server state: */
-				//replyRoot=thisPtr->getServerStatus();
-				//sendCORS = true;
-				//}
-			//else if(nvl.front().value=="getDeviceStates")
-				//{
-				//}
-			//else if(nvl.front().value=="hapticTick"&&nvl.size()>1&&nvl[1].name=="hapticFeatureIndex")
-				//{
-				///* Extract the haptic feature index: */
-				//unsigned int hapticFeatureIndex(strtoul(nvl[1].value.c_str(),0,10));
-				
-				///* Extract optional haptic tick duration, frequency, and amplitude: */
-				//unsigned int duration=100;
-				//unsigned int frequency=100;
-				//unsigned int amplitude=255;
-				//for(unsigned int i=2;i<nvl.size();++i)
-					//{
-					//if(nvl[i].name=="duration")
-						//duration=(unsigned int)(strtoul(nvl[i].value.c_str(),0,10));
-					//else if(nvl[i].name=="frequency")
-						//frequency=(unsigned int)(strtoul(nvl[i].value.c_str(),0,10));
-					//else if(nvl[i].name=="amplitude")
-						//amplitude=Math::clamp((unsigned int)(strtoul(nvl[i].value.c_str(),0,10)),0U,255U);
-					//}
-				
-				///* Request a haptic tick: */
-				//if(hapticFeatureIndex<thisPtr->deviceManager->getNumHapticFeatures())
-					//thisPtr->deviceManager->hapticTick(hapticFeatureIndex,duration,frequency,amplitude);
-				
-				//IO::JsonObjectPointer replyObject = new IO::JsonObject;
-				//replyObject->setProperty("status", "success");
-				//replyObject->setProperty("message", "Haptic tick sent.");
 
-				//// Now assign it to replyRoot:
-				//replyRoot = replyObject;
-				//sendCORS = true;
-				//}
-				
-			//else if(nvl.front().value=="powerOff"&&nvl.size()>=2&&nvl[1].name=="powerFeatureIndex")
-				//{
-				///* Extract the power feature index: */
-				//unsigned int powerFeatureIndex(strtoul(nvl[1].value.c_str(),0,10));
-				
-				///* Power off the device: */
-				//if(powerFeatureIndex<thisPtr->deviceManager->getNumPowerFeatures())
-					//thisPtr->deviceManager->powerOff(powerFeatureIndex);
-				
-				//replyRoot = new IO::JsonObject;
-				//sendCORS = true;
-				//}
-				
-			///* Send the server's reply as a json file embedded in an HTTP reply: */
-			//IO::OStream reply(pipe);
-			//reply << "HTTP/1.1 200 OK\n";
-			//if(replyRoot != 0)
-			//{
-				//reply << "Content-Type: application/json\n";
-			//}
-
-			//if(sendCORS)
-			//{
-				//reply << "Access-Control-Allow-Origin: *\n";
-			//}
-
-			//reply << "\n";
-
-			//if(replyRoot != 0)
-				//reply << *replyRoot;
-
-			//reply << std::endl;
-			
-			///* Send the reply: */
-			//pipe->flush();
-			//}
-		//}
-	//catch(const std::runtime_error& err)
-		//{
-		//#ifdef VERBOSE
-		//// printf("VRDeviceServer: Ignoring HTTP request due to exception %s\n",err.what());
-		//// fflush(stdout);
-		//#endif
-		//}
-	//}
