@@ -118,7 +118,8 @@ function saveSystemsToLocalStorage() {
   const toSave = allSystems.map((d) => ({
     name: d.name,
     ip: d.ip,
-    port: d.port,
+    serverLauncherPort: d.serverLauncherPort,
+    serverPort: d.serverPort
   }));
   localStorage.setItem("savedSystems", JSON.stringify(toSave));
 }
@@ -126,7 +127,12 @@ function saveSystemsToLocalStorage() {
 // Gets the address of a system using the global url combined with the local data of the system
 // ex): http://192.0.0.1:8080/ServerStatus.html
 function getEndpoint(system) {
-  return `http://${system.ip}:${system.port}/${url}`;
+  return `http://${system.ip}:${system.serverPort}/${url}`;
+}
+
+// Gets the address of a system's server launcher
+function getLauncherEndpoint(system) {
+  return `http://${system.ip}:${system.serverLauncherPort}/${url}`;
 }
 
 // Add system to list of systems
@@ -150,33 +156,20 @@ function addSystem() {
   );
   const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
 
-  const systemPort = window.prompt("Enter system port (e.g., 8081):", "8081");
-  const port = systemPort && systemPort.trim() !== "" ? systemPort.trim() : "";
+  const launcherPortInput = window.prompt("Enter ServerLauncher port (default: 8080):", "8080");
+  const serverLauncherPort = launcherPortInput && launcherPortInput.trim() !== "" ? launcherPortInput.trim() : "8080";
 
-  // Helper to create default device object
-  function defaultDevice() {
-    return {
-      connected: false,
-      tracked: false,
-      battery: 0,
-      hasBattery: false,
-      canPowerOff: false,
-      powerFeatureIndexes: [],
-      hapticFeedbackIndexes: [],
-      buttonsPressed: [],
-      orientation: [],
-      position: [],
-    };
-  }
+  const systemPortInput = window.prompt("Enter VRDeviceServer port (default: 8081):", "8081");
+  const serverPort = systemPortInput && systemPortInput.trim() !== "" ? systemPortInput.trim() : "8081";
 
   const newSystem = {
     name: newName,
     ip,
-    port,
+    serverLauncherPort,
+    serverPort,
     connected: false,
     colorClass: `rig-${allSystems.length % 6}`,
-    devices: {
-    },
+    devices: {},
   };
 
   allSystems.push(newSystem);
@@ -325,7 +318,7 @@ function updateSystemUI(updatedSystem) {
   changeTargetColor(updatedSystem.name);
 
   // 6) Update button availability based on current system state
-  updateButtonStates;
+  updateButtonStates();
 }
 
 function autoUpdateConsole(system, command, message, severity = "") {
@@ -449,7 +442,7 @@ function renderSystems(systems) {
     ipSpan.style.color = "gray";
     ipSpan.style.opacity = "0.7";
     ipSpan.style.marginTop = "-2px";
-    ipSpan.textContent = `${system.ip}:${system.port}`;
+    ipSpan.textContent = `${system.ip}:${system.serverLauncherPort} / ${system.serverPort}`;
 
     if (system.name === currentSystem) {
       ipSpan.style.cursor = "pointer";
@@ -659,12 +652,12 @@ function showEditMenu(e, system, field) {
 	available.push("Rename");
   } else if (field === "ipport") {
 	if (system.name === "Local Host") {
-		// console.log("[DEBUG] Adding actions: Change Port");
-		available.push("Change Port");
+		// console.log("[DEBUG] Adding actions: Change Ports");
+		available.push("Change Ports");
 	}
     else {
-		// console.log("[DEBUG] Adding actions: Change IP, Change Port");
-		available.push("Change IP", "Change Port");
+		// console.log("[DEBUG] Adding actions: Change IP, Change Ports");
+		available.push("Change IP", "Change Ports");
 	}
   } else {
     // Treat as device if exists
@@ -720,8 +713,8 @@ function showEditMenu(e, system, field) {
           case "Change IP":
             changeIP(system);
             break;
-          case "Change Port":
-            changePort(system);
+          case "Change Ports":
+            changePorts(system);
             break;
           case "Ping": {
             const device = system.devices?.[field];
@@ -896,14 +889,21 @@ function changeIP(system) {
   }
 }
 
-// Change a system's Port
-function changePort(system) {
-  const newPort = window.prompt("New port:", system.port);
-  if (newPort && newPort.trim()) {
-    system.port = newPort.trim();
-    saveSystemsToLocalStorage();
-    updateInterface();
+// Change a system's Ports
+function changePorts(system) {
+  const newServerLauncherPort = window.prompt("New ServerLauncher port:", system.serverLauncherPort || "8080");
+  const newServerPort = window.prompt("New VRDeviceServer port:", system.serverPort || "8081");
+
+  if (newServerLauncherPort && newServerLauncherPort.trim()) {
+    system.serverLauncherPort = newServerLauncherPort.trim();
   }
+
+  if (newServerPort && newServerPort.trim()) {
+    system.serverPort = newServerPort.trim();
+  }
+
+  saveSystemsToLocalStorage();
+  updateInterface();
 }
 
 // Called by getServerStatus, updating system with data from the server
@@ -988,7 +988,7 @@ function getServerStatus(system) {
         console.error(`⏱️ Timeout contacting ${system.name}`);
         autoUpdateConsole(system, "getServerStatus", "Timed out contacting device", "error");
       } else {
-        console.error(`❌ Failed to contact ${system.name} (${system.ip}:${system.port}):`, err);
+        console.error(`❌ Failed to contact ${system.name} (${system.ip}:${system.serverPort}):`, err);
         autoUpdateConsole(system, "getServerStatus", "Failed to contact device — connection error", "error");
       }
     });
@@ -1216,7 +1216,8 @@ document.addEventListener("DOMContentLoaded", () => {
     allSystems = baseSystems.map((d, index) => ({
       name: d.name,
       ip: d.ip,
-      port: d.port,
+      serverLauncherPort: d.serverLauncherPort,
+      serverPort: d.serverPort,
       connected: false,
       headset: 0,
       left: 0,
@@ -1242,14 +1243,16 @@ document.addEventListener("DOMContentLoaded", () => {
       {
         name: "Local Host",
         ip: "127.0.0.1",
-        port: "8081",
+        serverLauncherPort: "8080",
+        serverPort: "8081",
       },
     ];
 
     allSystems = baseSystems.map((d, index) => ({
       name: d.name,
       ip: d.ip,
-      port: d.port,
+      serverLauncherPort: d.serverLauncherPort,
+      serverPort: d.serverPort,
       connected: false,
       devices: {},
       colorClass: `rig-${index % 6}`,
