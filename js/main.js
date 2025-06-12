@@ -196,16 +196,27 @@ function removeSystem(systemName) {
   const confirmed = confirm(`Are you sure you want to remove "${systemName}"?`);
   if (!confirmed) return;
 
-  allSystems = allSystems.filter((d) => d.name !== systemName);
+  // If the removed system is currently selected, switch to Local Host
   if (currentSystem === systemName) {
     currentSystem = "Local Host";
+    changeSystem("Local Host");
   }
+
+  allSystems = allSystems.filter((d) => d.name !== systemName);
   updateInterface();
+
   autoUpdateConsole(
     { name: systemName },
     "remove",
     `System '${systemName}' removed.`
   );
+	
+  // Gray out all previous messages from this system
+document.querySelectorAll(".log-entry .label").forEach((labelEl) => {
+  if (labelEl.textContent.trim() === systemName) {
+    labelEl.closest(".log-entry")?.classList.add("log-deleted");
+  }
+});
 
   saveSystemsToLocalStorage();
 }
@@ -359,35 +370,59 @@ function autoUpdateConsole(system, command, message, severity = "") {
 
   const logEntry = document.createElement("div");
 
-  const fullSystem = allSystems.find((d) => d.name === system.name) || system;
-  const colorClass = fullSystem.colorClass;
-  
-  // Base class
-  logEntry.classList.add("log-entry", colorClass);
+  // Track whether this system is known
+  const knownSystem = allSystems.find((d) => d.name === system.name);
+  const isDeletedOrOther = !knownSystem;
 
+  // Preserve original system name for the label
+  const systemLabel = system.name || "Other";
+
+  // Use system info if known, otherwise fallback style
+  const fullSystem = knownSystem || {
+    name: systemLabel,
+    connected: false,
+    colorClass: "rig-5", // default gray color
+  };
+
+  const colorClass = fullSystem.colorClass;
   const isOffline = !fullSystem.connected;
 
-  // Apply severity tag if provided
+  logEntry.classList.add("log-entry", colorClass);
+
+  // If deleted or truly "Other", mark for gray style
+  if (isDeletedOrOther || fullSystem.name === "Other") {
+    logEntry.classList.add("log-deleted");
+
+    // Ensure it's trackable in filter
+    if (!filterState.has(systemLabel)) {
+      filterState.add(systemLabel);
+      updateFilterMenu();
+    }
+  }
+
+  // Apply severity tag if needed
   if (severity === "error") {
     logEntry.classList.add("log-error");
   } else if (severity === "critical") {
     logEntry.classList.add("log-critical");
   }
 
-  const systemName = `<span class="label">${fullSystem.name}</span>`;
+  // Label + (offline) badge
+  const systemName = `<span class="label">${systemLabel}</span>`;
   const offlineNote = isOffline
     ? ` <span class="offline">(offline)</span>`
     : "";
 
   logEntry.innerHTML = `${systemName}${offlineNote} - ${command}<br>${message}`;
 
+  // Apply system color to label
   const labelEl = logEntry.querySelector(".label");
   if (labelEl) {
     labelEl.style.color = getSystemColor(fullSystem);
   }
 
+  // Append and re-filter
   consoleBox.appendChild(logEntry);
-
   applyConsoleFilter();
 
   if (isAtBottom) {
@@ -422,8 +457,8 @@ function renderSystems(systems) {
 
     if (system.name === currentSystem) {
       const borderColor = getSystemColor(system);
-      card.style.border = `2px solid ${borderColor}`;
-      card.style.boxShadow = `0 0 6px ${borderColor}`;
+      card.style.borderColor = borderColor;
+	  card.style.boxShadow = `0 0 6px ${borderColor}`;
     }
 
     card.onclick = () => changeSystem(system.name);
@@ -1271,11 +1306,10 @@ function updateFilterMenu() {
   const menu = document.getElementById("filterMenu");
   menu.innerHTML = "";
 
+  // 1. Add one checkbox per system
   allSystems.forEach((system) => {
     const label = document.createElement("label");
-    label.className = `filter-option ${system.colorClass} ${
-      system.connected ? "connected" : "disconnected"
-    }`;
+    label.className = `filter-option ${system.colorClass} ${system.connected ? "connected" : "disconnected"}`;
 
     const labelText = document.createElement("span");
     labelText.className = "label-text";
@@ -1284,12 +1318,6 @@ function updateFilterMenu() {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.value = system.name;
-
-    // ✅ If system not in filter, add it (default ON)
-    if (!filterState.has(system.name)) {
-      filterState.add(system.name);
-    }
-
     checkbox.checked = filterState.has(system.name);
 
     checkbox.onchange = () => {
@@ -1304,7 +1332,42 @@ function updateFilterMenu() {
     label.appendChild(labelText);
     label.appendChild(checkbox);
     menu.appendChild(label);
+
+    // Ensure it's tracked by default
+    if (!filterState.has(system.name)) {
+      filterState.add(system.name);
+    }
   });
+
+  // 2. Add "Other" filter checkbox
+  const otherLabel = document.createElement("label");
+  otherLabel.className = "filter-option disconnected";
+
+  const otherText = document.createElement("span");
+  otherText.className = "label-text";
+  otherText.textContent = "Other";
+
+  const otherCheckbox = document.createElement("input");
+  otherCheckbox.type = "checkbox";
+  otherCheckbox.value = "Other";
+  otherCheckbox.checked = filterState.has("Other");
+
+  otherCheckbox.onchange = () => {
+    if (otherCheckbox.checked) {
+      filterState.add("Other");
+    } else {
+      filterState.delete("Other");
+    }
+    applyConsoleFilter();
+  };
+
+  otherLabel.appendChild(otherText);
+  otherLabel.appendChild(otherCheckbox);
+  menu.appendChild(otherLabel);
+
+  if (!filterState.has("Other")) {
+    filterState.add("Other");
+  }
 }
 
 // Filters chat based on filter menu
@@ -1315,8 +1378,14 @@ function applyConsoleFilter() {
   entries.forEach((entry) => {
     const label = entry.querySelector(".label");
     if (!label) return;
+
     const name = label.textContent.trim();
-    const shouldShow = filterState.has(name);
+    const isKnownSystem = allSystems.some((sys) => sys.name === name);
+
+    const shouldShow =
+      (isKnownSystem && filterState.has(name)) ||
+      (!isKnownSystem && filterState.has("Other"));
+
     entry.style.display = shouldShow ? "block" : "none";
     if (shouldShow) visibleCount++;
   });
@@ -1326,7 +1395,10 @@ function applyConsoleFilter() {
   const isEmpty = visibleCount === 0;
 
   if (isEmpty) {
-    logEmpty(consoleBox);
+    const existing = consoleBox.querySelector(".log-empty");
+    if (!existing) {
+      logEmpty(consoleBox);
+    }
   } else {
     const existing = consoleBox.querySelector(".log-empty");
     if (existing) existing.remove();

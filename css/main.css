@@ -162,7 +162,7 @@ body {
 
 .system-card {
   width: 220px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem;
   background-color: var(--bg-white);
@@ -685,6 +685,16 @@ span[title*="IP"]:hover {
   border-left: 4px solid var(--critical);
   padding-left: 6px;
 }
+
+.log-deleted {
+  color: gray !important;
+  opacity: 0.6;
+}
+
+.log-deleted .label {
+  color: gray !important;
+}
+
 
 .filter-option.rig-0 .label-text,
 .filter-option.rig-0 input {
