@@ -389,6 +389,63 @@ span[title*="IP"]:hover {
   background-color: var(--rig-5-bg);
 }
 
+.shutdown-icon {
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin: 0.35rem auto 0rem;
+  border: none;
+  background: none;
+  color: inherit; /* Key to use the rig color from the class */
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0;
+  transform: translateY(10px);
+}
+
+.shutdown-icon:hover {
+  color: var(--danger); /* Hover red */
+}
+
+.shutdown-icon svg {
+  transition: stroke 0.2s ease;
+  stroke: currentColor;
+}
+
+.shutdown-icon:hover svg {
+  stroke: var(--danger); /* red on hover */
+}
+
+.rig-0-muted .shutdown-icon,
+.shutdown-icon.rig-0-muted {
+  color: var(--rig-0-muted);
+}
+
+.rig-1-muted .shutdown-icon,
+.shutdown-icon.rig-1-muted {
+  color: var(--rig-1-muted);
+}
+
+.rig-2-muted .shutdown-icon,
+.shutdown-icon.rig-2-muted {
+  color: var(--rig-2-muted);
+}
+
+.rig-3-muted .shutdown-icon,
+.shutdown-icon.rig-3-muted {
+  color: var(--rig-3-muted);
+}
+
+.rig-4-muted .shutdown-icon,
+.shutdown-icon.rig-4-muted {
+  color: var(--rig-4-muted);
+}
+
+.rig-5-muted .shutdown-icon,
+.shutdown-icon.rig-5-muted {
+  color: var(--rig-5-muted);
+}
+
 .battery-column {
   display: flex;
   flex-direction: column;

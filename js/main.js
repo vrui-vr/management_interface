@@ -210,6 +210,29 @@ function removeSystem(systemName) {
   saveSystemsToLocalStorage();
 }
 
+// Confirms and then shuts down a system
+function confirmAndShutdown(system) {
+  const confirmed = window.confirm(`Are you sure you want to turn off ${system.name}?`);
+  if (!confirmed) return;
+
+  stopLauncherServers(system);
+
+  // Mark system as disconnected
+  system.connected = false;
+  system.devices = {};
+  system.headset = 0;
+  system.left = 0;
+  system.right = 0;
+  system.headset_connected = false;
+  system.left_connected = false;
+  system.right_connected = false;
+
+  activeSystems.delete(system.name);
+  updateSystemUI(system);
+
+  autoUpdateConsole(system, "shutdown", "🛑 Shutdown command sent. Marked as disconnected.");
+}
+
 // Gets color of the system theme from css
 function getSystemColor(system, muted = false) {
   const varName = `--${system.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
@@ -498,8 +521,8 @@ function renderSystems(systems) {
       connectBtn.textContent = "Connect";
       connectBtn.onclick = (e) => {
         e.stopPropagation();
-		autoUpdateConsole(system, "getServerStatus", "Attempting to contact device...");
-		getServerStatus(system);
+        autoUpdateConsole(system, "getServerStatus", "Attempting to contact device...");
+        getServerStatus(system);
       };
 
       connectContainer.appendChild(connectBtn);
@@ -526,6 +549,26 @@ function renderSystems(systems) {
     });
 
     card.appendChild(batteryColumn);
+
+    // Shutdown button AFTER batteries if connected
+    if (system.connected) {
+        const shutdownBtn = document.createElement("button");
+		shutdownBtn.classList.add("shutdown-icon", `rig-${system.colorClass.at(-1)}-muted`);
+		shutdownBtn.title = "Shut down system";
+		shutdownBtn.innerHTML = `
+		  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+			stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M12 2v10"/>
+			<path d="M6.2 6.2a8 8 0 1 0 11.6 0"/>
+		  </svg>
+		`;
+		shutdownBtn.onclick = (e) => {
+		  e.stopPropagation();
+		  confirmAndShutdown(system);
+		};
+		card.appendChild(shutdownBtn);
+    }
+
     container.appendChild(card);
   });
 }
