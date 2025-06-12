@@ -9,7 +9,8 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
-url = "VRDeviceServer.cgi";
+serverLauncherUrl = "ServerLauncher.cgi"
+serverUrl = "VRDeviceServer.cgi";
 
 const getServerStatusInterval = 3000;
 
@@ -124,15 +125,15 @@ function saveSystemsToLocalStorage() {
   localStorage.setItem("savedSystems", JSON.stringify(toSave));
 }
 
-// Gets the address of a system using the global url combined with the local data of the system
-// ex): http://192.0.0.1:8080/ServerStatus.html
-function getEndpoint(system) {
-  return `http://${system.ip}:${system.serverPort}/${url}`;
-}
-
 // Gets the address of a system's server launcher
+// ex): http://192.0.0.1:8080/ServerLauncher.cgi
 function getLauncherEndpoint(system) {
-  return `http://${system.ip}:${system.serverLauncherPort}/${url}`;
+  return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}`;
+}
+// Gets the address of a system using the global url combined with the local data of the system
+// ex): http://192.0.0.1:8081/VRDeviceServer.cgi
+function getEndpoint(system) {
+  return `http://${system.ip}:${system.serverPort}/${serverUrl}`;
 }
 
 // Add system to list of systems
@@ -178,6 +179,10 @@ function addSystem() {
   autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
 
   saveSystemsToLocalStorage();
+  
+  getLauncherStatus(newSystem, () => {
+	  startLauncherServers(newSystem);
+  });
 }
 
 // Remove system from list of systems
@@ -950,7 +955,7 @@ function updateSystemWithJsonData(system, jsonData) {
 	//console.log(JSON.stringify(system, null, 2));
 }
 
-// Clls to server about system status
+// Calls to server about system status
 function getServerStatus(system) {
   if (!system) return;
 
@@ -990,6 +995,99 @@ function getServerStatus(system) {
       } else {
         console.error(`❌ Failed to contact ${system.name} (${system.ip}:${system.serverPort}):`, err);
         autoUpdateConsole(system, "getServerStatus", "Failed to contact device — connection error", "error");
+      }
+    });
+}
+
+// Start VR Compositor and VRRunDeviceTracker
+function startLauncherServers(system) {
+  if (!system) return;
+
+  const endpoint = getLauncherEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "startServers" }),
+  }, 3000)
+    .then(() => {
+      autoUpdateConsole(system, "startServers", "🚀 Start command sent to launcher.");
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        console.error(`⏱️ Timeout starting launcher servers on ${system.name}`);
+        autoUpdateConsole(system, "startServers", "Timed out contacting launcher", "error");
+      } else {
+        console.error(`❌ Failed to start servers on ${system.name}:`, err);
+        autoUpdateConsole(system, "startServers", "Failed to contact launcher", "error");
+      }
+    });
+}
+
+// Stop VR Compositor and VRRunDeviceTracker
+function stopLauncherServers(system) {
+  if (!system) return;
+
+  const endpoint = getLauncherEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "stopServers" }),
+  }, 3000)
+    .then(() => {
+      autoUpdateConsole(system, "stopServers", "🛑 Stop command sent to launcher.");
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        console.error(`⏱️ Timeout stopping launcher servers on ${system.name}`);
+        autoUpdateConsole(system, "stopServers", "Timed out contacting launcher", "error");
+      } else {
+        console.error(`❌ Failed to stop servers on ${system.name}:`, err);
+        autoUpdateConsole(system, "stopServers", "Failed to contact launcher", "error");
+      }
+    });
+}
+
+// Calls to the launcher to see status
+// OPTIONAL: onSuccessCallback will launch the servers if the status returns good
+function getLauncherStatus(system, onSuccessCallback) {
+  if (!system) return;
+
+  const endpoint = getLauncherEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "getServerStatus" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      autoUpdateConsole(system, "getLauncherStatus", "Received launcher status response.");
+
+      if (Array.isArray(data.servers)) {
+        data.servers.forEach((srv) => {
+          const msg = `${srv.name}: ${srv.isRunning ? "🟢 running" : "🔴 stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
+          autoUpdateConsole(system, "launcherStatus", msg);
+        });
+      }
+
+      handleServerResponse(system, "getLauncherStatus", {
+        status: "Success",
+        message: "Launcher status retrieved successfully.",
+      });
+
+      if (typeof onSuccessCallback === "function") {
+        onSuccessCallback();
+      }
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        console.error(`⏱️ Timeout contacting launcher on ${system.name}`);
+        autoUpdateConsole(system, "getLauncherStatus", "Timed out contacting launcher", "error");
+      } else {
+        console.error(`❌ Failed to contact launcher on ${system.name}:`, err);
+        autoUpdateConsole(system, "getLauncherStatus", "Failed to contact launcher — connection error", "error");
       }
     });
 }
@@ -1270,6 +1368,12 @@ document.addEventListener("DOMContentLoaded", () => {
     updateInterface();
     applyConsoleFilter();
   }
+  
+  allSystems.forEach((system) => {
+	getLauncherStatus(system, () => {
+      startLauncherServers(system);
+	});
+  });
 });
 
 setInterval(() => {
