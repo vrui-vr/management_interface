@@ -10,7 +10,8 @@ const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
 serverLauncherUrl = "ServerLauncher.cgi"
-serverUrl = "VRDeviceServer.cgi";
+deviceServerUrl = "VRDeviceServer.cgi";
+compositingServerUrl = "CompositingServer.cgi";
 
 const getServerStatusInterval = 3000;
 
@@ -120,20 +121,26 @@ function saveSystemsToLocalStorage() {
     name: d.name,
     ip: d.ip,
     serverLauncherPort: d.serverLauncherPort,
-    serverPort: d.serverPort
+    deviceServerPort: d.deviceServerPort,
+    compositingServerPort: d.compositingServerPort
   }));
   localStorage.setItem("savedSystems", JSON.stringify(toSave));
 }
 
 // Gets the address of a system's server launcher
 // ex): http://192.0.0.1:8080/ServerLauncher.cgi
-function getLauncherEndpoint(system) {
+function getServerLauncherEndpoint(system) {
   return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}`;
 }
 // Gets the address of a system using the global url combined with the local data of the system
 // ex): http://192.0.0.1:8081/VRDeviceServer.cgi
-function getEndpoint(system) {
-  return `http://${system.ip}:${system.serverPort}/${serverUrl}`;
+function getDeviceServerEndpoint(system) {
+  return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}`;
+}
+
+// Gets adress of the VR compositingServer
+function getCompositingServerEndpoint(system) {
+  return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}`;
 }
 
 // Add system to list of systems
@@ -160,14 +167,18 @@ function addSystem() {
   const launcherPortInput = window.prompt("Enter ServerLauncher port (default: 8080):", "8080");
   const serverLauncherPort = launcherPortInput && launcherPortInput.trim() !== "" ? launcherPortInput.trim() : "8080";
 
-  const systemPortInput = window.prompt("Enter VRDeviceServer port (default: 8081):", "8081");
-  const serverPort = systemPortInput && systemPortInput.trim() !== "" ? systemPortInput.trim() : "8081";
+  const devicePortInput = window.prompt("Enter VRDeviceServer port (default: 8081):", "8081");
+  const deviceServerPort = devicePortInput && devicePortInput.trim() !== "" ? devicePortInput.trim() : "8081";
+
+  const compositingPortInput = window.prompt("Enter CompositingServer port (default: 8082):", "8082");
+  const compositingServerPort = compositingPortInput && compositingPortInput.trim() !== "" ? compositingPortInput.trim() : "8082";
 
   const newSystem = {
     name: newName,
     ip,
-    serverLauncherPort,
-    serverPort,
+    serverLauncherPort: serverLauncherPort,
+    deviceServerPort: deviceServerPort,
+    compositingServerPort: compositingServerPort,
     connected: false,
     colorClass: `rig-${allSystems.length % 6}`,
     devices: {},
@@ -442,6 +453,21 @@ function changeTargetColor(systemName) {
     targetLabel.style.color = getSystemColor(system);
   }
 }
+  
+function formatPorts(p1, p2, p3) {
+  // ensure numbers
+  p1 = Number(p1);
+  p2 = Number(p2);
+  p3 = Number(p3);
+
+  // check if consecutive
+  if (p2 === p1 + 1 && p3 === p2 + 1) {
+    return `${p1}-${p3}`;
+  }
+
+  // fallback
+  return `${p1}/${p2}/${p3}`;
+}
 
 // Renders all systems, creating the containers for each
 function renderSystems(systems) {
@@ -505,7 +531,12 @@ function renderSystems(systems) {
     ipSpan.style.color = "gray";
     ipSpan.style.opacity = "0.7";
     ipSpan.style.marginTop = "-2px";
-    ipSpan.textContent = `${system.ip}:${system.serverLauncherPort} / ${system.serverPort}`;
+
+    ipSpan.textContent = `${system.ip}:${formatPorts(
+      system.serverLauncherPort,
+      system.deviceServerPort,
+      system.compositingServerPort
+    )}`;
 
     if (system.name === currentSystem) {
       ipSpan.style.cursor = "pointer";
@@ -557,7 +588,7 @@ function renderSystems(systems) {
       connectBtn.onclick = (e) => {
         e.stopPropagation();
         autoUpdateConsole(system, "getServerStatus", "Attempting to contact device...");
-        getServerStatus(system);
+        getDeviceServerStatus(system);
       };
 
       connectContainer.appendChild(connectBtn);
@@ -883,7 +914,7 @@ function sendHapticTick(system, deviceName, featureIndex) {
     return;
   }
 
-  const endpoint = getEndpoint(system);
+  const endpoint = getDeviceServerEndpoint(system);
 
   fetch(endpoint, {
     method: "POST",
@@ -931,7 +962,7 @@ function sendPowerOff(system, deviceName, featureIndex) {
     return;
   }
 
-  const endpoint = getEndpoint(system);
+  const endpoint = getDeviceServerEndpoint(system);
 
   fetch(endpoint, {
     method: "POST",
@@ -975,14 +1006,16 @@ function changeIP(system) {
 // Change a system's Ports
 function changePorts(system) {
   const newServerLauncherPort = window.prompt("New ServerLauncher port:", system.serverLauncherPort || "8080");
-  const newServerPort = window.prompt("New VRDeviceServer port:", system.serverPort || "8081");
-
+  const newDeviceServerPort = window.prompt("New VRDeviceServer port:", system.deviceServerPort || "8081");
+  const newCompositingServerPort = window.prompt("New CompositingServer port:", system.compositingServerPort || "8082");
+  if (newCompositingServerPort && newCompositingServerPort.trim()) {
+    system.compositingServerPort = newCompositingServerPort.trim();
+  }
+  if (newDeviceServerPort && newDeviceServerPort.trim()) {
+    system.deviceServerPort = newDeviceServerPort.trim();
+  }
   if (newServerLauncherPort && newServerLauncherPort.trim()) {
     system.serverLauncherPort = newServerLauncherPort.trim();
-  }
-
-  if (newServerPort && newServerPort.trim()) {
-    system.serverPort = newServerPort.trim();
   }
 
   saveSystemsToLocalStorage();
@@ -1034,10 +1067,10 @@ function updateSystemWithJsonData(system, jsonData) {
 }
 
 // Calls to server about system status
-function getServerStatus(system) {
+function getDeviceServerStatus(system) {
   if (!system) return;
 
-  const endpoint = getEndpoint(system);
+  const endpoint = getDeviceServerEndpoint(system);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -1057,7 +1090,7 @@ function getServerStatus(system) {
       // Add to activeSystems if success
       if (data?.status === "Success") {
         if (!activeSystems.has(system.name)) {
-          console.log(`✅ ${system.name} added to activeSystems`);
+          console.log(`${system.name} added to activeSystems`);
           activeSystems.add(system.name);
         }
       }
@@ -1068,11 +1101,39 @@ function getServerStatus(system) {
     })
     .catch((err) => {
       if (err.name === "AbortError") {
-        console.error(`⏱️ Timeout contacting ${system.name}`);
+        console.error(`Timeout contacting ${system.name}`);
         autoUpdateConsole(system, "getServerStatus", "Timed out contacting device", "error");
       } else {
-        console.error(`❌ Failed to contact ${system.name} (${system.ip}:${system.serverPort}):`, err);
+        console.error(`Failed to contact ${system.name} (${system.ip}:${system.deviceServerPort}):`, err);
         autoUpdateConsole(system, "getServerStatus", "Failed to contact device — connection error", "error");
+      }
+    });
+}
+
+function getCompositingServerStatus(system) {
+  if (!system) return;
+
+  const endpoint = getCompositingServerEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "getServerStatus" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      // Handle compositing-specific response
+      handleServerResponse(system, "getCompositingStatus", data);
+      
+      // Add any compositing-specific UI updates here
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        console.error(`Timeout contacting compositing server on ${system.name}`);
+        autoUpdateConsole(system, "getCompositingStatus", "Timed out contacting compositing server", "error");
+      } else {
+        console.error(`Failed to contact compositing server on ${system.name}:`, err);
+        autoUpdateConsole(system, "getCompositingStatus", "Failed to contact compositing server", "error");
       }
     });
 }
@@ -1081,7 +1142,7 @@ function getServerStatus(system) {
 function startLauncherServers(system) {
   if (!system) return;
 
-  const endpoint = getLauncherEndpoint(system);
+  const endpoint = getServerLauncherEndpoint(system);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -1106,7 +1167,7 @@ function startLauncherServers(system) {
 function stopLauncherServers(system) {
   if (!system) return;
 
-  const endpoint = getLauncherEndpoint(system);
+  const endpoint = getServerLauncherEndpoint(system);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -1132,7 +1193,7 @@ function stopLauncherServers(system) {
 function getLauncherStatus(system, onSuccessCallback) {
   if (!system) return;
 
-  const endpoint = getLauncherEndpoint(system);
+  const endpoint = getServerLauncherEndpoint(system);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -1187,7 +1248,7 @@ function sendConsoleCommand() {
     return;
   }
 
-  fetch(getEndpoint(system), {
+  fetch(getDeviceServerEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: rawCommand, target: currentSystem }),
@@ -1430,7 +1491,8 @@ document.addEventListener("DOMContentLoaded", () => {
       name: d.name,
       ip: d.ip,
       serverLauncherPort: d.serverLauncherPort,
-      serverPort: d.serverPort,
+      deviceServerPort: d.deviceServerPort,
+      compositingServerPort: d.compositingServerPort,
       connected: false,
       headset: 0,
       left: 0,
@@ -1457,7 +1519,8 @@ document.addEventListener("DOMContentLoaded", () => {
         name: "Local Host",
         ip: "127.0.0.1",
         serverLauncherPort: "8080",
-        serverPort: "8081",
+        deviceServerPort: "8081",
+        compositingServerPort: "8082",
       },
     ];
 
@@ -1465,7 +1528,8 @@ document.addEventListener("DOMContentLoaded", () => {
       name: d.name,
       ip: d.ip,
       serverLauncherPort: d.serverLauncherPort,
-      serverPort: d.serverPort,
+      deviceServerPort: d.deviceServerPort,
+      compositingServerPort: d.compositingServerPort,
       connected: false,
       devices: {},
       colorClass: `rig-${index % 6}`,
@@ -1518,7 +1582,7 @@ setInterval(() => {
       }
 
       // Attempt to ping
-      getServerStatus(system);
+      getDeviceServerStatus(system);
     });
   }
 }, getServerStatusInterval); // every certain amount of seconds
