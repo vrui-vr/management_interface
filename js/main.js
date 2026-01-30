@@ -982,7 +982,6 @@ function sendPowerOff(system, deviceName, featureIndex) {
     });
 }
 
-
 // Functions to change info about a system
 function renameSystem(system) {
   const newName = window.prompt("New name:", system.name);
@@ -1150,14 +1149,14 @@ function startLauncherServers(system) {
     body: new URLSearchParams({ command: "startServers" }),
   }, 3000)
     .then(() => {
-      autoUpdateConsole(system, "startServers", "🚀 Start command sent to launcher.");
+      autoUpdateConsole(system, "startServers", "Start command sent to launcher.");
     })
     .catch((err) => {
       if (err.name === "AbortError") {
-        console.error(`⏱️ Timeout starting launcher servers on ${system.name}`);
+        console.error(`Timeout starting launcher servers on ${system.name}`);
         autoUpdateConsole(system, "startServers", "Timed out contacting launcher", "error");
       } else {
-        console.error(`❌ Failed to start servers on ${system.name}:`, err);
+        console.error(`Failed to start servers on ${system.name}:`, err);
         autoUpdateConsole(system, "startServers", "Failed to contact launcher", "error");
       }
     });
@@ -1175,14 +1174,14 @@ function stopLauncherServers(system) {
     body: new URLSearchParams({ command: "stopServers" }),
   }, 3000)
     .then(() => {
-      autoUpdateConsole(system, "stopServers", "🛑 Stop command sent to launcher.");
+      autoUpdateConsole(system, "stopServers", "Stop command sent to launcher.");
     })
     .catch((err) => {
       if (err.name === "AbortError") {
-        console.error(`⏱️ Timeout stopping launcher servers on ${system.name}`);
+        console.error(`Timeout stopping launcher servers on ${system.name}`);
         autoUpdateConsole(system, "stopServers", "Timed out contacting launcher", "error");
       } else {
-        console.error(`❌ Failed to stop servers on ${system.name}:`, err);
+        console.error(`Failed to stop servers on ${system.name}:`, err);
         autoUpdateConsole(system, "stopServers", "Failed to contact launcher", "error");
       }
     });
@@ -1206,7 +1205,7 @@ function getLauncherStatus(system, onSuccessCallback) {
 
       if (Array.isArray(data.servers)) {
         data.servers.forEach((srv) => {
-          const msg = `${srv.name}: ${srv.isRunning ? "🟢 running" : "🔴 stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
+          const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
           autoUpdateConsole(system, "launcherStatus", msg);
         });
       }
@@ -1222,10 +1221,10 @@ function getLauncherStatus(system, onSuccessCallback) {
     })
     .catch((err) => {
       if (err.name === "AbortError") {
-        console.error(`⏱️ Timeout contacting launcher on ${system.name}`);
+        console.error(`Timeout contacting launcher on ${system.name}`);
         autoUpdateConsole(system, "getLauncherStatus", "Timed out contacting launcher", "error");
       } else {
-        console.error(`❌ Failed to contact launcher on ${system.name}:`, err);
+        console.error(`Failed to contact launcher on ${system.name}:`, err);
         autoUpdateConsole(system, "getLauncherStatus", "Failed to contact launcher — connection error", "error");
       }
     });
@@ -1451,7 +1450,7 @@ function applyConsoleFilter() {
     if (shouldShow) visibleCount++;
   });
 
-  // ✅ Update empty state message
+  // Update empty state message
   const consoleBox = document.getElementById("consoleOutput");
   const isEmpty = visibleCount === 0;
 
@@ -1569,7 +1568,7 @@ setInterval(() => {
       ) {
         // Timeout → mark as offline
         if (system.connected !== false) {
-          console.warn(`⚠️ ${system.name} marked offline (timeout)`);
+          console.warn(`${system.name} marked offline (timeout)`);
 
           system.connected = false;
 
@@ -1583,6 +1582,7 @@ setInterval(() => {
 
       // Attempt to ping
       getDeviceServerStatus(system);
+      getCompositingServerStatus(system);
     });
   }
 }, getServerStatusInterval); // every certain amount of seconds
