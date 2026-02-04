@@ -182,6 +182,8 @@ function addSystem() {
     deviceServerPort: deviceServerPort,
     compositingServerPort: compositingServerPort,
     connected: false,
+    launcherAlive: false,
+    servers: [],
     colorClass: `rig-${allSystems.length % 6}`,
     devices: {},
   };
@@ -193,9 +195,8 @@ function addSystem() {
 
   saveSystemsToLocalStorage();
   
-  getLauncherStatus(newSystem, () => {
-	  startLauncherServers(newSystem);
-  });
+  // Check if launcher is alive
+  checkLauncherAlive(newSystem);
 }
 
 // Remove system from list of systems
@@ -243,7 +244,9 @@ function confirmAndShutdown(system) {
 
   // Mark system as disconnected
   system.connected = false;
+  system.launcherAlive = false;
   system.devices = {};
+  system.servers = [];
   system.headset = 0;
   system.left = 0;
   system.right = 0;
@@ -290,7 +293,7 @@ function updateDropdown() {
     const option = document.createElement("option");
     option.value = system.name;
     option.textContent = system.name;
-    if (!system.connected) option.className = "offline";
+    if (!system.launcherAlive) option.className = "offline";
     if (system.name === currentSystem) option.selected = true;
     dropdown.appendChild(option);
   });
@@ -360,7 +363,7 @@ function updateSystemUI(updatedSystem) {
   }
 
   // 4) update connected/disconnected styling
-  if (updatedSystem.connected) {
+  if (updatedSystem.launcherAlive) {
     systemCard.classList.remove("disconnected");
   } else {
     systemCard.classList.add("disconnected");
@@ -399,7 +402,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   };
 
   const colorClass = fullSystem.colorClass;
-  const isOffline = !fullSystem.connected;
+  const isOffline = !fullSystem.launcherAlive;
 
   logEntry.classList.add("log-entry", colorClass);
 
@@ -482,8 +485,8 @@ function renderSystems(systems) {
     const card = document.createElement("div");
     card.className = "system-card";
 
-    const isConnected = !!system.devices?.hmd?.connected;
-    if (!isConnected) card.classList.add("disconnected");
+    const isAlive = system.launcherAlive;
+    if (!isAlive) card.classList.add("disconnected");
 
     if (system.name === currentSystem) {
       const borderColor = getSystemColor(system);
@@ -500,7 +503,7 @@ function renderSystems(systems) {
     header.style.alignItems = "center";
 
     const name = document.createElement("div");
-    const statusClass = isConnected ? "connected" : "disconnected";
+    const statusClass = isAlive ? "connected" : "disconnected";
     name.className = `system-name ${statusClass}`;
     name.style.color = getSystemColor(system);
     name.style.display = "flex";
@@ -524,7 +527,7 @@ function renderSystems(systems) {
     }
 
     const offlineSpan = document.createElement("span");
-    if (!isConnected) {
+    if (!isAlive) {
       offlineSpan.textContent = " (offline)";
       offlineSpan.className = "offline";
       labelSpan.appendChild(offlineSpan);
@@ -536,11 +539,7 @@ function renderSystems(systems) {
     ipSpan.style.opacity = "0.7";
     ipSpan.style.marginTop = "-2px";
 
-    ipSpan.textContent = `${system.ip}:${formatPorts(
-      system.serverLauncherPort,
-      system.deviceServerPort,
-      system.compositingServerPort
-    )}`;
+    ipSpan.textContent = `${system.ip}`;
 
     if (system.name === currentSystem) {
       ipSpan.style.cursor = "pointer";
@@ -577,8 +576,8 @@ function renderSystems(systems) {
 
     card.appendChild(header);
 
-    // Connect button if needed
-    if (!system.connected && !activeSystems.has(system.name)) {
+    // Connect button if launcher not alive
+    if (!system.launcherAlive) {
       const connectContainer = document.createElement("div");
       connectContainer.style.display = "flex";
       connectContainer.style.justifyContent = "center";
@@ -591,37 +590,80 @@ function renderSystems(systems) {
       connectBtn.textContent = "Connect";
       connectBtn.onclick = (e) => {
         e.stopPropagation();
-        autoUpdateConsole(system, "getServerStatus", "Attempting to contact device...");
-        getDeviceServerStatus(system);
+        autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
+        checkLauncherAlive(system, true);
       };
 
       connectContainer.appendChild(connectBtn);
       card.appendChild(connectContainer);
     }
 
-    // Battery column
-    const batteryColumn = document.createElement("div");
-    batteryColumn.className = "battery-column";
+    // Server status display (if launcher is alive)
+    if (system.launcherAlive && system.servers && system.servers.length > 0) {
+      const serversContainer = document.createElement("div");
+      serversContainer.className = "servers-container";
+      serversContainer.style.display = "flex";
+      serversContainer.style.flexDirection = "column";
+      serversContainer.style.gap = "0.5rem";
+      serversContainer.style.margin = "0.75rem 0";
+      serversContainer.style.padding = "0.5rem";
 
-    const deviceKeys = Object.keys(system.devices || {});
-    deviceKeys.forEach((key) => {
-      const device = system.devices[key];
-      batteryColumn.appendChild(
-        createBattery(
-          system,
-          key,
-          device?.battery ?? -1,
-          device?.connected || false,
-          device?.tracked || false,
-          device?.hasBattery || false
-        )
-      );
-    });
+      system.servers.forEach((server) => {
+        const serverRow = document.createElement("div");
+        serverRow.className = "server-row";
+        serverRow.style.display = "flex";
+        serverRow.style.justifyContent = "space-between";
+        serverRow.style.alignItems = "center";
 
-    card.appendChild(batteryColumn);
+        const serverName = document.createElement("span");
+        serverName.textContent = server.name;
+        serverName.style.fontSize = "0.8rem";
+        serverName.style.fontWeight = "500";
 
-    // Shutdown button AFTER batteries if connected
+        const serverStatus = document.createElement("span");
+        serverStatus.textContent = server.isRunning ? "Running" : "Stopped";
+        serverStatus.style.fontSize = "0.75rem";
+        serverStatus.style.fontWeight = "bold";
+        
+        if (server.isRunning) {
+          serverStatus.style.color = getSystemColor(system);
+        } else {
+          serverStatus.style.color = "gray";
+        }
+
+        serverRow.appendChild(serverName);
+        serverRow.appendChild(serverStatus);
+        serversContainer.appendChild(serverRow);
+      });
+
+      card.appendChild(serversContainer);
+    }
+
+    // Battery column (only if connected)
     if (system.connected) {
+      const batteryColumn = document.createElement("div");
+      batteryColumn.className = "battery-column";
+
+      const deviceKeys = Object.keys(system.devices || {});
+      deviceKeys.forEach((key) => {
+        const device = system.devices[key];
+        batteryColumn.appendChild(
+          createBattery(
+            system,
+            key,
+            device?.battery ?? -1,
+            device?.connected || false,
+            device?.tracked || false,
+            device?.hasBattery || false
+          )
+        );
+      });
+
+      card.appendChild(batteryColumn);
+    }
+
+    // Shutdown button AFTER batteries if launcher is alive
+    if (system.launcherAlive) {
         const shutdownBtn = document.createElement("button");
 		shutdownBtn.classList.add("shutdown-icon", `rig-${system.colorClass.at(-1)}-muted`);
 		shutdownBtn.title = "Shut down system";
@@ -892,6 +934,51 @@ function handleServerResponse(system, command, data) {
 	  const errorMsg = data?.message || "Error / Unknown failure.";
 	  autoUpdateConsole(system, command, `⚠️ ${errorMsg}`, "error"); // ADD "error" HERE
 	}
+}
+
+// NEW: Check if launcher is alive
+function checkLauncherAlive(system, shouldGetStatus = false) {
+  if (!system) return;
+
+  const endpoint = getServerLauncherEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "isAlive" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.isRunning === true) {
+        system.launcherAlive = true;
+        system.lastSeen = Date.now();
+        
+        autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
+        
+        // If requested, get the server status after confirming launcher is alive
+        if (shouldGetStatus) {
+          getLauncherStatus(system);
+        }
+      } else {
+        system.launcherAlive = false;
+        autoUpdateConsole(system, "isAlive", "Launcher not responding", "error");
+      }
+      
+      updateSystemUI(system);
+    })
+    .catch((err) => {
+      system.launcherAlive = false;
+      
+      if (err.name === "AbortError") {
+        console.error(`Timeout checking launcher on ${system.name}`);
+        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher", "error");
+      } else {
+        console.error(`Failed to check launcher on ${system.name}:`, err);
+        autoUpdateConsole(system, "isAlive", "Failed to contact launcher", "error");
+      }
+      
+      updateSystemUI(system);
+    });
 }
 
 // Sends a haptic tick command to the system
@@ -1195,8 +1282,7 @@ function stopLauncherServers(system) {
 }
 
 // Calls to the launcher to see status
-// OPTIONAL: onSuccessCallback will launch the servers if the status returns good
-function getLauncherStatus(system, onSuccessCallback) {
+function getLauncherStatus(system) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
@@ -1210,7 +1296,10 @@ function getLauncherStatus(system, onSuccessCallback) {
     .then((data) => {
       autoUpdateConsole(system, "getLauncherStatus", "Received launcher status response.");
 
+      // Store server information
       if (Array.isArray(data.servers)) {
+        system.servers = data.servers;
+        
         data.servers.forEach((srv) => {
           const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
           autoUpdateConsole(system, "launcherStatus", msg);
@@ -1222,9 +1311,7 @@ function getLauncherStatus(system, onSuccessCallback) {
         message: "Launcher status retrieved successfully.",
       });
 
-      if (typeof onSuccessCallback === "function") {
-        onSuccessCallback();
-      }
+      updateSystemUI(system);
     })
     .catch((err) => {
       if (err.name === "AbortError") {
@@ -1376,7 +1463,7 @@ function updateFilterMenu() {
   // 1. Add one checkbox per system
   allSystems.forEach((system) => {
     const label = document.createElement("label");
-    label.className = `filter-option ${system.colorClass} ${system.connected ? "connected" : "disconnected"}`;
+    label.className = `filter-option ${system.colorClass} ${system.launcherAlive ? "connected" : "disconnected"}`;
 
     const labelText = document.createElement("span");
     labelText.className = "label-text";
@@ -1500,6 +1587,8 @@ document.addEventListener("DOMContentLoaded", () => {
       deviceServerPort: d.deviceServerPort,
       compositingServerPort: d.compositingServerPort,
       connected: false,
+      launcherAlive: false,
+      servers: [],
       headset: 0,
       left: 0,
       right: 0,
@@ -1507,6 +1596,7 @@ document.addEventListener("DOMContentLoaded", () => {
       left_connected: false,
       right_connected: false,
       colorClass: `rig-${index % 6}`,
+      devices: {},
     }));
 
     currentSystem = allSystems[0]?.name || "";
@@ -1537,6 +1627,8 @@ document.addEventListener("DOMContentLoaded", () => {
       deviceServerPort: d.deviceServerPort,
       compositingServerPort: d.compositingServerPort,
       connected: false,
+      launcherAlive: false,
+      servers: [],
       devices: {},
       colorClass: `rig-${index % 6}`,
     }));
@@ -1554,10 +1646,9 @@ document.addEventListener("DOMContentLoaded", () => {
     applyConsoleFilter();
   }
   
+  // Check if launcher is alive for all systems on page load
   allSystems.forEach((system) => {
-	getLauncherStatus(system, () => {
-      startLauncherServers(system);
-	});
+    checkLauncherAlive(system);
   });
 });
 
@@ -1593,5 +1684,3 @@ setInterval(() => {
     });
   }
 }, getServerStatusInterval); // every certain amount of seconds
-
-
