@@ -36,6 +36,20 @@ function sendButton(buttonNumber) {
       `getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`
     );
   }
+  else if (buttonNumber === 2) {
+    // Start servers on current system
+    const system = allSystems.find((d) => d.name === currentSystem);
+    if (system) {
+      autoUpdateConsole(system, "startServers", "Manually starting servers...");
+      startLauncherServers(system);
+      // Wait a bit then check status
+      setTimeout(() => {
+        getLauncherStatus(system);
+      }, 2000);
+    } else {
+      console.log(`System ${currentSystem} not found`);
+    }
+  }
   else {
     console.log(`Button ${buttonNumber} pressed — no action yet.`);
     autoUpdateConsole(
@@ -308,8 +322,14 @@ function updateButtonStates() {
     btn1.classList.toggle("button-danger", getStatusUpdates);
   }
 
-  // Grey out buttons 2-7
-  for (let i = 2; i <= 7; i++) {
+  const btn2 = document.getElementById("btn-2");
+  if (btn2) {
+    btn2.textContent = "Start Servers";
+    btn2.disabled = false;
+  }
+
+  // Grey out buttons 3-7
+  for (let i = 3; i <= 7; i++) {
     const btn = document.getElementById(`btn-${i}`);
     if (btn) {
       btn.disabled = true;  // greyed out
@@ -539,7 +559,11 @@ function renderSystems(systems) {
     ipSpan.style.opacity = "0.7";
     ipSpan.style.marginTop = "-2px";
 
-    ipSpan.textContent = `${system.ip}`;
+    ipSpan.textContent = `${system.ip}:${formatPorts(
+      system.serverLauncherPort,
+      system.deviceServerPort,
+      system.compositingServerPort
+    )}`;
 
     if (system.name === currentSystem) {
       ipSpan.style.cursor = "pointer";
@@ -560,6 +584,42 @@ function renderSystems(systems) {
 
     name.appendChild(labelSpan);
     name.appendChild(ipSpan);
+    
+    // Add server status display right under IP (if launcher is alive)
+    if (system.launcherAlive && system.servers && system.servers.length > 0) {
+      const serversCompact = document.createElement("div");
+      serversCompact.style.display = "flex";
+      serversCompact.style.flexDirection = "column";
+      serversCompact.style.gap = "0.05rem";
+      serversCompact.style.marginTop = "0.15rem";
+
+      system.servers.forEach((server, index) => {
+        const serverLine = document.createElement("span");
+        serverLine.style.fontSize = "0.55rem";
+        serverLine.style.color = "gray";
+        serverLine.style.opacity = "0.8";
+        
+        const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+        
+        // Determine status symbol and color
+        let statusSymbol = "●";
+        let statusColor = "gray";
+        
+        if (!server.isRunning) {
+          statusColor = "gray";
+        } else if (server.status === 'online') {
+          statusColor = getSystemColor(system);
+        } else if (server.status === 'offline' || server.status === 'error') {
+          statusColor = "#ff6b6b";
+        }
+        
+        serverLine.innerHTML = `<span style="color: ${statusColor}">${statusSymbol}</span> ${server.name} :${port}`;
+        serversCompact.appendChild(serverLine);
+      });
+
+      name.appendChild(serversCompact);
+    }
+    
     header.appendChild(name);
 
     if (system.name !== "Local Host") {
@@ -596,80 +656,6 @@ function renderSystems(systems) {
 
       connectContainer.appendChild(connectBtn);
       card.appendChild(connectContainer);
-    }
-
-    // Server status display (if launcher is alive)
-    if (system.launcherAlive && system.servers && system.servers.length > 0) {
-      const serversContainer = document.createElement("div");
-      serversContainer.className = "servers-container";
-      serversContainer.style.display = "flex";
-      serversContainer.style.flexDirection = "column";
-      serversContainer.style.gap = "0.5rem";
-      serversContainer.style.margin = "0.75rem 0";
-      serversContainer.style.padding = "0.5rem";
-
-      system.servers.forEach((server, index) => {
-        const serverRow = document.createElement("div");
-        serverRow.className = "server-row";
-        serverRow.style.display = "flex";
-        serverRow.style.justifyContent = "space-between";
-        serverRow.style.alignItems = "center";
-        serverRow.style.padding = "0.25rem 0";
-
-        const serverInfo = document.createElement("div");
-        serverInfo.style.display = "flex";
-        serverInfo.style.flexDirection = "column";
-        serverInfo.style.gap = "0.1rem";
-
-        const serverName = document.createElement("span");
-        serverName.textContent = server.name;
-        serverName.style.fontSize = "0.8rem";
-        serverName.style.fontWeight = "500";
-
-        const serverPort = document.createElement("span");
-        const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
-        serverPort.textContent = `Port: ${port}`;
-        serverPort.style.fontSize = "0.65rem";
-        serverPort.style.color = "gray";
-        serverPort.style.opacity = "0.7";
-
-        serverInfo.appendChild(serverName);
-        serverInfo.appendChild(serverPort);
-
-        const serverStatus = document.createElement("span");
-        
-        // Determine status text and color
-        let statusText = "Unknown";
-        let statusColor = "gray";
-        
-        if (!server.isRunning) {
-          statusText = "Stopped";
-          statusColor = "gray";
-        } else if (server.status === 'online') {
-          statusText = "Online";
-          statusColor = getSystemColor(system);
-        } else if (server.status === 'offline') {
-          statusText = "Offline";
-          statusColor = "#ff6b6b";
-        } else if (server.status === 'error') {
-          statusText = "Error";
-          statusColor = "#ff6b6b";
-        } else if (server.status === 'checking...') {
-          statusText = "Checking...";
-          statusColor = "gray";
-        }
-        
-        serverStatus.textContent = statusText;
-        serverStatus.style.fontSize = "0.75rem";
-        serverStatus.style.fontWeight = "bold";
-        serverStatus.style.color = statusColor;
-
-        serverRow.appendChild(serverInfo);
-        serverRow.appendChild(serverStatus);
-        serversContainer.appendChild(serverRow);
-      });
-
-      card.appendChild(serversContainer);
     }
 
     // Battery column (only if connected)
@@ -1349,24 +1335,37 @@ function getLauncherStatus(system) {
           status: 'checking...' // Initial status while we check
         }));
         
-        data.servers.forEach((srv, index) => {
-          const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
-          autoUpdateConsole(system, "launcherStatus", msg);
-          
-          // If server is running, ping it to get its status
-          if (srv.isRunning) {
-            // Determine which port to use based on server index
-            const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
-            const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-            const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+        // Check if any servers are not running
+        const anyServersStopped = data.servers.some(srv => !srv.isRunning);
+        
+        if (anyServersStopped) {
+          autoUpdateConsole(system, "autoStart", "Some servers stopped, starting servers...");
+          startLauncherServers(system);
+          // Wait a bit then check status again
+          setTimeout(() => {
+            getLauncherStatus(system);
+          }, 2000);
+        } else {
+          // All servers running, ping them
+          data.servers.forEach((srv, index) => {
+            const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
+            autoUpdateConsole(system, "launcherStatus", msg);
             
-            pingServerStatus(system, index, serverEndpoint);
-          } else {
-            // If not running, mark as stopped
-            system.servers[index].status = 'stopped';
-            updateSystemUI(system);
-          }
-        });
+            // If server is running, ping it to get its status
+            if (srv.isRunning) {
+              // Determine which port to use based on server index
+              const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+              const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
+              const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+              
+              pingServerStatus(system, index, serverEndpoint);
+            } else {
+              // If not running, mark as stopped
+              system.servers[index].status = 'stopped';
+              updateSystemUI(system);
+            }
+          });
+        }
       }
 
       handleServerResponse(system, "getLauncherStatus", {
@@ -1399,6 +1398,16 @@ function pingServerStatus(system, serverIndex, endpoint) {
       if (data?.status === "Success") {
         system.servers[serverIndex].status = 'online';
         autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} is online ✓`);
+        
+        // If this is the device server (index 0) and it's online, mark system as connected
+        // and fetch device data
+        if (serverIndex === 0) {
+          system.connected = true;
+          activeSystems.add(system.name);
+          
+          // Update with device data from the response
+          updateSystemWithJsonData(system, data);
+        }
       } else {
         system.servers[serverIndex].status = 'error';
         autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} responded with error`, "error");
@@ -1770,9 +1779,18 @@ setInterval(() => {
         }
       }
 
-      // Attempt to ping
-      getDeviceServerStatus(system);
-      getCompositingServerStatus(system);
+      // Attempt to ping both servers
+      if (system.servers && system.servers.length > 0) {
+        system.servers.forEach((srv, index) => {
+          if (srv.isRunning) {
+            const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+            const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
+            const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+            
+            pingServerStatus(system, index, serverEndpoint);
+          }
+        });
+      }
     });
   }
 }, getServerStatusInterval); // every certain amount of seconds
