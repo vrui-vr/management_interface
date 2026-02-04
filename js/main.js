@@ -1452,6 +1452,7 @@ function getLauncherStatus(system, skipAutoStart = false) {
 }
 
 // Ping individual server to get its status
+// Ping individual server to get its status
 function pingServerStatus(system, serverIndex, endpoint) {
   // Safety check - make sure servers array exists and has this index
   if (!system.servers || !system.servers[serverIndex]) {
@@ -1490,13 +1491,16 @@ function pingServerStatus(system, serverIndex, endpoint) {
         }
         
         // If this is the device server (index 0) and it's online, mark system as connected
-        // and fetch device data
+        // and ALWAYS update device data (not just on first connection)
         if (serverIndex === 0) {
           system.connected = true;
           activeSystems.add(system.name);
           
-          // Update with device data from the response
+          // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
+          
+          // Update the UI to show the new device states
+          updateSystemUI(system);
         }
       } else {
         system.servers[serverIndex].status = 'error';
