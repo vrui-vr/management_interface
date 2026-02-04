@@ -28,8 +28,6 @@
   --rig-3-muted: #fde68a;
   --rig-4-muted: #ddd6fe;
   --rig-5-muted: #fbcfe8;
-
-  
   
 	--rig-0-bg: rgba(59, 130, 246, 0.07);
 	--rig-1-bg: rgba(249, 115, 22, 0.07);
@@ -39,6 +37,12 @@
 	--rig-5-bg: rgba(236, 72, 153, 0.07);
 	
 	--radius: 2px;
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
 body {
@@ -162,18 +166,118 @@ body {
 
 .system-card {
   width: 220px;
-  border: 2px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem;
   background-color: var(--bg-white);
   box-shadow: var(--shadow);
-  transition: box-shadow 0.2s, border 0.2s;
+  transition: box-shadow 0.2s;
   position: relative;
+}
+
+/* Animated border for connected cards */
+.system-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius);
+  padding: 2px;
+  background: var(--border);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Rig-specific animated gradients for connected cards */
+.system-card.connected.rig-0::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-0),
+    rgba(59, 130, 246, 0.4),
+    var(--rig-0),
+    rgba(59, 130, 246, 0.6),
+    var(--rig-0)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.system-card.connected.rig-1::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-1),
+    rgba(249, 115, 22, 0.4),
+    var(--rig-1),
+    rgba(249, 115, 22, 0.6),
+    var(--rig-1)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.system-card.connected.rig-2::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-2),
+    rgba(34, 197, 94, 0.4),
+    var(--rig-2),
+    rgba(34, 197, 94, 0.6),
+    var(--rig-2)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.system-card.connected.rig-3::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-3),
+    rgba(250, 204, 21, 0.4),
+    var(--rig-3),
+    rgba(250, 204, 21, 0.6),
+    var(--rig-3)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.system-card.connected.rig-4::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-4),
+    rgba(139, 92, 246, 0.4),
+    var(--rig-4),
+    rgba(139, 92, 246, 0.6),
+    var(--rig-4)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.system-card.connected.rig-5::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-5),
+    rgba(236, 72, 153, 0.4),
+    var(--rig-5),
+    rgba(236, 72, 153, 0.6),
+    var(--rig-5)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+@keyframes borderRotate {
+  0% {
+    --angle: 0deg;
+  }
+  100% {
+    --angle: 360deg;
+  }
 }
 
 .system-card.disconnected {
   background-color: #f9f9f9;
-  border-color: var(--border);
+}
+
+.system-card.disconnected::before {
+  background: var(--border);
+  animation: none;
 }
 
 .system-card.disconnected .battery-label,
@@ -872,4 +976,4 @@ span[title*="IP"]:hover {
 
 .browse-text:hover {
   color: #3399ff;   
-}
+}   
