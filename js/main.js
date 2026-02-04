@@ -383,60 +383,17 @@ function updateButtonStates() {
 
 // Updates the UI for the system widgets
 function updateSystemUI(updatedSystem) {
-  // 1) find the right .system-card
-  const cards = document.querySelectorAll(".system-card");
-  let systemCard = null;
-  cards.forEach((c) => {
-    if (
-      c.querySelector(".system-name .label-text")?.textContent ===
-      updatedSystem.name
-    ) {
-      systemCard = c;
-    }
-  });
-  if (!systemCard) return;
-
-  // 2) grab its battery rows
-  const batteryRows = systemCard.querySelectorAll(".battery-row");
-
-  // 3) update battery percentages using .devices
-  if (!batteryRows[0]) return;
-
-  // Headset
-  const hs = batteryRows[0].querySelector(".battery-percent");
-  if (hs) {
-    const battery = updatedSystem.devices?.headset?.battery ?? -1;
-    hs.textContent = battery >= 0 ? `${battery}%` : "--";
-    hs.classList.toggle("zero", battery === 0);
-  }
-
-  // Left controller
-  const lf = batteryRows[1]?.querySelector(".battery-percent");
-  if (lf) {
-    const battery = updatedSystem.devices?.left?.battery ?? -1;
-    lf.textContent = battery >= 0 ? `${battery}%` : "--";
-    lf.classList.toggle("zero", battery === 0);
-  }
-
-  // Right controller
-  const rt = batteryRows[2]?.querySelector(".battery-percent");
-  if (rt) {
-    const battery = updatedSystem.devices?.right?.battery ?? -1;
-    rt.textContent = battery >= 0 ? `${battery}%` : "--";
-    rt.classList.toggle("zero", battery === 0);
-  }
-
-  // 4) update connected/disconnected styling
-  if (updatedSystem.launcherAlive) {
-    systemCard.classList.remove("disconnected");
-  } else {
-    systemCard.classList.add("disconnected");
-  }
-
-  // 5) and update the target label color
+  // Force a complete re-render by calling renderSystems
+  // This ensures all device data, battery levels, and connection states are current
+  renderSystems(allSystems);
+  
+  // Update dropdown to reflect any connection state changes
+  updateDropdown();
+  
+  // Update the target label color
   changeTargetColor(updatedSystem.name);
-
-  // 6) Update button availability based on current system state
+  
+  // Update button availability based on current system state
   updateButtonStates();
 }
 
