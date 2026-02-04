@@ -11,11 +11,11 @@ const fileInput = document.getElementById("fileInput");
 
 serverLauncherUrl = "VRServerLauncher.cgi"
 deviceServerUrl = "VRDeviceServer.cgi";
-compositingServerUrl = "CompositingServer.cgi";
+compositingServerUrl = "VRCompositingServer.cgi";
 
 const getServerStatusInterval = 3000;
 
-let getStatusUpdates = false;   // global flag (default OFF)
+let getStatusUpdates = true;   // global flag (default ON)
 
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
@@ -726,27 +726,34 @@ function renderSystems(systems) {
       card.appendChild(batteryColumn);
     }
 
-    // Shutdown button AFTER batteries if launcher is alive
+    // Shutdown button at bottom right if launcher is alive
     if (system.launcherAlive) {
-        const shutdownBtn = document.createElement("button");
-		shutdownBtn.classList.add("shutdown-icon", `rig-${system.colorClass.at(-1)}-muted`);
-		shutdownBtn.title = "Shut down system";
-		shutdownBtn.style.padding = "0.25rem";
-		shutdownBtn.style.margin = "0.25rem 0 0 0";
-		shutdownBtn.style.width = "auto";
-		shutdownBtn.style.height = "auto";
-		shutdownBtn.innerHTML = `
-		  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-			stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-			<path d="M12 2v10"/>
-			<path d="M6.2 6.2a8 8 0 1 0 11.6 0"/>
-		  </svg>
-		`;
-		shutdownBtn.onclick = (e) => {
-		  e.stopPropagation();
-		  shutdownSystem(system);
-		};
-		card.appendChild(shutdownBtn);
+      const shutdownContainer = document.createElement("div");
+      shutdownContainer.style.display = "flex";
+      shutdownContainer.style.justifyContent = "flex-end";
+      shutdownContainer.style.alignItems = "center";
+      shutdownContainer.style.padding = "0.25rem 0.5rem";
+      shutdownContainer.style.marginTop = "auto";
+
+      const shutdownBtn = document.createElement("button");
+      shutdownBtn.classList.add("shutdown-icon", `rig-${system.colorClass.at(-1)}-muted`);
+      shutdownBtn.title = "Shut down system";
+      shutdownBtn.style.padding = "0.3rem";
+      shutdownBtn.style.borderRadius = "4px";
+      shutdownBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v10"/>
+          <path d="M6.2 6.2a8 8 0 1 0 11.6 0"/>
+        </svg>
+      `;
+      shutdownBtn.onclick = (e) => {
+        e.stopPropagation();
+        shutdownSystem(system);
+      };
+
+      shutdownContainer.appendChild(shutdownBtn);
+      card.appendChild(shutdownContainer);
     }
 
     container.appendChild(card);
@@ -1031,8 +1038,14 @@ function checkLauncherAlive(system, shouldGetStatus = false) {
         
         autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
         
-        // Always get launcher status when alive
-        getLauncherStatus(system);
+        // Start servers first, then get status
+        autoUpdateConsole(system, "autoStart", "Starting servers...");
+        startLauncherServers(system);
+        
+        // Wait for servers to start, then get status
+        setTimeout(() => {
+          getLauncherStatus(system);
+        }, 2000);
       } else {
         system.launcherAlive = false;
         autoUpdateConsole(system, "isAlive", `Launcher responded but isRunning=${data?.isRunning}`, "error");
@@ -1363,7 +1376,7 @@ function stopLauncherServers(system) {
 }
 
 // Calls to the launcher to see status
-function getLauncherStatus(system) {
+function getLauncherStatus(system, skipAutoStart = false) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
@@ -1381,21 +1394,22 @@ function getLauncherStatus(system) {
       if (Array.isArray(data.servers)) {
         system.servers = data.servers.map(srv => ({
           ...srv,
-          status: 'checking...' // Initial status while we check
+          status: 'checking...', // Initial status while we check
+          lastStatus: null  // Track last status to reduce log spam
         }));
         
-        // Check if any servers are not running
+        // Check if any servers are not running (only auto-start if not skipped)
         const anyServersStopped = data.servers.some(srv => !srv.isRunning);
         
-        if (anyServersStopped) {
+        if (anyServersStopped && !skipAutoStart) {
           autoUpdateConsole(system, "autoStart", "Some servers stopped, starting servers...");
           startLauncherServers(system);
           // Wait a bit then check status again
           setTimeout(() => {
-            getLauncherStatus(system);
+            getLauncherStatus(system, true); // Skip auto-start on retry
           }, 2000);
         } else {
-          // All servers running, ping them
+          // All servers running (or we're skipping auto-start), ping them
           data.servers.forEach((srv, index) => {
             const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
             autoUpdateConsole(system, "launcherStatus", msg);
@@ -1410,7 +1424,9 @@ function getLauncherStatus(system) {
               pingServerStatus(system, index, serverEndpoint);
             } else {
               // If not running, mark as stopped
-              system.servers[index].status = 'stopped';
+              if (system.servers[index]) {
+                system.servers[index].status = 'stopped';
+              }
               updateSystemUI(system);
             }
           });
@@ -1437,6 +1453,12 @@ function getLauncherStatus(system) {
 
 // Ping individual server to get its status
 function pingServerStatus(system, serverIndex, endpoint) {
+  // Safety check - make sure servers array exists and has this index
+  if (!system.servers || !system.servers[serverIndex]) {
+    console.warn(`Server index ${serverIndex} doesn't exist for ${system.name}`);
+    return;
+  }
+
   fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1444,9 +1466,20 @@ function pingServerStatus(system, serverIndex, endpoint) {
   }, 3000)
     .then((r) => r.json())
     .then((data) => {
+      // Re-check that server still exists (array might have changed)
+      if (!system.servers || !system.servers[serverIndex]) {
+        console.warn(`Server index ${serverIndex} no longer exists for ${system.name}`);
+        return;
+      }
+      
       if (data?.status === "Success") {
         system.servers[serverIndex].status = 'online';
-        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} is online ✓`);
+        
+        // Only log if this is a new status change
+        if (system.servers[serverIndex].lastStatus !== 'online') {
+          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} is online ✓`);
+          system.servers[serverIndex].lastStatus = 'online';
+        }
         
         // If this is the device server (index 0) and it's online, mark system as connected
         // and fetch device data
@@ -1459,16 +1492,27 @@ function pingServerStatus(system, serverIndex, endpoint) {
         }
       } else {
         system.servers[serverIndex].status = 'error';
-        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} responded with error`, "error");
+        if (system.servers[serverIndex].lastStatus !== 'error') {
+          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} responded with error`, "error");
+          system.servers[serverIndex].lastStatus = 'error';
+        }
       }
       updateSystemUI(system);
     })
     .catch((err) => {
+      // Re-check that server still exists
+      if (!system.servers || !system.servers[serverIndex]) {
+        return;
+      }
+      
       system.servers[serverIndex].status = 'offline';
-      if (err.name === "AbortError") {
-        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} timed out`, "error");
-      } else {
-        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} failed to respond`, "error");
+      if (system.servers[serverIndex].lastStatus !== 'offline') {
+        if (err.name === "AbortError") {
+          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} timed out`, "error");
+        } else {
+          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} failed to respond`, "error");
+        }
+        system.servers[serverIndex].lastStatus = 'offline';
       }
       updateSystemUI(system);
     });
