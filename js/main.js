@@ -9,7 +9,7 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
-serverLauncherUrl = "ServerLauncher.cgi"
+serverLauncherUrl = "VRServerLauncher.cgi"
 deviceServerUrl = "VRDeviceServer.cgi";
 compositingServerUrl = "CompositingServer.cgi";
 
