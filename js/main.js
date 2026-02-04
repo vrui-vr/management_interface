@@ -608,30 +608,63 @@ function renderSystems(systems) {
       serversContainer.style.margin = "0.75rem 0";
       serversContainer.style.padding = "0.5rem";
 
-      system.servers.forEach((server) => {
+      system.servers.forEach((server, index) => {
         const serverRow = document.createElement("div");
         serverRow.className = "server-row";
         serverRow.style.display = "flex";
         serverRow.style.justifyContent = "space-between";
         serverRow.style.alignItems = "center";
+        serverRow.style.padding = "0.25rem 0";
+
+        const serverInfo = document.createElement("div");
+        serverInfo.style.display = "flex";
+        serverInfo.style.flexDirection = "column";
+        serverInfo.style.gap = "0.1rem";
 
         const serverName = document.createElement("span");
         serverName.textContent = server.name;
         serverName.style.fontSize = "0.8rem";
         serverName.style.fontWeight = "500";
 
+        const serverPort = document.createElement("span");
+        const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+        serverPort.textContent = `Port: ${port}`;
+        serverPort.style.fontSize = "0.65rem";
+        serverPort.style.color = "gray";
+        serverPort.style.opacity = "0.7";
+
+        serverInfo.appendChild(serverName);
+        serverInfo.appendChild(serverPort);
+
         const serverStatus = document.createElement("span");
-        serverStatus.textContent = server.isRunning ? "Running" : "Stopped";
+        
+        // Determine status text and color
+        let statusText = "Unknown";
+        let statusColor = "gray";
+        
+        if (!server.isRunning) {
+          statusText = "Stopped";
+          statusColor = "gray";
+        } else if (server.status === 'online') {
+          statusText = "Online";
+          statusColor = getSystemColor(system);
+        } else if (server.status === 'offline') {
+          statusText = "Offline";
+          statusColor = "#ff6b6b";
+        } else if (server.status === 'error') {
+          statusText = "Error";
+          statusColor = "#ff6b6b";
+        } else if (server.status === 'checking...') {
+          statusText = "Checking...";
+          statusColor = "gray";
+        }
+        
+        serverStatus.textContent = statusText;
         serverStatus.style.fontSize = "0.75rem";
         serverStatus.style.fontWeight = "bold";
-        
-        if (server.isRunning) {
-          serverStatus.style.color = getSystemColor(system);
-        } else {
-          serverStatus.style.color = "gray";
-        }
+        serverStatus.style.color = statusColor;
 
-        serverRow.appendChild(serverName);
+        serverRow.appendChild(serverInfo);
         serverRow.appendChild(serverStatus);
         serversContainer.appendChild(serverRow);
       });
@@ -941,27 +974,33 @@ function checkLauncherAlive(system, shouldGetStatus = false) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
+  
+  console.log(`🔍 Checking launcher alive for ${system.name} at: ${endpoint}`);
+  autoUpdateConsole(system, "isAlive", `Checking launcher at ${endpoint}...`);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "isAlive" }),
   }, 3000)
-    .then((r) => r.json())
+    .then((r) => {
+      console.log(`📡 Response status for ${system.name}:`, r.status, r.statusText);
+      return r.json();
+    })
     .then((data) => {
+      console.log(`📦 Response data for ${system.name}:`, data);
+      
       if (data?.isRunning === true) {
         system.launcherAlive = true;
         system.lastSeen = Date.now();
         
         autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
         
-        // If requested, get the server status after confirming launcher is alive
-        if (shouldGetStatus) {
-          getLauncherStatus(system);
-        }
+        // Always get launcher status when alive
+        getLauncherStatus(system);
       } else {
         system.launcherAlive = false;
-        autoUpdateConsole(system, "isAlive", "Launcher not responding", "error");
+        autoUpdateConsole(system, "isAlive", `Launcher responded but isRunning=${data?.isRunning}`, "error");
       }
       
       updateSystemUI(system);
@@ -969,12 +1008,19 @@ function checkLauncherAlive(system, shouldGetStatus = false) {
     .catch((err) => {
       system.launcherAlive = false;
       
+      console.error(`❌ Full error details for ${system.name}:`, err);
+      console.error(`Error name: ${err.name}`);
+      console.error(`Error message: ${err.message}`);
+      
       if (err.name === "AbortError") {
         console.error(`Timeout checking launcher on ${system.name}`);
-        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher", "error");
+        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher (3 seconds)", "error");
+      } else if (err.name === "TypeError" && err.message.includes("Failed to fetch")) {
+        console.error(`Network error - possibly CORS or server not running`);
+        autoUpdateConsole(system, "isAlive", "Network error - check if launcher is running and CORS is configured", "error");
       } else {
         console.error(`Failed to check launcher on ${system.name}:`, err);
-        autoUpdateConsole(system, "isAlive", "Failed to contact launcher", "error");
+        autoUpdateConsole(system, "isAlive", `Failed to contact launcher: ${err.message}`, "error");
       }
       
       updateSystemUI(system);
@@ -1298,11 +1344,28 @@ function getLauncherStatus(system) {
 
       // Store server information
       if (Array.isArray(data.servers)) {
-        system.servers = data.servers;
+        system.servers = data.servers.map(srv => ({
+          ...srv,
+          status: 'checking...' // Initial status while we check
+        }));
         
-        data.servers.forEach((srv) => {
+        data.servers.forEach((srv, index) => {
           const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
           autoUpdateConsole(system, "launcherStatus", msg);
+          
+          // If server is running, ping it to get its status
+          if (srv.isRunning) {
+            // Determine which port to use based on server index
+            const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+            const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
+            const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+            
+            pingServerStatus(system, index, serverEndpoint);
+          } else {
+            // If not running, mark as stopped
+            system.servers[index].status = 'stopped';
+            updateSystemUI(system);
+          }
         });
       }
 
@@ -1321,6 +1384,35 @@ function getLauncherStatus(system) {
         console.error(`Failed to contact launcher on ${system.name}:`, err);
         autoUpdateConsole(system, "getLauncherStatus", "Failed to contact launcher — connection error", "error");
       }
+    });
+}
+
+// Ping individual server to get its status
+function pingServerStatus(system, serverIndex, endpoint) {
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "getServerStatus" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.status === "Success") {
+        system.servers[serverIndex].status = 'online';
+        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} is online ✓`);
+      } else {
+        system.servers[serverIndex].status = 'error';
+        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} responded with error`, "error");
+      }
+      updateSystemUI(system);
+    })
+    .catch((err) => {
+      system.servers[serverIndex].status = 'offline';
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} timed out`, "error");
+      } else {
+        autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} failed to respond`, "error");
+      }
+      updateSystemUI(system);
     });
 }
 
