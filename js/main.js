@@ -249,6 +249,50 @@ document.querySelectorAll(".log-entry .label").forEach((labelEl) => {
   saveSystemsToLocalStorage();
 }
 
+// New shutdown function that targets the launcher to stop servers
+function shutdownSystem(system) {
+  const confirmed = window.confirm(`Are you sure you want to shut down ${system.name}?`);
+  if (!confirmed) return;
+
+  autoUpdateConsole(system, "shutdown", "Sending shutdown command to launcher...");
+
+  const endpoint = getServerLauncherEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "stopServers" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.status === "Success") {
+        autoUpdateConsole(system, "shutdown", "✓ Servers stopped successfully");
+        
+        // Reset system state
+        system.connected = false;
+        system.launcherAlive = false;
+        system.devices = {};
+        system.servers = [];
+        
+        // Remove from active systems
+        activeSystems.delete(system.name);
+        
+        // Update UI
+        updateSystemUI(system);
+        
+      } else {
+        autoUpdateConsole(system, "shutdown", `⚠️ ${data?.message || "Shutdown failed"}`, "error");
+      }
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "shutdown", "Timed out sending shutdown command", "error");
+      } else {
+        autoUpdateConsole(system, "shutdown", `Failed to send shutdown: ${err.message}`, "error");
+      }
+    });
+}
+
 // Confirms and then shuts down a system
 function confirmAndShutdown(system) {
   const confirmed = window.confirm(`Are you sure you want to turn off ${system.name}?`);
@@ -590,14 +634,15 @@ function renderSystems(systems) {
       const serversCompact = document.createElement("div");
       serversCompact.style.display = "flex";
       serversCompact.style.flexDirection = "column";
-      serversCompact.style.gap = "0.05rem";
-      serversCompact.style.marginTop = "0.15rem";
+      serversCompact.style.gap = "0.1rem";
+      serversCompact.style.marginTop = "0.25rem";
 
       system.servers.forEach((server, index) => {
         const serverLine = document.createElement("span");
-        serverLine.style.fontSize = "0.55rem";
-        serverLine.style.color = "gray";
-        serverLine.style.opacity = "0.8";
+        serverLine.style.fontSize = "0.65rem";
+        serverLine.style.color = "#999";
+        serverLine.style.opacity = "1";
+        serverLine.style.fontWeight = "500";
         
         const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
         
@@ -606,7 +651,7 @@ function renderSystems(systems) {
         let statusColor = "gray";
         
         if (!server.isRunning) {
-          statusColor = "gray";
+          statusColor = "#666";
         } else if (server.status === 'online') {
           statusColor = getSystemColor(system);
         } else if (server.status === 'offline' || server.status === 'error') {
@@ -686,8 +731,12 @@ function renderSystems(systems) {
         const shutdownBtn = document.createElement("button");
 		shutdownBtn.classList.add("shutdown-icon", `rig-${system.colorClass.at(-1)}-muted`);
 		shutdownBtn.title = "Shut down system";
+		shutdownBtn.style.padding = "0.25rem";
+		shutdownBtn.style.margin = "0.25rem 0 0 0";
+		shutdownBtn.style.width = "auto";
+		shutdownBtn.style.height = "auto";
 		shutdownBtn.innerHTML = `
-		  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+		  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
 			stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 			<path d="M12 2v10"/>
 			<path d="M6.2 6.2a8 8 0 1 0 11.6 0"/>
@@ -695,7 +744,7 @@ function renderSystems(systems) {
 		`;
 		shutdownBtn.onclick = (e) => {
 		  e.stopPropagation();
-		  confirmAndShutdown(system);
+		  shutdownSystem(system);
 		};
 		card.appendChild(shutdownBtn);
     }
