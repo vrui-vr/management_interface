@@ -1296,7 +1296,7 @@ function getDeviceServerStatus(system) {
     });
 }
 
-// Calls to compositing server about system status
+// Calls to compositing server about system status - DEPRECATED, use pingServerStatus instead
 function getCompositingServerStatus(system) {
   if (!system) return;
 
@@ -1459,13 +1459,21 @@ function pingServerStatus(system, serverIndex, endpoint) {
     return;
   }
 
+  const serverName = system.servers[serverIndex].name;
+  console.log(`🔔 Pinging ${serverName} at ${endpoint} with command=getServerStatus`);
+
   fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
   }, 3000)
-    .then((r) => r.json())
+    .then((r) => {
+      console.log(`✅ ${serverName} responded with status ${r.status}`);
+      return r.json();
+    })
     .then((data) => {
+      console.log(`📦 ${serverName} data:`, data);
+      
       // Re-check that server still exists (array might have changed)
       if (!system.servers || !system.servers[serverIndex]) {
         console.warn(`Server index ${serverIndex} no longer exists for ${system.name}`);
@@ -1500,6 +1508,8 @@ function pingServerStatus(system, serverIndex, endpoint) {
       updateSystemUI(system);
     })
     .catch((err) => {
+      console.error(`❌ ${serverName} failed:`, err.name, err.message);
+      
       // Re-check that server still exists
       if (!system.servers || !system.servers[serverIndex]) {
         return;
@@ -1508,9 +1518,9 @@ function pingServerStatus(system, serverIndex, endpoint) {
       system.servers[serverIndex].status = 'offline';
       if (system.servers[serverIndex].lastStatus !== 'offline') {
         if (err.name === "AbortError") {
-          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} timed out`, "error");
+          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} timed out (no response after 3s)`, "error");
         } else {
-          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} failed to respond`, "error");
+          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} failed: ${err.message}`, "error");
         }
         system.servers[serverIndex].lastStatus = 'offline';
       }
@@ -1851,28 +1861,10 @@ setInterval(() => {
 
   if (getStatusUpdates) {
     allSystems.forEach((system) => {
-	  if (!activeSystems.has(system.name)) return; // Only ping active ones
-	  
-      // If system was recently updated, keep it online
-      if (
-        system.lastSeen &&
-        now - system.lastSeen > getServerStatusInterval * 2
-      ) {
-        // Timeout → mark as offline
-        if (system.connected !== false) {
-          console.warn(`${system.name} marked offline (timeout)`);
-
-          system.connected = false;
-
-          // Clear devices → when offline, show no devices
-          system.devices = {};
-
-          updateSystemUI(system);
-          autoUpdateConsole(system, "timeout", "Marked as offline (no response)");
-        }
-      }
-
-      // Attempt to ping both servers
+      // Only ping systems with launcher alive
+      if (!system.launcherAlive) return;
+      
+      // Attempt to ping both servers if they exist and are running
       if (system.servers && system.servers.length > 0) {
         system.servers.forEach((srv, index) => {
           if (srv.isRunning) {
