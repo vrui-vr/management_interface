@@ -46,6 +46,8 @@ function sendButton(buttonNumber) {
   }
 }
 
+// File drag-and-drop handlers
+// CURRENTLY NOT USED
 fileDropBox.addEventListener("dragover", (e) => {
   e.preventDefault();
   fileDropBox.classList.add("dragover");
@@ -371,6 +373,7 @@ function updateSystemUI(updatedSystem) {
   updateButtonStates();
 }
 
+// Updates console with new message
 function autoUpdateConsole(system, command, message, severity = "") {
   const consoleBox = document.getElementById("consoleOutput");
 
@@ -454,6 +457,7 @@ function changeTargetColor(systemName) {
   }
 }
   
+// Formats the ports to be pretty printed
 function formatPorts(p1, p2, p3) {
   // ensure numbers
   p1 = Number(p1);
@@ -639,7 +643,7 @@ function renderSystems(systems) {
   });
 }
 
-//creates battery widgets a system
+// Creates battery widgets a system
 function createBattery(system, label, percent, isConnected, isTracked, hasBattery) {
   const row = document.createElement("div");
   row.className = "battery-row";
@@ -868,6 +872,7 @@ function showEditMenu(e, system, field) {
   //console.log("===================================");
 }
 
+// Fetch with timeout helper
 function fetchWithTimeout(resource, options = {}, timeout = 5000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -878,6 +883,7 @@ function fetchWithTimeout(resource, options = {}, timeout = 5000) {
   }).finally(() => clearTimeout(id));
 }
 
+// Handles server response for commands
 function handleServerResponse(system, command, data) {
 	// Handls server response in our console
 	if (data?.status === "Success") {
@@ -1109,6 +1115,7 @@ function getDeviceServerStatus(system) {
     });
 }
 
+// Calls to compositing server about system status
 function getCompositingServerStatus(system) {
   if (!system) return;
 
