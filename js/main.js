@@ -339,14 +339,22 @@ function changeSystem(name) {
 
   const system = allSystems.find((d) => d.name === name);
   
-  // Update sidebar border animation
+  // Update sidebar border animation and offline state
   const sidebar = document.querySelector('.sidebar');
   if (system) {
     label.style.color = getSystemColor(system);
     sidebar.dataset.colorClass = system.colorClass;
+    
+    // Add or remove offline class based on launcher status
+    if (!system.launcherAlive) {
+      sidebar.classList.add('offline');
+    } else {
+      sidebar.classList.remove('offline');
+    }
   } else {
     label.style.color = "";
     sidebar.removeAttribute('data-color-class');
+    sidebar.classList.remove('offline');
   }
 }
 
@@ -405,6 +413,16 @@ function updateSystemUI(updatedSystem) {
   
   // Update button availability based on current system state
   updateButtonStates();
+  
+  // Update sidebar offline state if this is the current system
+  if (updatedSystem.name === currentSystem) {
+    const sidebar = document.querySelector('.sidebar');
+    if (!updatedSystem.launcherAlive) {
+      sidebar.classList.add('offline');
+    } else {
+      sidebar.classList.remove('offline');
+    }
+  }
 }
 
 // Updates console with new message
@@ -526,22 +544,13 @@ function renderSystems(systems) {
     // =============================== 
     card.classList.toggle("connected", isAlive && isConnected);
     card.classList.toggle("disconnected", !isAlive || !isConnected);
+    card.classList.toggle("selected", system.name === currentSystem);
     
     // Update color class
     card.classList.forEach(c => {
       if (c.startsWith("rig-")) card.classList.remove(c);
     });
     card.classList.add(system.colorClass);
-
-    // Update border/shadow
-    if (system.name === currentSystem) {
-      const borderColor = getSystemColor(system);
-      card.style.borderColor = borderColor;
-      card.style.boxShadow = `0 0 6px ${borderColor}`;
-    } else {
-      card.style.borderColor = "";
-      card.style.boxShadow = "";
-    }
 
     card.onclick = () => changeSystem(system.name);
 
