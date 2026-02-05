@@ -359,7 +359,10 @@ function updateDropdown() {
     option.value = system.name;
     option.textContent = system.name;
     if (!system.launcherAlive) option.className = "offline";
-    if (system.name === currentSystem) option.selected = true;
+    
+    // Explicitly set selected state
+    option.selected = (system.name === currentSystem);
+    
     dropdown.appendChild(option);
   });
 }
@@ -405,8 +408,16 @@ function updateSystemUI(updatedSystem) {
 }
 
 // Updates console with new message
+// Update autoUpdateConsole to reject unknown systems
 function autoUpdateConsole(system, command, message, severity = "") {
   const consoleBox = document.getElementById("consoleOutput");
+
+  // REJECT unknown systems - don't log them at all
+  const knownSystem = allSystems.find((d) => d.name === system.name);
+  if (!knownSystem) {
+    console.warn(`[REJECTED] Message from unknown system: ${system.name}`);
+    return; // Exit early - don't log anything
+  }
 
   const isAtBottom =
     Math.abs(
@@ -415,45 +426,26 @@ function autoUpdateConsole(system, command, message, severity = "") {
 
   const logEntry = document.createElement("div");
 
-  // Track whether this system is known
-  const knownSystem = allSystems.find((d) => d.name === system.name);
-  const isDeletedOrOther = !knownSystem;
-
-  // Preserve original system name for the label
-  const systemLabel = system.name || "Other";
-
-  // Use system info if known, otherwise fallback style
-  const fullSystem = knownSystem || {
-    name: systemLabel,
-    connected: false,
-    colorClass: "rig-5", // default gray color
-  };
-
-  const colorClass = fullSystem.colorClass;
-  const isOffline = !fullSystem.launcherAlive;
+  const colorClass = knownSystem.colorClass;
+  const isOffline = !knownSystem.launcherAlive;
 
   logEntry.classList.add("log-entry", colorClass);
 
-  // If deleted or truly "Other", mark for gray style
-  if (isDeletedOrOther || fullSystem.name === "Other") {
-    logEntry.classList.add("log-deleted");
-
-    // Ensure it's trackable in filter
-    if (!filterState.has(systemLabel)) {
-      filterState.add(systemLabel);
-      updateFilterMenu();
-    }
-  }
-
   // Apply severity tag if needed
-  if (severity === "error") {
+  if (severity === "success") {
+    logEntry.classList.add("log-success");
+  } else if (severity === "info") {
+    logEntry.classList.add("log-info");
+  } else if (severity === "warning") {
+    logEntry.classList.add("log-warning");
+  } else if (severity === "error") {
     logEntry.classList.add("log-error");
   } else if (severity === "critical") {
     logEntry.classList.add("log-critical");
   }
 
   // Label + (offline) badge
-  const systemName = `<span class="label">${systemLabel}</span>`;
+  const systemName = `<span class="label">${system.name}</span>`;
   const offlineNote = isOffline
     ? ` <span class="offline">(offline)</span>`
     : "";
@@ -463,7 +455,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   // Apply system color to label
   const labelEl = logEntry.querySelector(".label");
   if (labelEl) {
-    labelEl.style.color = getSystemColor(fullSystem);
+    labelEl.style.color = getSystemColor(knownSystem);
   }
 
   // Append and re-filter
@@ -1879,11 +1871,12 @@ document.addEventListener("click", () => {
 });
 
 // Updates the chat filter menu
+// Update updateFilterMenu to ONLY add known systems
 function updateFilterMenu() {
   const menu = document.getElementById("filterMenu");
   menu.innerHTML = "";
 
-  // 1. Add one checkbox per system
+  // Only add checkboxes for actual systems in allSystems
   allSystems.forEach((system) => {
     const label = document.createElement("label");
     label.className = `filter-option ${system.colorClass} ${system.launcherAlive ? "connected" : "disconnected"}`;
@@ -1915,39 +1908,13 @@ function updateFilterMenu() {
       filterState.add(system.name);
     }
   });
-
-  // 2. Add "Other" filter checkbox
-  const otherLabel = document.createElement("label");
-  otherLabel.className = "filter-option disconnected";
-
-  const otherText = document.createElement("span");
-  otherText.className = "label-text";
-  otherText.textContent = "Other";
-
-  const otherCheckbox = document.createElement("input");
-  otherCheckbox.type = "checkbox";
-  otherCheckbox.value = "Other";
-  otherCheckbox.checked = filterState.has("Other");
-
-  otherCheckbox.onchange = () => {
-    if (otherCheckbox.checked) {
-      filterState.add("Other");
-    } else {
-      filterState.delete("Other");
-    }
-    applyConsoleFilter();
-  };
-
-  otherLabel.appendChild(otherText);
-  otherLabel.appendChild(otherCheckbox);
-  menu.appendChild(otherLabel);
-
-  if (!filterState.has("Other")) {
-    filterState.add("Other");
-  }
+  
+  // No "Other" option anymore - completely removed
 }
 
 // Filters chat based on filter menu
+// Update applyConsoleFilter to only handle known systems
+// Update applyConsoleFilter to only handle known systems
 function applyConsoleFilter() {
   const entries = document.querySelectorAll(".log-entry");
   let visibleCount = 0;
@@ -1957,11 +1924,9 @@ function applyConsoleFilter() {
     if (!label) return;
 
     const name = label.textContent.trim();
-    const isKnownSystem = allSystems.some((sys) => sys.name === name);
-
-    const shouldShow =
-      (isKnownSystem && filterState.has(name)) ||
-      (!isKnownSystem && filterState.has("Other"));
+    
+    // Only show if it's a known system AND it's in the filter
+    const shouldShow = filterState.has(name);
 
     entry.style.display = shouldShow ? "block" : "none";
     if (shouldShow) visibleCount++;
@@ -2021,53 +1986,50 @@ document.addEventListener("DOMContentLoaded", () => {
       colorClass: `rig-${index % 6}`,
       devices: {},
     }));
-
-    currentSystem = allSystems[0]?.name || "";
-    const label = document.getElementById("targetLabel");
-    if (label && currentSystem) {
-      label.textContent = `Target: ${currentSystem}`;
-      changeTargetColor(currentSystem);
-    }
-
-    updateInterface();
-    applyConsoleFilter();
   } else {
     // fallback if nothing is stored — hardcoded default system
-    const baseSystems = [
-      {
-        name: "Local Host",
-        ip: "127.0.0.1",
-        serverLauncherPort: "8080",
-        deviceServerPort: "8081",
-        compositingServerPort: "8082",
-      },
-    ];
-
-    allSystems = baseSystems.map((d, index) => ({
-      name: d.name,
-      ip: d.ip,
-      serverLauncherPort: d.serverLauncherPort,
-      deviceServerPort: d.deviceServerPort,
-      compositingServerPort: d.compositingServerPort,
+    allSystems = [{
+      name: "Local Host",
+      ip: "127.0.0.1",
+      serverLauncherPort: "8080",
+      deviceServerPort: "8081",
+      compositingServerPort: "8082",
       connected: false,
       launcherAlive: false,
       servers: [],
       devices: {},
-      colorClass: `rig-${index % 6}`,
-    }));
-
-    if (allSystems.length) {
-      currentSystem = allSystems[0].name;
-      const label = document.getElementById("targetLabel");
-      if (label) {
-        label.textContent = `Target: ${currentSystem}`;
-        changeTargetColor(currentSystem);
-      }
-    }
-
-    updateInterface();
-    applyConsoleFilter();
+      colorClass: "rig-0",
+    }];
   }
+
+  // ROBUST DEFAULT: Ensure index 0 exists and is "Local Host"
+  if (allSystems.length === 0) {
+    allSystems.push({
+      name: "Local Host",
+      ip: "127.0.0.1",
+      serverLauncherPort: "8080",
+      deviceServerPort: "8081",
+      compositingServerPort: "8082",
+      connected: false,
+      launcherAlive: false,
+      servers: [],
+      devices: {},
+      colorClass: "rig-0",
+    });
+  }
+
+  // Force index 0 to be "Local Host"
+  if (allSystems[0].name !== "Local Host") {
+    allSystems[0].name = "Local Host";
+  }
+
+  // Update interface first to populate the dropdown and cards
+  updateInterface();
+  
+  // THEN set the current system using changeSystem() to update everything
+  changeSystem(allSystems[0].name);
+  
+  applyConsoleFilter();
   
   // Check if launcher is alive for all systems on page load
   allSystems.forEach((system) => {
