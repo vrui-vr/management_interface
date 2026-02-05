@@ -338,8 +338,15 @@ function changeSystem(name) {
   label.textContent = `Target: ${name}`;
 
   const system = allSystems.find((d) => d.name === name);
+  
+  // Update sidebar border animation
+  const sidebar = document.querySelector('.sidebar');
   if (system) {
     label.style.color = getSystemColor(system);
+    sidebar.dataset.colorClass = system.colorClass;
+  } else {
+    label.style.color = "";
+    sidebar.removeAttribute('data-color-class');
   }
 }
 
@@ -497,10 +504,9 @@ function formatPorts(p1, p2, p3) {
   return `${p1}/${p2}/${p3}`;
 }
 
-// Renders all systems, creating the containers for each
 function renderSystems(systems) {
   const container = document.getElementById("systemContainer");
-
+  
   // Map existing cards by system name
   const existingCards = new Map(
     [...container.children].map(card => [card.dataset.system, card])
@@ -511,27 +517,31 @@ function renderSystems(systems) {
     const isAlive = system.launcherAlive;
     const isConnected = system.connected;
 
-    // ===============================
+    // =============================== 
     // CREATE CARD ONCE
-    // ===============================
+    // =============================== 
     if (!card) {
       card = document.createElement("div");
       card.className = "system-card";
       card.dataset.system = system.name;
+      card._sections = {}; // Store references to sections
       container.appendChild(card);
+      card._needsFullRebuild = true;
     }
 
-    // ===============================
-    // CARD STATE (NO REBUILD)
-    // ===============================
+    // =============================== 
+    // UPDATE CARD STATE (always cheap)
+    // =============================== 
     card.classList.toggle("connected", isAlive && isConnected);
     card.classList.toggle("disconnected", !isAlive || !isConnected);
-
+    
+    // Update color class
     card.classList.forEach(c => {
       if (c.startsWith("rig-")) card.classList.remove(c);
     });
     card.classList.add(system.colorClass);
 
+    // Update border/shadow
     if (system.name === currentSystem) {
       const borderColor = getSystemColor(system);
       card.style.borderColor = borderColor;
@@ -543,221 +553,400 @@ function renderSystems(systems) {
 
     card.onclick = () => changeSystem(system.name);
 
-    // ===============================
-    // FULL CONTENT REBUILD (CARD ONLY)
-    // ===============================
-    card.replaceChildren();
+    // =============================== 
+    // DETECT WHAT CHANGED
+    // =============================== 
+    const prev = card._prevState || {};
+    const needsHeaderRebuild = 
+      !prev.name || prev.name !== system.name ||
+      prev.ip !== system.ip ||
+      prev.ports !== `${system.serverLauncherPort}-${system.deviceServerPort}-${system.compositingServerPort}` ||
+      prev.isAlive !== isAlive ||
+      prev.currentSystem !== currentSystem;
 
-    // ---------- HEADER ----------
-    const header = document.createElement("div");
-    header.className = "card-header";
+    const needsServersRebuild = 
+      !prev.servers ||
+      prev.servers.length !== (system.servers?.length || 0) ||
+      prev.servers.some((s, i) => 
+        !system.servers?.[i] ||
+        s.name !== system.servers[i].name ||
+        s.isRunning !== system.servers[i].isRunning ||
+        s.status !== system.servers[i].status
+      );
 
-    const titleSection = document.createElement("div");
-    titleSection.className = "title-section";
-
-    const labelSpan = document.createElement("span");
-    labelSpan.className = "system-title";
-    labelSpan.textContent = system.name;
-
-    if (system.name !== "Local Host" && system.name === currentSystem) {
-      labelSpan.style.cursor = "pointer";
-      labelSpan.title = "Edit name";
-      labelSpan.onclick = e => {
-        e.stopPropagation();
-        showEditMenu(e, system, "name");
-      };
-    } else {
-      labelSpan.classList.add("inactive-field");
-    }
-
-    if (!isAlive) {
-      const offline = document.createElement("span");
-      offline.textContent = " (offline)";
-      offline.className = "offline-badge";
-      labelSpan.appendChild(offline);
-    }
-
-    const ipSpan = document.createElement("span");
-    ipSpan.className = "ip-info";
-    ipSpan.textContent = `${system.ip}:${formatPorts(
-      system.serverLauncherPort,
-      system.deviceServerPort,
-      system.compositingServerPort
-    )}`;
-
-    if (system.name === currentSystem) {
-      ipSpan.style.cursor = "pointer";
-      ipSpan.title = "Edit IP/Port";
-      ipSpan.onclick = e => {
-        e.stopPropagation();
-        showEditMenu(e, system, "ipport");
-      };
-    } else {
-      ipSpan.classList.add("inactive-field");
-    }
-
-    titleSection.append(labelSpan, ipSpan);
-    header.appendChild(titleSection);
-
-    if (system.name !== "Local Host") {
-      const removeBtn = document.createElement("button");
-      removeBtn.className = `remove-btn ${system.colorClass}`;
-      removeBtn.textContent = "×";
-      removeBtn.title = "Remove system";
-      removeBtn.onclick = e => {
-        e.stopPropagation();
-        removeSystem(system.name);
-      };
-      header.appendChild(removeBtn);
-    }
-
-    card.appendChild(header);
-
-    // ---------- DIVIDER ----------
-    card.appendChild(Object.assign(document.createElement("div"), {
-      className: "card-divider"
-    }));
-
-    // ---------- CONNECT BUTTON ----------
-    if (!isAlive) {
-      const connectBtn = document.createElement("button");
-      connectBtn.className = `connect-btn ${system.colorClass}`;
-      connectBtn.textContent = "Connect";
-      connectBtn.onclick = e => {
-        e.stopPropagation();
-        autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-        checkLauncherAlive(system, true);
-      };
-      card.appendChild(connectBtn);
-    }
-
-    // ---------- SERVERS ----------
-    if (isAlive && system.servers?.length) {
-      const section = document.createElement("div");
-      section.className = "server-section";
-
-      const title = document.createElement("div");
-      title.className = "section-title";
-      title.textContent = "Servers";
-      section.appendChild(title);
-
-      system.servers.forEach((server, i) => {
-        const item = document.createElement("div");
-        item.className = "server-item";
-
-        const port = i === 0
-          ? system.deviceServerPort
-          : system.compositingServerPort;
-
-        let status = "status-unknown";
-        if (!server.isRunning) status = "status-stopped";
-        else if (server.status === "online") status = "status-online";
-        else status = "status-error";
-
-        item.innerHTML = `
-          <span class="status-dot ${status}"></span>
-          <span class="server-name">${server.name}</span>
-          <span class="server-port">:${port}</span>
-        `;
-        section.appendChild(item);
+    const needsDevicesRebuild = 
+      !prev.devices ||
+      prev.devices.length !== Object.keys(system.devices || {}).length ||
+      prev.devices.some((d, i) => {
+        const [key, device] = Object.entries(system.devices || {})[i] || [];
+        return !device || 
+          d.key !== key ||
+          d.name !== device.name ||
+          d.connected !== device.connected ||
+          d.hasBattery !== device.hasBattery;
       });
 
-      card.appendChild(section);
-    }
+    const needsShutdownRebuild = 
+      prev.isAlive !== isAlive ||
+      prev.isConnected !== isConnected ||
+      prev.colorClass !== system.colorClass;
 
-    // ---------- DEVICES ----------
-    if (isConnected) {
-      const section = document.createElement("div");
-      section.className = "device-section";
+    // Check for battery-only changes (can be updated without rebuild)
+    const batteryOnlyChange = 
+      !needsDevicesRebuild &&
+      prev.devices?.some((d, i) => {
+        const device = Object.values(system.devices || {})[i];
+        return device && d.battery !== device.battery;
+      });
 
-      const title = document.createElement("div");
-      title.className = "section-title";
-      title.textContent = "Devices";
-      section.appendChild(title);
-
-      Object.entries(system.devices || {}).forEach(([key, device]) => {
-        const item = document.createElement("div");
-        item.className = "device-item";
-
-        const dot = document.createElement("span");
-        dot.className = device?.connected
-          ? "status-dot device-connected"
-          : "status-dot device-disconnected";
-
-        const name = document.createElement("span");
-        name.className = "device-name";
-        name.textContent = (device?.name || key).trim();
-
-        if (system.name === currentSystem) {
-          name.style.cursor = "pointer";
-          name.onclick = e => {
-            e.stopPropagation();
-            showEditMenu(e, system, key);
-          };
-        } else {
-          name.classList.add("inactive-field");
-        }
-
-        const info = document.createElement("div");
-        info.className = "device-info";
-
+    // =============================== 
+    // FAST PATH: Update battery only
+    // =============================== 
+    if (batteryOnlyChange && card._sections.devices && !card._needsFullRebuild) {
+      Object.entries(system.devices || {}).forEach(([key, device], i) => {
         if (device?.connected && device.hasBattery && device.battery >= 0) {
-          const bar = document.createElement("div");
-          bar.className = "battery-bar";
-
-          const fill = document.createElement("div");
-          fill.className = "battery-fill";
-          fill.style.width = `${device.battery}%`;
-          fill.style.backgroundColor = getSystemColor(system);
-
-          bar.appendChild(fill);
-          info.append(bar, Object.assign(document.createElement("span"), {
-            textContent: `${device.battery}%`,
-            className: "battery-percent"
-          }));
-        } else {
-          info.textContent = device?.connected ? "Connected" : "Not Connected";
-          info.style.fontSize = "0.7rem";
-          info.style.color = "#999";
+          const deviceItem = card._sections.devices.querySelectorAll('.device-item')[i];
+          if (deviceItem) {
+            const fill = deviceItem.querySelector('.battery-fill');
+            const percent = deviceItem.querySelector('.battery-percent');
+            if (fill && percent) {
+              fill.style.width = `${device.battery}%`;
+              percent.textContent = `${device.battery}%`;
+            }
+          }
         }
-
-        item.append(dot, name, info);
-        section.appendChild(item);
       });
-
-      card.appendChild(section);
+      
+      // Update state and return early
+      card._prevState = {
+        name: system.name,
+        ip: system.ip,
+        ports: `${system.serverLauncherPort}-${system.deviceServerPort}-${system.compositingServerPort}`,
+        isAlive,
+        isConnected,
+        currentSystem,
+        colorClass: system.colorClass,
+        servers: system.servers?.map(s => ({
+          name: s.name,
+          isRunning: s.isRunning,
+          status: s.status
+        })) || [],
+        devices: Object.entries(system.devices || {}).map(([k, d]) => ({
+          key: k,
+          name: d?.name,
+          connected: d?.connected,
+          battery: d?.battery,
+          hasBattery: d?.hasBattery
+        }))
+      };
+      return;
     }
 
-    // ---------- SHUTDOWN ----------
-    if (isAlive) {
-      const wrap = document.createElement("div");
-      wrap.className = "shutdown-container";
+    // =============================== 
+    // REBUILD ONLY CHANGED SECTIONS
+    // =============================== 
+    
+    // ---------- HEADER ---------- 
+    if (needsHeaderRebuild || card._needsFullRebuild) {
+      const header = document.createElement("div");
+      header.className = "card-header";
 
-      const btn = document.createElement("button");
-      btn.className = `shutdown-icon rig-${system.colorClass.at(-1)}-muted`;
+      const titleSection = document.createElement("div");
+      titleSection.className = "title-section";
 
-      if (!isConnected) {
-        btn.classList.add("disabled");
-        btn.title = "Device server not connected";
-      } else {
-        btn.title = "Shut down system";
-        btn.onclick = e => {
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "system-title";
+      labelSpan.textContent = system.name;
+
+      if (system.name !== "Local Host" && system.name === currentSystem) {
+        labelSpan.style.cursor = "pointer";
+        labelSpan.title = "Edit name";
+        labelSpan.onclick = e => {
           e.stopPropagation();
-          shutdownSystem(system);
+          showEditMenu(e, system, "name");
         };
+      } else {
+        labelSpan.classList.add("inactive-field");
       }
 
-      btn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v10"/>
-          <path d="M6.2 6.2a8 8 0 1 0 11.6 0"/>
-        </svg>
-      `;
+      if (!isAlive) {
+        const offline = document.createElement("span");
+        offline.textContent = " (offline)";
+        offline.className = "offline-badge";
+        labelSpan.appendChild(offline);
+      }
 
-      wrap.appendChild(btn);
-      card.appendChild(wrap);
+      const ipSpan = document.createElement("span");
+      ipSpan.className = "ip-info";
+      ipSpan.textContent = `${system.ip}:${formatPorts(
+        system.serverLauncherPort,
+        system.deviceServerPort,
+        system.compositingServerPort
+      )}`;
+
+      if (system.name === currentSystem) {
+        ipSpan.style.cursor = "pointer";
+        ipSpan.title = "Edit IP/Port";
+        ipSpan.onclick = e => {
+          e.stopPropagation();
+          showEditMenu(e, system, "ipport");
+        };
+      } else {
+        ipSpan.classList.add("inactive-field");
+      }
+
+      titleSection.append(labelSpan, ipSpan);
+      header.appendChild(titleSection);
+
+      if (system.name !== "Local Host") {
+        const removeBtn = document.createElement("button");
+        removeBtn.className = `remove-btn ${system.colorClass}`;
+        removeBtn.textContent = "×";
+        removeBtn.title = "Remove system";
+        removeBtn.onclick = e => {
+          e.stopPropagation();
+          removeSystem(system.name);
+        };
+        header.appendChild(removeBtn);
+      }
+
+      if (card._sections.header) {
+        card.replaceChild(header, card._sections.header);
+      } else {
+        card.appendChild(header);
+      }
+      card._sections.header = header;
+
+      // Rebuild divider too
+      const divider = Object.assign(document.createElement("div"), { 
+        className: "card-divider" 
+      });
+      if (card._sections.divider) {
+        card.replaceChild(divider, card._sections.divider);
+      } else {
+        card.insertBefore(divider, card._sections.header?.nextSibling || null);
+      }
+      card._sections.divider = divider;
     }
+
+    // ---------- CONNECT BUTTON ---------- 
+    if (!isAlive) {
+      if (!card._sections.connectBtn || card._needsFullRebuild) {
+        const connectBtn = document.createElement("button");
+        connectBtn.className = `connect-btn ${system.colorClass}`;
+        connectBtn.textContent = "Connect";
+        connectBtn.onclick = e => {
+          e.stopPropagation();
+          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
+          checkLauncherAlive(system, true);
+        };
+
+        if (card._sections.connectBtn) {
+          card.replaceChild(connectBtn, card._sections.connectBtn);
+        } else {
+          const insertAfter = card._sections.divider || card._sections.header;
+          card.insertBefore(connectBtn, insertAfter?.nextSibling || null);
+        }
+        card._sections.connectBtn = connectBtn;
+      }
+    } else if (card._sections.connectBtn) {
+      card.removeChild(card._sections.connectBtn);
+      delete card._sections.connectBtn;
+    }
+
+    // ---------- SERVERS ---------- 
+	if (isAlive && system.servers?.length) {
+	  if (needsServersRebuild || card._needsFullRebuild) {
+		const section = document.createElement("div");
+		section.className = "server-section";
+
+		const title = document.createElement("div");
+		title.className = "section-title";
+		title.textContent = "Servers";
+		section.appendChild(title);
+
+		system.servers.forEach((server, i) => {
+		  const item = document.createElement("div");
+		  item.className = "server-item";
+
+		  const port = i === 0 ? system.deviceServerPort : system.compositingServerPort;
+		  
+		  let statusClass = "status-unknown";
+		  if (!server.isRunning) {
+			statusClass = "status-stopped";
+		  } else if (server.status === "online") {
+			statusClass = "status-online";
+		  } else {
+			statusClass = "status-error";
+		  }
+
+		  // Create elements like devices
+		  const dot = document.createElement("span");
+		  dot.className = `status-dot ${statusClass}`;
+
+		  const name = document.createElement("span");
+		  name.className = "server-name";
+		  name.textContent = server.name;
+
+		  const info = document.createElement("div");
+		  info.className = "server-info";
+		  info.textContent = `:${port}`;
+
+		  item.append(dot, name, info);
+		  section.appendChild(item);
+		});
+
+		if (card._sections.servers) {
+		  card.replaceChild(section, card._sections.servers);
+		} else {
+		  const insertAfter = card._sections.connectBtn || card._sections.divider || card._sections.header;
+		  card.insertBefore(section, insertAfter?.nextSibling || null);
+		}
+		card._sections.servers = section;
+	  }
+	} else if (card._sections.servers) {
+	  card.removeChild(card._sections.servers);
+	  delete card._sections.servers;
+	}
+
+	// ---------- DEVICES ---------- 
+	if (isConnected) {
+	  if (needsDevicesRebuild || card._needsFullRebuild) {
+		const section = document.createElement("div");
+		section.className = "device-section";
+
+		const title = document.createElement("div");
+		title.className = "section-title";
+		title.textContent = "Devices";
+		section.appendChild(title);
+
+		Object.entries(system.devices || {}).forEach(([key, device]) => {
+		  const item = document.createElement("div");
+		  item.className = "device-item";
+
+		  const dot = document.createElement("span");
+		  dot.className = device?.connected 
+			? "status-dot device-connected" 
+			: "status-dot device-disconnected";
+
+		  const name = document.createElement("span");
+		  name.className = "device-name";
+		  name.textContent = (device?.name || key).trim();
+
+		  if (system.name === currentSystem) {
+			name.style.cursor = "pointer";
+			name.onclick = e => {
+			  e.stopPropagation();
+			  showEditMenu(e, system, key);
+			};
+		  } else {
+			name.classList.add("inactive-field");
+		  }
+
+		  const info = document.createElement("div");
+		  info.className = "device-info";
+
+		  if (device?.connected && device.hasBattery && device.battery >= 0) {
+			const bar = document.createElement("div");
+			bar.className = "battery-bar";
+			const fill = document.createElement("div");
+			fill.className = "battery-fill";
+			fill.style.width = `${device.battery}%`;
+			bar.appendChild(fill);
+
+			info.append(bar, Object.assign(document.createElement("span"), {
+			  textContent: `${device.battery}%`,
+			  className: "battery-percent"
+			}));
+		  } else {
+			const statusText = document.createElement("span");
+			statusText.className = "device-status-text";
+			statusText.textContent = device?.connected ? "Connected" : "Not Connected";
+			info.appendChild(statusText);
+		  }
+
+		  item.append(dot, name, info);
+		  section.appendChild(item);
+		});
+
+		if (card._sections.devices) {
+		  card.replaceChild(section, card._sections.devices);
+		} else {
+		  const insertAfter = card._sections.servers || card._sections.connectBtn || card._sections.divider || card._sections.header;
+		  card.insertBefore(section, insertAfter?.nextSibling || null);
+		}
+		card._sections.devices = section;
+	  }
+	} else if (card._sections.devices) {
+	  card.removeChild(card._sections.devices);
+	  delete card._sections.devices;
+	}
+
+    // ---------- SHUTDOWN ---------- 
+    if (isAlive) {
+      if (needsShutdownRebuild || card._needsFullRebuild) {
+        const wrap = document.createElement("div");
+        wrap.className = "shutdown-container";
+
+        const btn = document.createElement("button");
+        btn.className = `shutdown-icon rig-${system.colorClass.at(-1)}-muted`;
+
+        if (!isConnected) {
+          btn.classList.add("disabled");
+          btn.title = "Device server not connected";
+        } else {
+          btn.title = "Shut down system";
+          btn.onclick = e => {
+            e.stopPropagation();
+            shutdownSystem(system);
+          };
+        }
+
+        btn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+        `;
+        wrap.appendChild(btn);
+
+        if (card._sections.shutdown) {
+          card.replaceChild(wrap, card._sections.shutdown);
+        } else {
+          card.appendChild(wrap);
+        }
+        card._sections.shutdown = wrap;
+      }
+    } else if (card._sections.shutdown) {
+      card.removeChild(card._sections.shutdown);
+      delete card._sections.shutdown;
+    }
+
+    // =============================== 
+    // SAVE STATE
+    // =============================== 
+    card._prevState = {
+      name: system.name,
+      ip: system.ip,
+      ports: `${system.serverLauncherPort}-${system.deviceServerPort}-${system.compositingServerPort}`,
+      isAlive,
+      isConnected,
+      currentSystem,
+      colorClass: system.colorClass,
+      servers: system.servers?.map(s => ({
+        name: s.name,
+        isRunning: s.isRunning,
+        status: s.status
+      })) || [],
+      devices: Object.entries(system.devices || {}).map(([k, d]) => ({
+        key: k,
+        name: d?.name,
+        connected: d?.connected,
+        battery: d?.battery,
+        hasBattery: d?.hasBattery
+      }))
+    };
+    card._needsFullRebuild = false;
   });
 
   // Remove cards that no longer exist
@@ -766,6 +955,24 @@ function renderSystems(systems) {
       card.remove();
     }
   });
+  
+  // =============================== 
+  // ADD SYSTEM CARD (always last)
+  // =============================== 
+  let addCard = container.querySelector('.add-system-card');
+  if (!addCard) {
+    addCard = document.createElement("div");
+    addCard.className = "add-system-card";
+    addCard.title = "Add new system"; 
+    addCard.onclick = addSystem;
+    
+    const plusIcon = document.createElement("div");
+    plusIcon.className = "add-system-plus";
+    plusIcon.textContent = "+";
+    
+    addCard.appendChild(plusIcon);
+    container.appendChild(addCard);
+  }
 }
 
 // Creates battery widgets a system

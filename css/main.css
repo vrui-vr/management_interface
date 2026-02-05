@@ -243,12 +243,28 @@ body {
 
 .system-card {
   width: 220px;
+  min-height: 434px; /* Fixed height to match fully expanded cards */
   border-radius: var(--radius);
   padding: 1rem;
   background-color: var(--bg-white);
   box-shadow: var(--shadow);
   transition: box-shadow 0.2s;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-theme="dark"] .system-card {
+  background-color: #252525;
+}
+
+.system-card.disconnected {
+  background-color: #fcfcfc;
+  min-height: 434px; /* Ensure disconnected cards also maintain height */
+}
+
+[data-theme="dark"] .system-card.disconnected {
+  background-color: #272727;
 }
 
 /* Animated border for connected cards */
@@ -362,7 +378,6 @@ body {
 
 .system-card.disconnected {
   background-color: #fcfcfc;
-  min-height: auto; /* Allow natural height */
 }
 
 [data-theme="dark"] .system-card.disconnected {
@@ -448,6 +463,71 @@ body {
 .system-card.disconnected .battery-percent {
   opacity: 0.5;
   filter: grayscale(100%);
+}
+
+/* ========================================
+   ADD SYSTEM CARD
+   ======================================== */
+
+.add-system-card {
+  width: 90px; /* Smaller */
+  height: 90px; /* Smaller - square */
+  border-radius: var(--radius);
+  background-color: transparent; /* More subtle */
+  box-shadow: none; /* Remove shadow for subtlety */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center; /* Center vertically in the flex container */
+  border: 2px dotted #d1d5db; /* Dotted border instead of animated gradient */
+  opacity: 0.65; /* Tiny bit more opaque */
+}
+
+[data-theme="dark"] .add-system-card {
+  border-color: #4b5563;
+  opacity: 0.55;
+}
+
+/* Remove the ::before animated border */
+.add-system-card::before {
+  display: none;
+}
+
+.add-system-card:hover {
+  opacity: 1;
+  border-color: #9ca3af;
+  background-color: rgba(0, 0, 0, 0.01); /* Much subtler fill */
+}
+
+[data-theme="dark"] .add-system-card:hover {
+  border-color: #6b7280;
+  background-color: rgba(255, 255, 255, 0.015); /* Much subtler fill */
+}
+
+.add-system-plus {
+  font-size: 2rem; /* Smaller */
+  font-weight: 300;
+  color: #9ca3af;
+  line-height: 1;
+  transition: color 0.3s ease;
+  user-select: none;
+  opacity: 0.7; /* Fainter */
+}
+
+[data-theme="dark"] .add-system-plus {
+  color: #6b7280;
+}
+
+.add-system-card:hover .add-system-plus {
+  color: #6b7280;
+  opacity: 1;
+}
+
+[data-theme="dark"] .add-system-card:hover .add-system-plus {
+  color: #9ca3af;
 }
 
 /* ========================================
@@ -624,27 +704,39 @@ body {
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+  box-sizing: border-box; /* Include border in size calculation */
 }
 
 .status-dot.status-online {
   background-color: #22c55e;
   box-shadow: 0 0 4px #22c55e;
+  border: 1px solid transparent; /* Same border width, just transparent */
 }
 
 .status-dot.status-stopped {
   background-color: #666;
+  border: 1px solid transparent;
 }
 
 .status-dot.status-error {
   background-color: #ef4444;
+  border: 1px solid transparent;
 }
 
 .status-dot.status-unknown {
   background-color: #999;
+  border: 1px solid transparent;
 }
 
-[data-theme="dark"] .device-name {
-  color: #595959;
+.device-item .status-dot.device-connected {
+  background-color: #22c55e;
+  box-shadow: 0 0 4px #22c55e;
+  border: 1px solid transparent; /* Match the disconnected border width */
+}
+
+.device-item .status-dot.device-disconnected {
+  background-color: #999;
+  border: 1px solid #999; /* Keep existing border for disconnected */
 }
 
 .server-name {
@@ -708,46 +800,24 @@ body {
   font-size: 0.75rem;
 }
 
-.device-item .status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.device-status-text {
+  font-size: 0.7rem;
+  color: #999;
 }
 
-.device-item .status-dot.device-connected {
-  background-color: #22c55e;
-  box-shadow: 0 0 4px #22c55e;
-}
-
-.device-item .status-dot.device-disconnected {
-  background-color: #999;
-}
-[data-theme="dark"] .device-name {
-  color: #595959;
-}
-
-.device-name {
-  font-weight: 500;
+.device-item .status-dot.device-disconnected ~ .device-name ~ .device-info .device-status-text {
   color: #4D4D4D;
-  min-width: 40px;
-  padding: 0.15rem 0.35rem;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  display: inline-block;
-  width: fit-content;
 }
 
-.device-name:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+[data-theme="dark"] .device-item .status-dot.device-disconnected ~ .device-name ~ .device-info .device-status-text {
+  color: #595959;
 }
 
 .device-info {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 1;
-  justify-content: flex-end;
+  margin-left: auto; /* Push to the right */
 }
 
 /* Disconnected devices get faded outline matching connect button */
@@ -831,7 +901,7 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 0.15rem;
+  margin-top: auto; /* Push to bottom */
   padding-top: 0.15rem;
 }
 
@@ -842,6 +912,32 @@ body {
 .system-title:hover,
 .ip-info:hover {
   background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+
+.server-info {
+  font-size: 0.7rem;
+  color: #999;
+  margin-left: auto; /* Push to the right */
+}
+
+.server-name,
+.device-name {
+  font-weight: 500;
+  color: #4D4D4D;
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .server-name,
+[data-theme="dark"] .device-name {
+  color: #595959;
+}
+
+/* Only add hover background and padding when editable */
+.device-name:hover:not(.inactive-field) {
+  background-color: rgba(0, 0, 0, 0.04);
+  padding: 0.15rem 0.35rem;
+  margin: -0.15rem -0.35rem;
   border-radius: 4px;
 }
 
@@ -1142,26 +1238,139 @@ span[title*="IP"]:hover {
   gap: 0.5rem;
 }
 
+/* ========================================
+   MODERN BATTERY BARS
+   ======================================== */
+
 .battery-bar {
-  width: 70px; 
-  height: 10px;
-  background-color: #e5e5e5;
-  border-radius: 3px;
+  width: 50px;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
   overflow: hidden;
   position: relative;
 }
 
-.battery-percent {
-  font-size: 0.7rem; 
-  white-space: nowrap;
-  margin-left: 0.1rem; 
-  color: var(--text-dark);
+[data-theme="dark"] .battery-bar {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .battery-fill {
   height: 100%;
-  background-color: var(--primary);
   transition: width 0.3s ease;
+  position: relative;
+  border-radius: 4px;
+}
+
+/* Animated gradient fills matching card colors - slower and subtler */
+.system-card.connected.rig-0 .battery-fill {
+  background: linear-gradient(
+    90deg,
+    #3b82f6,
+    #60a5fa,
+    #3b82f6,
+    #2563eb,
+    #3b82f6
+  );
+  background-size: 300% 100%;
+  animation: batteryShine 4s ease-in-out infinite;
+}
+
+.system-card.connected.rig-1 .battery-fill {
+  background: linear-gradient(
+    90deg,
+    #f97316,
+    #fb923c,
+    #f97316,
+    #ea580c,
+    #f97316
+  );
+  background-size: 300% 100%;
+  animation: batteryShine 4s ease-in-out infinite;
+}
+
+.system-card.connected.rig-2 .battery-fill {
+  background: linear-gradient(
+    90deg,
+    #22c55e,
+    #4ade80,
+    #22c55e,
+    #16a34a,
+    #22c55e
+  );
+  background-size: 300% 100%;
+  animation: batteryShine 4s ease-in-out infinite;
+}
+
+.system-card.connected.rig-3 .battery-fill {
+  background: linear-gradient(
+    90deg,
+    #facc15,
+    #fde047,
+    #facc15,
+    #eab308,
+    #facc15
+  );
+  background-size: 300% 100%;
+  animation: batteryShine 4s ease-in-out infinite;
+}
+
+.system-card.connected.rig-4 .battery-fill {
+  background: linear-gradient(
+    90deg,
+    #8b5cf6,
+    #a78bfa,
+    #8b5cf6,
+    #7c3aed,
+    #8b5cf6
+  );
+  background-size: 300% 100%;
+  animation: batteryShine 4s ease-in-out infinite;
+}
+
+.system-card.connected.rig-5 .battery-fill {
+  background: linear-gradient(
+    90deg,
+    #ec4899,
+    #f472b6,
+    #ec4899,
+    #db2777,
+    #ec4899
+  );
+  background-size: 300% 100%;
+  animation: batteryShine 4s ease-in-out infinite;
+}
+
+@keyframes batteryShine {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 0%;
+  }
+}
+
+/* Battery percentage with fixed width for alignment */
+.battery-percent {
+  font-size: 0.7rem;
+  color: #666;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+  min-width: 32px; /* Fits "100%" */
+  text-align: right;
+  display: inline-block;
+}
+
+[data-theme="dark"] .battery-percent {
+  color: #999;
+}
+
+/* Device info container - keep items aligned */
+.device-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
 }
 
 .battery-percent.zero {
@@ -1480,34 +1689,32 @@ span[title*="IP"]:hover {
 }
 
 .file-drop-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
+  width: 100%;
 }
 
 .file-drop {
-  display: inline-block;
   width: 100%;
-  background-color: var(--bg-white);
-  border: 1px solid var(--border);
+  background-color: transparent; /* Blend with sidebar */
+  border: none; /* Remove border since it's in sidebar */
   border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
+  padding: 0; /* Remove extra padding */
+  box-shadow: none; /* Remove shadow */
 }
 
 .file-drop-header {
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-dark);
 }
 
 .file-drop-box {
   width: 100%;
-  min-height: 90px;
+  min-height: 70px; /* Smaller for sidebar */
   border: 1.5px dashed var(--border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1520,6 +1727,37 @@ span[title*="IP"]:hover {
 
 [data-theme="dark"] .file-drop-box {
   background-color: rgba(0, 0, 0, 0.2);
+}
+
+.file-drop-box:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  border-color: var(--text-muted);
+}
+
+[data-theme="dark"] .file-drop-box:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.file-drop-box.dragover {
+  background-color: var(--rig-0-bg);
+  border-color: var(--rig-0);
+}
+
+.file-drop-text {
+  font-size: 0.8rem; /* Slightly smaller */
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.file-drop-text label {
+  color: var(--text-dark);
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.file-drop-text label:hover {
+  color: var(--rig-0);
 }
 
 .file-drop-icon svg {
@@ -1603,7 +1841,7 @@ span[title*="IP"]:hover {
 .theme-toggle-container {
   position: fixed;
   top: 2rem;
-  right: 2rem;
+  right: 3rem;
   z-index: 1000;
 }
 
@@ -1663,4 +1901,123 @@ span[title*="IP"]:hover {
 
 .theme-toggle.dark .theme-icon.moon {
   display: block;
+}
+
+/* ========================================
+   SIDEBAR
+   ======================================== */
+
+.sidebar {
+  width: 28%;
+  min-width: 280px;
+  margin: 1.5rem;
+  margin-right: 0.75rem;
+  padding: 2rem;
+  background-color: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  position: relative; /* Needed for ::before pseudo-element */
+}
+
+/* Animated border for sidebar matching active system */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius);
+  padding: 2px;
+  background: var(--border);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Rig-specific animated gradients for sidebar */
+.sidebar[data-color-class="rig-0"]::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-0),
+    #60a5fa,
+    #3b82f6,
+    #2563eb,
+    var(--rig-0),
+    #1d4ed8,
+    var(--rig-0)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.sidebar[data-color-class="rig-1"]::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-1),
+    #fb923c,
+    #f97316,
+    #ea580c,
+    var(--rig-1),
+    #c2410c,
+    var(--rig-1)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.sidebar[data-color-class="rig-2"]::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-2),
+    #4ade80,
+    #22c55e,
+    #16a34a,
+    var(--rig-2),
+    #15803d,
+    var(--rig-2)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.sidebar[data-color-class="rig-3"]::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-3),
+    #fde047,
+    #facc15,
+    #eab308,
+    var(--rig-3),
+    #ca8a04,
+    var(--rig-3)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.sidebar[data-color-class="rig-4"]::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-4),
+    #a78bfa,
+    #8b5cf6,
+    #7c3aed,
+    var(--rig-4),
+    #6d28d9,
+    var(--rig-4)
+  );
+  animation: borderRotate 3s linear infinite;
+}
+
+.sidebar[data-color-class="rig-5"]::before {
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    var(--rig-5),
+    #f472b6,
+    #ec4899,
+    #db2777,
+    var(--rig-5),
+    #be185d,
+    var(--rig-5)
+  );
+  animation: borderRotate 3s linear infinite;
 }

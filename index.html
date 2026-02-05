@@ -53,7 +53,6 @@
         />
         <h2>VRUI Interface</h2>
         <select id="systemSelect" onchange="changeSystem(this.value)"></select>
-        <button class="add-btn" onclick="addSystem()">+</button>
       </div>
       <div class="button-section">
         <p><strong id="targetLabel"></strong></p>
@@ -65,6 +64,39 @@
 		<button class="button button-danger" id="btn-5" onclick="sendButton(5)">...</button>
 		<button class="button button-danger" id="btn-6" onclick="sendButton(6)">...</button>
 		<button class="button button-danger" id="btn-7" onclick="sendButton(7)">...</button>
+      </div>
+
+      <!-- File Upload Section -->
+      <div class="file-drop-wrapper">
+        <div id="fileDropArea" class="file-drop">
+          <div class="file-drop-header">Upload file</div>
+
+          <div class="file-drop-box">
+            <label for="fileInput" class="file-drop-label">
+              <div class="file-drop-icon">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#666"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                  <path d="M5 19h14" />
+                </svg>
+              </div>
+
+              <span class="file-drop-text">
+                Drop items here or <span class="browse-text">Browse files</span>
+              </span>
+            </label>
+
+            <input type="file" id="fileInput" hidden />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -95,37 +127,6 @@
             placeholder="Enter command (e.g. reset)"
           />
           <button onclick="sendConsoleCommand()">Send</button>
-        </div>
-      </div>
-      <div class="file-drop-wrapper">
-        <div id="fileDropArea" class="file-drop">
-          <div class="file-drop-header">Upload file</div>
-
-          <div class="file-drop-box">
-            <label for="fileInput" class="file-drop-label">
-              <div class="file-drop-icon">
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#666"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                  <path d="M5 19h14" />
-                </svg>
-              </div>
-
-              <span class="file-drop-text">
-                Drop items here or <span class="browse-text">Browse files</span>
-              </span>
-            </label>
-
-            <input type="file" id="fileInput" hidden />
-          </div>
         </div>
       </div>
     </div>
