@@ -1863,18 +1863,31 @@ function resetFilterCheckboxes(systems) {
 }
 
 // Add clickable boxes for the filter toggles
-document.getElementById("filterToggle").addEventListener("click", () => {
+document.getElementById("filterToggle").addEventListener("click", (e) => {
+  e.stopPropagation(); // Prevent click from bubbling to document
   const menu = document.getElementById("filterMenu");
   menu.style.display = menu.style.display === "block" ? "none" : "block";
 });
 
-// Add click event for the edit system popups
-document.addEventListener("click", () => {
-  const menu = document.getElementById("actionMenu");
-  if (menu.classList.contains("visible")) {
-    menu.classList.remove("visible");
+// Close filter menu when clicking outside
+document.addEventListener("click", (e) => {
+  const filterMenu = document.getElementById("filterMenu");
+  const filterToggle = document.getElementById("filterToggle");
+  
+  // Close filter menu if clicking outside of it and the toggle button
+  if (filterMenu && 
+      filterMenu.style.display === "block" && 
+      !filterMenu.contains(e.target) && 
+      !filterToggle.contains(e.target)) {
+    filterMenu.style.display = "none";
+  }
+  
+  // Close action menu (existing behavior)
+  const actionMenu = document.getElementById("actionMenu");
+  if (actionMenu.classList.contains("visible")) {
+    actionMenu.classList.remove("visible");
     setTimeout(() => {
-      menu.innerHTML = "";
+      actionMenu.innerHTML = "";
     }, 150); // Matches CSS transition
   }
 });
