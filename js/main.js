@@ -334,15 +334,17 @@ function changeSystem(name) {
   currentSystem = name;
   updateInterface();
 
-  const label = document.getElementById("targetLabel");
-  label.textContent = `Target: ${name}`;
+  // Update device selector text
+  const deviceSelectorText = document.getElementById("deviceSelectorText");
+  if (deviceSelectorText) {
+    deviceSelectorText.textContent = `Target: ${name}`;
+  }
 
   const system = allSystems.find((d) => d.name === name);
   
   // Update sidebar border animation and offline state
   const sidebar = document.querySelector('.sidebar');
   if (system) {
-    label.style.color = getSystemColor(system);
     sidebar.dataset.colorClass = system.colorClass;
     
     // Add or remove offline class based on launcher status
@@ -351,28 +353,56 @@ function changeSystem(name) {
     } else {
       sidebar.classList.remove('offline');
     }
+    
+    // Update file drop box state
+    updateFileDropState(system);
+    
+    // Update command prompt color class
+    const commandPrompt = document.getElementById('commandPrompt');
+    if (commandPrompt) {
+      // Remove all rig classes
+      commandPrompt.classList.remove('rig-0', 'rig-1', 'rig-2', 'rig-3', 'rig-4', 'rig-5');
+      // Add current system's color class
+      commandPrompt.classList.add(system.colorClass);
+    }
   } else {
-    label.style.color = "";
     sidebar.removeAttribute('data-color-class');
     sidebar.classList.remove('offline');
+    
+    // Remove color class from command prompt
+    const commandPrompt = document.getElementById('commandPrompt');
+    if (commandPrompt) {
+      commandPrompt.classList.remove('rig-0', 'rig-1', 'rig-2', 'rig-3', 'rig-4', 'rig-5');
+    }
+  }
+}
+
+// Updates the file drop box enabled/disabled state
+function updateFileDropState(system) {
+  const fileDropBox = document.querySelector('.file-drop-box');
+  const fileInput = document.getElementById('fileInput');
+  
+  if (!fileDropBox) return;
+  
+  // Disable if system is not connected
+  if (!system || !system.connected) {
+    fileDropBox.classList.add('disabled');
+    if (fileInput) {
+      fileInput.disabled = true;
+    }
+  } else {
+    fileDropBox.classList.remove('disabled');
+    if (fileInput) {
+      fileInput.disabled = false;
+    }
   }
 }
 
 // Handles dropdown for changing systems
 function updateDropdown() {
-  const dropdown = document.getElementById("systemSelect");
-  dropdown.innerHTML = "";
-  allSystems.forEach((system) => {
-    const option = document.createElement("option");
-    option.value = system.name;
-    option.textContent = system.name;
-    if (!system.launcherAlive) option.className = "offline";
-    
-    // Explicitly set selected state
-    option.selected = (system.name === currentSystem);
-    
-    dropdown.appendChild(option);
-  });
+  // This function now delegates to populateDeviceDropdown
+  // since we're using the new device selector dropdown
+  populateDeviceDropdown();
 }
 
 // Updates button logic based on the state
@@ -422,6 +452,9 @@ function updateSystemUI(updatedSystem) {
     } else {
       sidebar.classList.remove('offline');
     }
+    
+    // Update file drop box state
+    updateFileDropState(updatedSystem);
   }
 }
 
@@ -491,11 +524,9 @@ function autoUpdateConsole(system, command, message, severity = "") {
 
 // Changes color of system
 function changeTargetColor(systemName) {
-  const targetLabel = document.getElementById("targetLabel");
-  const system = allSystems.find((d) => d.name === systemName);
-  if (system) {
-    targetLabel.style.color = getSystemColor(system);
-  }
+  // This function is no longer needed with the new UI
+  // The device selector doesn't use color coding
+  // Keeping it as a no-op for backwards compatibility
 }
   
 // Formats the ports to be pretty printed
@@ -824,6 +855,18 @@ function renderSystems(systems) {
 		Object.entries(system.devices || {}).forEach(([key, device]) => {
 		  const item = document.createElement("div");
 		  item.className = "device-item";
+
+		  item.addEventListener("click", (e) => {
+		    // Device click ALWAYS wins
+		    e.preventDefault();
+		    e.stopPropagation();
+		    e.stopImmediatePropagation();
+
+		    // Switch system first
+		    if (currentSystem !== system.name) {
+			  changeSystem(system.name);
+		    }
+		  });
 
 		  const dot = document.createElement("span");
 		  dot.className = device?.connected 
@@ -2053,6 +2096,12 @@ document.addEventListener("DOMContentLoaded", () => {
   
   applyConsoleFilter();
   
+  // Initialize device selector dropdown
+  initDeviceSelector();
+  
+  // Initialize dark mode toggle
+  initDarkModeToggle();
+  
   // Check if launcher is alive for all systems on page load
   allSystems.forEach((system) => {
     checkLauncherAlive(system);
@@ -2082,6 +2131,83 @@ setInterval(() => {
     });
   }
 }, getServerStatusInterval); // every certain amount of seconds
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+// DEVICE SELECTOR DROPDOWN
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+// Initialize device selector
+function initDeviceSelector() {
+  const deviceSelectorToggle = document.getElementById('deviceSelectorToggle');
+  const deviceDropdown = document.getElementById('deviceDropdown');
+  
+  if (!deviceSelectorToggle || !deviceDropdown) {
+    console.warn('Device selector elements not found');
+    return;
+  }
+  
+  // Toggle dropdown on click
+  deviceSelectorToggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    deviceSelectorToggle.classList.toggle('active');
+    deviceDropdown.classList.toggle('active');
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!deviceSelectorToggle.contains(e.target) && !deviceDropdown.contains(e.target)) {
+      deviceSelectorToggle.classList.remove('active');
+      deviceDropdown.classList.remove('active');
+    }
+  });
+}
+
+// Populate device dropdown with systems
+function populateDeviceDropdown() {
+  const deviceDropdown = document.getElementById('deviceDropdown');
+  const deviceSelectorText = document.getElementById('deviceSelectorText');
+  
+  if (!deviceDropdown || !deviceSelectorText) {
+    console.warn('Device selector elements not found');
+    return;
+  }
+  
+  // Clear existing items
+  deviceDropdown.innerHTML = '';
+  
+  // Add each system as a dropdown item
+  allSystems.forEach(system => {
+    const item = document.createElement('div');
+    item.className = 'device-dropdown-item';
+    if (!system.launcherAlive) {
+      item.classList.add('offline');
+    }
+    if (system.name === currentSystem) {
+      item.classList.add('selected');
+    }
+    
+    item.textContent = system.name;
+    
+    item.addEventListener('click', function() {
+      // Update selected state
+      document.querySelectorAll('.device-dropdown-item').forEach(el => {
+        el.classList.remove('selected');
+      });
+      item.classList.add('selected');
+      
+      // Close dropdown
+      document.getElementById('deviceSelectorToggle').classList.remove('active');
+      deviceDropdown.classList.remove('active');
+      
+      // Call changeSystem which will update everything
+      changeSystem(system.name);
+    });
+    
+    deviceDropdown.appendChild(item);
+  });
+}
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -2115,11 +2241,4 @@ function initDarkModeToggle() {
       localStorage.setItem('theme', 'dark');
     }
   });
-}
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initDarkModeToggle);
-} else {
-  initDarkModeToggle();
 }
