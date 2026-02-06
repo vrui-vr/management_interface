@@ -1827,7 +1827,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   margin-top: auto;
   padding-top: 3px;
-  transform: translateY(-5px);
+  transform: translateY(0px);
 }
 
 .shutdown-icon {
