@@ -7,56 +7,57 @@
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
-    <!-- Dark Mode Toggle -->
-    <div class="theme-toggle-container">
-      <button class="theme-toggle" aria-label="Toggle dark mode">
-        <div class="theme-toggle-slider">
-          <svg class="theme-icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-          <svg class="theme-icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </div>
-      </button>
-    </div>
-
     <div id="actionMenu" class="action-menu hidden"></div>
 
     <div class="sidebar">
-      <div
-        class="title-row"
-        style="
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1rem;
-        "
-      >
-        <img
-          src="images/vruilogo.jpg"
-          alt="VRUI Logo"
-          style="
-            width: 40px;
-            height: 40px;
-            border-radius: 6px;
-            object-fit: cover;
-          "
-        />
-        <h2>VRUI Interface</h2>
-        <select id="systemSelect" onchange="changeSystem(this.value)"></select>
+      <!-- Sidebar Header with Logo, Title, and Theme Toggle -->
+      <div class="sidebar-header">
+        <div class="sidebar-header-left">
+          <img
+            src="images/vruilogo.jpg"
+            alt="VRUI Logo"
+            class="sidebar-logo"
+          />
+          <h2 class="sidebar-title">VRUI Interface</h2>
+        </div>
+        <div class="sidebar-header-right">
+          <button class="theme-toggle" aria-label="Toggle dark mode">
+            <div class="theme-toggle-slider">
+              <svg class="theme-icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+              <svg class="theme-icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </div>
+          </button>
+        </div>
       </div>
-      <div class="button-section">
-        <p><strong id="targetLabel"></strong></p>
 
+      <!-- Device Selector Dropdown (replaces the old title-row) -->
+      <div class="device-selector-section">
+        <div class="device-selector-wrapper">
+          <div class="device-selector-title" id="deviceSelectorToggle">
+            <span id="deviceSelectorText">Target: localhost</span>
+            <svg class="device-selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+          <div id="deviceDropdown" class="device-dropdown">
+            <!-- Will be populated dynamically with devices -->
+          </div>
+        </div>
+      </div>
+
+      <div class="button-section">
         <button class="button" id="btn-1" onclick="sendButton(1)">Toggle Status Requests</button>
         <button class="button" id="btn-2" onclick="sendButton(2)">...</button>
         <button class="button" id="btn-3" onclick="sendButton(3)">...</button>
@@ -75,22 +76,23 @@
             <label for="fileInput" class="file-drop-label">
               <div class="file-drop-icon">
                 <svg
-                  width="32"
-                  height="32"
+                  width="24"
+                  height="24"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#666"
+                  stroke="currentColor"
                   stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                  <path d="M5 19h14" />
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
               </div>
 
               <span class="file-drop-text">
-                Drop items here or <span class="browse-text">Browse files</span>
+                Drop files here or <span class="browse-text">Browse</span>
               </span>
             </label>
 
@@ -126,7 +128,7 @@
           </div>
         </div>
         <div id="consoleOutput" class="console-box"></div>
-        <div id="commandPrompt" style="margin-top: 1rem">
+        <div id="commandPrompt">
           <input
             type="text"
             id="commandInput"
