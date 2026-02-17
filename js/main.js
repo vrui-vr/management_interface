@@ -215,14 +215,16 @@ function addSystem() {
 
 // Remove system from list of systems
 // Protects the Local Host from deletion
-function removeSystem(systemName) {
+function removeSystem(systemName, skipConfirm = false) {
   if (systemName === "Local Host") {
     alert("Cannot remove 'Local Host'. It is a protected system.");
     return;
   }
 
-  const confirmed = confirm(`Are you sure you want to remove "${systemName}"?`);
-  if (!confirmed) return;
+  if (!skipConfirm) {
+    const confirmed = confirm(`Are you sure you want to remove "${systemName}"?`);
+    if (!confirmed) return;
+  }
 
   // If the removed system is currently selected, switch to Local Host
   if (currentSystem === systemName) {
@@ -2240,5 +2242,298 @@ function initDarkModeToggle() {
       toggle.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     }
+  });
+}
+
+// ============================================================
+// MINI MONITOR POPUP
+// ============================================================
+
+// ============================================================
+// MINI MONITOR POPUP
+// ============================================================
+
+let miniMonitorPopup = null;
+let miniMonitorSyncId = null;
+
+function openMiniMonitor() {
+  // If already open, focus it
+  if (miniMonitorPopup && !miniMonitorPopup.closed) {
+    miniMonitorPopup.focus();
+    return;
+  }
+
+  const screenW = window.screen.availWidth;
+  const cardW = 200;
+  const cardGap = 16;
+  const popPadding = 24;
+  const numSystems = allSystems.length;
+  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 240), screenW - 40);
+  const popH = 380;
+  const popLeft = screenW - popW - 20;
+  const popTop = 40;
+
+  miniMonitorPopup = window.open(
+    "",
+    "VRUIMiniMonitor",
+    `width=${popW},height=${popH},top=${popTop},left=${popLeft},resizable=yes,scrollbars=yes`
+  );
+
+  if (!miniMonitorPopup) {
+    alert("Popup was blocked. Please allow popups for this site.");
+    return;
+  }
+
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") || "light";
+
+  miniMonitorPopup.document.write(`
+    <!DOCTYPE html>
+    <html lang="en" data-theme="${currentTheme}">
+    <head>
+      <meta charset="UTF-8">
+      <title>VRUI Monitor</title>
+      <link rel="stylesheet" href="css/main.css">
+      <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg-white);
+          height: 100vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                       "SF Pro Text", "Inter", "Helvetica Neue", "Segoe UI",
+                       system-ui, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          color: var(--text-dark);
+        }
+
+        /* Exact same scroll container as main page system-section */
+        .mini-monitor-container {
+          flex: 1;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 16px;
+          padding: 12px;
+          padding-bottom: 20px;
+          overflow-x: auto;
+          overflow-y: visible;
+          align-items: flex-start;
+          min-height: 0;
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
+        }
+
+        .mini-monitor-container::-webkit-scrollbar { height: 8px; }
+        .mini-monitor-container::-webkit-scrollbar-track { background: transparent; }
+        .mini-monitor-container::-webkit-scrollbar-thumb {
+          background: var(--border);
+          border-radius: 4px;
+        }
+        .mini-monitor-container::-webkit-scrollbar-thumb:hover {
+          background: var(--text-secondary);
+        }
+
+        /* Cards: match main page exactly but shorter */
+        .system-card {
+          width: 200px;
+          min-width: 200px;
+          height: 340px;
+          flex-shrink: 0;
+        }
+
+        /* Hide add-system card */
+        .add-system-card { display: none !important; }
+
+        /* Keep the action menu working in the popup */
+        .action-menu {
+          position: fixed;
+        }
+      </style>
+    </head>
+    <body>
+      <div id="popupActionMenu" class="action-menu hidden"></div>
+      <div class="mini-monitor-container" id="miniContainer"></div>
+      <script>
+        window._miniMonitorReady = true;
+      </script>
+    </body>
+    </html>
+  `);
+  miniMonitorPopup.document.close();
+
+  // Wait for popup DOM to be ready, then start syncing
+  const waitForReady = setInterval(() => {
+    if (!miniMonitorPopup || miniMonitorPopup.closed) {
+      clearInterval(waitForReady);
+      return;
+    }
+    if (miniMonitorPopup._miniMonitorReady) {
+      clearInterval(waitForReady);
+      syncMiniMonitor();
+      miniMonitorSyncId = setInterval(syncMiniMonitor, 1200);
+    }
+  }, 100);
+}
+
+function syncMiniMonitor() {
+  if (!miniMonitorPopup || miniMonitorPopup.closed) {
+    clearInterval(miniMonitorSyncId);
+    miniMonitorPopup = null;
+    miniMonitorSyncId = null;
+    return;
+  }
+
+  const target = miniMonitorPopup.document.getElementById("miniContainer");
+  const source = document.getElementById("systemContainer");
+  if (!target || !source) return;
+
+  // Keep theme in sync
+  const theme =
+    document.documentElement.getAttribute("data-theme") || "light";
+  miniMonitorPopup.document.documentElement.setAttribute("data-theme", theme);
+
+  // Map existing popup cards by system name
+  const existingCards = new Map(
+    [...target.children].map((c) => [c.dataset.system, c])
+  );
+
+  // Source cards (only .system-card, not .add-system-card)
+  const sourceCards = [...source.querySelectorAll(".system-card")];
+  const sourceNames = new Set();
+
+  sourceCards.forEach((srcCard) => {
+    const systemName = srcCard.dataset.system;
+    if (!systemName) return;
+    sourceNames.add(systemName);
+
+    const existing = existingCards.get(systemName);
+
+    if (existing) {
+      // Only update DOM if something visually changed
+      if (existing.innerHTML !== srcCard.innerHTML) {
+        existing.innerHTML = srcCard.innerHTML;
+      }
+      existing.className = srcCard.className;
+    } else {
+      const clone = srcCard.cloneNode(true);
+      target.appendChild(clone);
+    }
+  });
+
+  // Remove cards no longer in source
+  existingCards.forEach((card, name) => {
+    if (!sourceNames.has(name)) card.remove();
+  });
+
+  // Re-bind all interactive handlers (cloneNode strips listeners)
+  rebindMiniMonitorHandlers(target);
+}
+
+function rebindMiniMonitorHandlers(container) {
+  container.querySelectorAll(".system-card").forEach((card) => {
+    const systemName = card.dataset.system;
+    if (!systemName) return;
+
+    // Card click → select system in parent
+    card.onclick = () => {
+      changeSystem(systemName);
+    };
+
+    // Remove button
+    const removeBtn = card.querySelector(".remove-btn");
+    if (removeBtn) {
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (systemName === "Local Host") {
+          miniMonitorPopup.alert("Cannot remove 'Local Host'. It is a protected system.");
+          return;
+        }
+        const confirmed = miniMonitorPopup.confirm(`Are you sure you want to remove "${systemName}"?`);
+        if (confirmed) removeSystem(systemName, true);
+      };
+    }
+
+    // Connect button
+    const connectBtn = card.querySelector(".connect-btn");
+    if (connectBtn) {
+      connectBtn.onclick = (e) => {
+        e.stopPropagation();
+        const system = allSystems.find((s) => s.name === systemName);
+        if (system) {
+          autoUpdateConsole(
+            system,
+            "isAlive",
+            "Attempting to contact launcher..."
+          );
+          checkLauncherAlive(system, true);
+        }
+      };
+    }
+
+    // Shutdown button
+    const shutdownBtn = card.querySelector(".shutdown-icon");
+    if (shutdownBtn && !shutdownBtn.classList.contains("disabled")) {
+      shutdownBtn.onclick = (e) => {
+        e.stopPropagation();
+        const system = allSystems.find((s) => s.name === systemName);
+        if (system) shutdownSystem(system);
+      };
+    }
+
+    // Device name clicks → edit menu in main window
+    card.querySelectorAll(".device-name:not(.inactive-field)").forEach(
+      (nameEl) => {
+        nameEl.style.cursor = "pointer";
+        nameEl.onclick = (e) => {
+          e.stopPropagation();
+          const system = allSystems.find((s) => s.name === systemName);
+          if (system) {
+            const deviceKey = nameEl.textContent.trim().toLowerCase();
+            showEditMenu(e, system, deviceKey);
+          }
+        };
+      }
+    );
+
+    // System title click → rename
+    const titleEl = card.querySelector(
+      ".system-title:not(.inactive-field)"
+    );
+    if (titleEl && systemName !== "Local Host") {
+      titleEl.style.cursor = "pointer";
+      titleEl.onclick = (e) => {
+        e.stopPropagation();
+        const system = allSystems.find((s) => s.name === systemName);
+        if (system) showEditMenu(e, system, "name");
+      };
+    }
+
+    // IP info click → edit IP/port
+    const ipEl = card.querySelector(".ip-info:not(.inactive-field)");
+    if (ipEl) {
+      ipEl.style.cursor = "pointer";
+      ipEl.onclick = (e) => {
+        e.stopPropagation();
+        const system = allSystems.find((s) => s.name === systemName);
+        if (system) showEditMenu(e, system, "ipport");
+      };
+    }
+
+    // Device item clicks
+    card.querySelectorAll(".device-item").forEach((item) => {
+      item.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (currentSystem !== systemName) {
+          changeSystem(systemName);
+        }
+      };
+    });
   });
 }
