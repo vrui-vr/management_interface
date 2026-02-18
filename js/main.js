@@ -2330,7 +2330,7 @@ function openMiniMonitor() {
   const popPadding = 24;
   const numSystems = allSystems.length;
   const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
-  const popH = Math.round(screenH * 0.3);
+  const popH = Math.round(screenH * 0.35);
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
