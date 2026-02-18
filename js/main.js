@@ -240,11 +240,24 @@ function showFormModal({ title, submitLabel = "Save", fields, colorClass = "", o
 
 // Add system to list of systems
 function addSystem() {
-  const defaultName = `Rig ${String.fromCharCode(65 + allSystems.length)}`;
+  // Find first color index not already in use; fall back to cycling if all 6 taken
+  const usedColors = new Set(allSystems.map(s => s.colorClass));
+  const availableIndex = [0, 1, 2, 3, 4, 5].find(i => !usedColors.has(`rig-${i}`));
+  const newColorClass = `rig-${availableIndex !== undefined ? availableIndex : allSystems.length % 6}`;
+
+  // Find next default name not already in use
+  const usedNames = new Set(allSystems.map(s => s.name));
+  let nameIndex = allSystems.length;
+  let defaultName = `Rig ${String.fromCharCode(65 + nameIndex)}`;
+  while (usedNames.has(defaultName)) {
+    nameIndex++;
+    defaultName = `Rig ${String.fromCharCode(65 + nameIndex)}`;
+  }
+
   showFormModal({
     title: "Add System",
     submitLabel: "Add",
-    colorClass: `rig-${allSystems.length % 6}`,
+    colorClass: newColorClass,
     fields: [
       { key: "name", label: "Name", default: defaultName, placeholder: defaultName },
       { key: "ip", label: "IP Address", default: "192.168.1.15", placeholder: "192.168.1.15" },
@@ -268,7 +281,7 @@ function addSystem() {
         connected: false,
         launcherAlive: false,
         servers: [],
-        colorClass: `rig-${allSystems.length % 6}`,
+        colorClass: newColorClass,
         devices: {},
       };
       allSystems.push(newSystem);
@@ -2318,7 +2331,7 @@ function openMiniMonitor() {
   const popPadding = 24;
   const numSystems = allSystems.length;
   const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
-  const popH = 400;
+  const popH = 380;
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
@@ -2391,7 +2404,7 @@ function openMiniMonitor() {
         .system-card {
           width: 250px;
           min-width: 250px;
-          height: 360px;
+          height: 340px;
           flex-shrink: 0;
         }
 
