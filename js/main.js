@@ -1192,7 +1192,6 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
 // Helper function to make the action menu visible when interacting with a system
 function makeMenuVisible(menu) {
   menu.classList.remove("hidden");
-  void menu.offsetWidth;
   menu.classList.add("visible");
 }
 
@@ -1995,9 +1994,7 @@ document.addEventListener("click", (e) => {
   const actionMenu = document.getElementById("actionMenu");
   if (actionMenu.classList.contains("visible")) {
     actionMenu.classList.remove("visible");
-    setTimeout(() => {
-      actionMenu.innerHTML = "";
-    }, 150); // Matches CSS transition
+    actionMenu.innerHTML = "";
   }
 });
 
@@ -2455,7 +2452,7 @@ function openMiniMonitor() {
         const popupMenu = miniMonitorPopup.document.getElementById("popupActionMenu");
         if (popupMenu && popupMenu.classList.contains("visible")) {
           popupMenu.classList.remove("visible");
-          setTimeout(() => { popupMenu.innerHTML = ""; }, 150);
+          popupMenu.innerHTML = "";
         }
       });
     }
