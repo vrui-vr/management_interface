@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VRUI Interface</title>
+    <title>VRui Interface</title>
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
@@ -13,16 +13,16 @@
       <!-- Sidebar Header with Logo, Title, and Theme Toggle -->
       <div class="sidebar-header">
         <div class="sidebar-header-left">
-          <a href="https://vrui-vr.github.io/" target="_blank" rel="noopener" id="vrui-logo-link">
+          <a href="https://VRui-vr.github.io/" target="_blank" rel="noopener" id="VRui-logo-link">
             <img
-              src="images/vruilogo.jpg"
-              alt="VRUI Logo"
+              src="images/VRuilogo.jpg"
+              alt="VRui Logo"
               class="sidebar-logo"
             />
           </a>
           <div class="sidebar-title-group">
-            <h2 class="sidebar-title">VRUI Interface</h2>
-            <a href="https://vrui-vr.github.io/" target="_blank" rel="noopener" class="sidebar-docs-link">
+            <h2 class="sidebar-title">VRui Interface</h2>
+            <a href="https://VRui-vr.github.io/" target="_blank" rel="noopener" class="sidebar-docs-link">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
               </svg>
@@ -52,29 +52,16 @@
         </div>
       </div>
 
-      <!-- Device Selector Dropdown (replaces the old title-row) -->
-      <div class="device-selector-section">
-        <div class="device-selector-wrapper">
-          <div class="device-selector-title" id="deviceSelectorToggle">
-            <span id="deviceSelectorText">Target: localhost</span>
-            <svg class="device-selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </div>
-          <div id="deviceDropdown" class="device-dropdown">
-            <!-- Will be populated dynamically with devices -->
-          </div>
-        </div>
+      <!-- Active system display -->
+      <div class="sidebar-target">
+        <div class="sidebar-target-name" id="currentSystemName">Local Host</div>
+        <div class="sidebar-target-info" id="currentSystemInfo">—</div>
       </div>
 
       <div class="button-section">
         <button class="button" id="btn-1" onclick="sendButton(1)">Toggle Status Requests</button>
-        <button class="button" id="btn-2" onclick="sendButton(2)">...</button>
+        <button class="button" id="btn-2" onclick="sendButton(2)">Start Servers</button>
         <button class="button" id="btn-3" onclick="sendButton(3)">...</button>
-        <button class="button" id="btn-4" onclick="sendButton(4)">...</button>
-        <button class="button button-danger" id="btn-5" onclick="sendButton(5)">...</button>
-        <button class="button button-danger" id="btn-6" onclick="sendButton(6)">...</button>
-        <button class="button button-danger" id="btn-7" onclick="sendButton(7)">...</button>
       </div>
 
       <!-- File Upload Section -->

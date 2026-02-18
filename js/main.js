@@ -159,58 +159,125 @@ function getCompositingServerEndpoint(system) {
   return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}`;
 }
 
+// Shows a modal form with configurable fields for user input
+function showFormModal({ title, submitLabel = "Save", fields, colorClass = "", onSubmit }) {
+  const existing = document.getElementById("formModal");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "formModal";
+  overlay.className = "form-modal-overlay";
+
+  const card = document.createElement("div");
+  card.className = "form-modal-card";
+  if (colorClass) card.dataset.colorClass = colorClass;
+
+  const h = document.createElement("h3");
+  h.className = "form-modal-title";
+  h.textContent = title;
+  card.appendChild(h);
+
+  const inputs = {};
+  fields.forEach((f) => {
+    const row = document.createElement("div");
+    row.className = "form-modal-row";
+
+    const label = document.createElement("label");
+    label.textContent = f.label;
+    label.htmlFor = `fmf-${f.key}`;
+
+    const input = document.createElement("input");
+    input.type = f.type || "text";
+    input.id = `fmf-${f.key}`;
+    input.value = f.default !== undefined ? f.default : "";
+    input.placeholder = f.placeholder || "";
+
+    row.appendChild(label);
+    row.appendChild(input);
+    card.appendChild(row);
+    inputs[f.key] = input;
+  });
+
+  const buttons = document.createElement("div");
+  buttons.className = "form-modal-buttons";
+
+  const cancel = document.createElement("button");
+  cancel.className = "form-modal-cancel";
+  cancel.textContent = "Cancel";
+  cancel.type = "button";
+  cancel.onclick = () => overlay.remove();
+
+  const submit = document.createElement("button");
+  submit.className = "form-modal-submit";
+  submit.textContent = submitLabel;
+  submit.type = "button";
+  submit.onclick = () => {
+    const values = {};
+    for (const [key, el] of Object.entries(inputs)) {
+      values[key] = el.value.trim();
+    }
+    overlay.remove();
+    onSubmit(values);
+  };
+
+  buttons.appendChild(cancel);
+  buttons.appendChild(submit);
+  card.appendChild(buttons);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  Object.values(inputs)[0]?.focus();
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  card.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit.click();
+    if (e.key === "Escape") overlay.remove();
+  });
+}
+
 // Add system to list of systems
 function addSystem() {
   const defaultName = `Rig ${String.fromCharCode(65 + allSystems.length)}`;
-  const nameInput = window.prompt("Enter system name:", defaultName);
-  const newName =
-    nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
-
-  if (
-    newName.toLowerCase() === "local host" ||
-    newName.toLowerCase() === "localhost"
-  ) {
-    alert("The name 'Local Host' is reserved and cannot be used.");
-    return;
-  }
-
-  const ipAddress = window.prompt(
-    "Enter system IP address (e.g., 192.168.1.15):",
-    "192.168.1.15"
-  );
-  const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
-
-  const launcherPortInput = window.prompt("Enter ServerLauncher port (default: 8080):", "8080");
-  const serverLauncherPort = launcherPortInput && launcherPortInput.trim() !== "" ? launcherPortInput.trim() : "8080";
-
-  const devicePortInput = window.prompt("Enter VRDeviceServer port (default: 8081):", "8081");
-  const deviceServerPort = devicePortInput && devicePortInput.trim() !== "" ? devicePortInput.trim() : "8081";
-
-  const compositingPortInput = window.prompt("Enter CompositingServer port (default: 8082):", "8082");
-  const compositingServerPort = compositingPortInput && compositingPortInput.trim() !== "" ? compositingPortInput.trim() : "8082";
-
-  const newSystem = {
-    name: newName,
-    ip,
-    serverLauncherPort: serverLauncherPort,
-    deviceServerPort: deviceServerPort,
-    compositingServerPort: compositingServerPort,
-    connected: false,
-    launcherAlive: false,
-    servers: [],
+  showFormModal({
+    title: "Add System",
+    submitLabel: "Add",
     colorClass: `rig-${allSystems.length % 6}`,
-    devices: {},
-  };
-
-  allSystems.push(newSystem);
-  currentSystem = newName;
-  updateInterface();
-  autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
-
-  saveSystemsToLocalStorage();
-  
-  // Check if launcher is alive
-  checkLauncherAlive(newSystem);
+    fields: [
+      { key: "name", label: "Name", default: defaultName, placeholder: defaultName },
+      { key: "ip", label: "IP Address", default: "192.168.1.15", placeholder: "192.168.1.15" },
+      { key: "port", label: "Launcher Port", default: "8080", placeholder: "8080" },
+    ],
+    onSubmit: ({ name, ip, port }) => {
+      const newName = name || defaultName;
+      if (
+        newName.toLowerCase() === "local host" ||
+        newName.toLowerCase() === "localhost"
+      ) {
+        alert("The name 'Local Host' is reserved and cannot be used.");
+        return;
+      }
+      const newSystem = {
+        name: newName,
+        ip: ip || "",
+        serverLauncherPort: port || "8080",
+        deviceServerPort: "",
+        compositingServerPort: "",
+        connected: false,
+        launcherAlive: false,
+        servers: [],
+        colorClass: `rig-${allSystems.length % 6}`,
+        devices: {},
+      };
+      allSystems.push(newSystem);
+      updateInterface();
+      autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
+      saveSystemsToLocalStorage();
+      checkLauncherAlive(newSystem);
+    },
+  });
 }
 
 // Remove system from list of systems
@@ -336,12 +403,6 @@ function changeSystem(name) {
   currentSystem = name;
   updateInterface();
 
-  // Update device selector text
-  const deviceSelectorText = document.getElementById("deviceSelectorText");
-  if (deviceSelectorText) {
-    deviceSelectorText.textContent = `Target: ${name}`;
-  }
-
   const system = allSystems.find((d) => d.name === name);
   
   // Update sidebar border animation and offline state
@@ -400,11 +461,41 @@ function updateFileDropState(system) {
   }
 }
 
-// Handles dropdown for changing systems
+// Updates the active target display and binds edit handlers
 function updateDropdown() {
-  // This function now delegates to populateDeviceDropdown
-  // since we're using the new device selector dropdown
-  populateDeviceDropdown();
+  const system = allSystems.find((d) => d.name === currentSystem);
+
+  const nameEl = document.getElementById("currentSystemName");
+  if (nameEl) {
+    nameEl.textContent = currentSystem;
+    if (system && currentSystem !== "Local Host") {
+      nameEl.style.cursor = "pointer";
+      nameEl.title = "Edit name";
+      nameEl.onclick = (e) => {
+        e.stopPropagation();
+        showEditMenu(e, system, "name");
+      };
+    } else {
+      nameEl.style.cursor = "default";
+      nameEl.title = "";
+      nameEl.onclick = null;
+    }
+  }
+
+  const infoEl = document.getElementById("currentSystemInfo");
+  if (infoEl) {
+    infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
+    if (system) {
+      infoEl.style.cursor = "pointer";
+      infoEl.title = "Edit IP / Ports";
+      infoEl.onclick = (e) => {
+        e.stopPropagation();
+        showEditMenu(e, system, "ipport");
+      };
+    } else {
+      infoEl.onclick = null;
+    }
+  }
 }
 
 // Updates button logic based on the state
@@ -422,13 +513,8 @@ function updateButtonStates() {
     btn2.disabled = false;
   }
 
-  // Grey out buttons 3-7
-  for (let i = 3; i <= 7; i++) {
-    const btn = document.getElementById(`btn-${i}`);
-    if (btn) {
-      btn.disabled = true;  // greyed out
-    }
-  }
+  const btn3 = document.getElementById("btn-3");
+  if (btn3) btn3.disabled = true;
 }
 
 // Updates the UI for the system widgets
@@ -531,19 +617,15 @@ function changeTargetColor(systemName) {
   // Keeping it as a no-op for backwards compatibility
 }
   
-// Formats the ports to be pretty printed
+// Formats the ports to be pretty printed; omits unknown ports
 function formatPorts(p1, p2, p3) {
-  // ensure numbers
-  p1 = Number(p1);
-  p2 = Number(p2);
-  p3 = Number(p3);
+  p1 = Number(p1) || 0;
+  p2 = Number(p2) || 0;
+  p3 = Number(p3) || 0;
 
-  // check if consecutive
-  if (p2 === p1 + 1 && p3 === p2 + 1) {
-    return `${p1}-${p3}`;
-  }
-
-  // fallback
+  if (!p2 && !p3) return `${p1}`;
+  if (!p3) return p2 === p1 + 1 ? `${p1}-${p2}` : `${p1}/${p2}`;
+  if (p2 === p1 + 1 && p3 === p2 + 1) return `${p1}-${p3}`;
   return `${p1}/${p2}/${p3}`;
 }
 
@@ -710,26 +792,7 @@ function renderSystems(systems) {
         labelSpan.appendChild(offline);
       }
 
-      const ipSpan = document.createElement("span");
-      ipSpan.className = "ip-info";
-      ipSpan.textContent = `${system.ip}:${formatPorts(
-        system.serverLauncherPort,
-        system.deviceServerPort,
-        system.compositingServerPort
-      )}`;
-
-      if (system.name === currentSystem) {
-        ipSpan.style.cursor = "pointer";
-        ipSpan.title = "Edit IP/Port";
-        ipSpan.onclick = e => {
-          e.stopPropagation();
-          showEditMenu(e, system, "ipport");
-        };
-      } else {
-        ipSpan.classList.add("inactive-field");
-      }
-
-      titleSection.append(labelSpan, ipSpan);
+      titleSection.append(labelSpan);
       header.appendChild(titleSection);
 
       if (system.name !== "Local Host") {
@@ -799,12 +862,10 @@ function renderSystems(systems) {
 		title.textContent = "Servers";
 		section.appendChild(title);
 
-		system.servers.forEach((server, i) => {
+		system.servers.forEach((server) => {
 		  const item = document.createElement("div");
 		  item.className = "server-item";
 
-		  const port = i === 0 ? system.deviceServerPort : system.compositingServerPort;
-		  
 		  let statusClass = "status-unknown";
 		  if (!server.isRunning) {
 			statusClass = "status-stopped";
@@ -822,11 +883,7 @@ function renderSystems(systems) {
 		  name.className = "server-name";
 		  name.textContent = server.name;
 
-		  const info = document.createElement("div");
-		  info.className = "server-info";
-		  info.textContent = `:${port}`;
-
-		  item.append(dot, name, info);
+		  item.append(dot, name);
 		  section.appendChild(item);
 		});
 
@@ -1127,10 +1184,13 @@ function makeMenuVisible(menu) {
 }
 
 // Lets user edit system info
-function showEditMenu(e, system, field) {
+// popupWin: pass miniMonitorPopup when calling from the detached monitor
+function showEditMenu(e, system, field, popupWin = null) {
   e.stopPropagation();
 
-  const menu = document.getElementById("actionMenu");
+  const targetDoc = popupWin ? popupWin.document : document;
+  const menu = targetDoc.getElementById(popupWin ? "popupActionMenu" : "actionMenu");
+  if (!menu) return;
   menu.innerHTML = "";
 
   // console.log("========== showEditMenu ==========");
@@ -1147,14 +1207,7 @@ function showEditMenu(e, system, field) {
 	// console.log("[DEBUG] Adding action: Rename");
 	available.push("Rename");
   } else if (field === "ipport") {
-	if (system.name === "Local Host") {
-		// console.log("[DEBUG] Adding actions: Change Ports");
-		available.push("Change Ports");
-	}
-    else {
-		// console.log("[DEBUG] Adding actions: Change IP, Change Ports");
-		available.push("Change IP", "Change Ports");
-	}
+    available.push("Edit Connection");
   } else {
     // Treat as device if exists
     const device = system.devices?.[field];
@@ -1206,11 +1259,8 @@ function showEditMenu(e, system, field) {
           case "Rename":
             renameSystem(system);
             break;
-          case "Change IP":
-            changeIP(system);
-            break;
-          case "Change Ports":
-            changePorts(system);
+          case "Edit Connection":
+            showEditConnectionModal(system);
             break;
           case "Ping": {
             const device = system.devices?.[field];
@@ -1241,10 +1291,10 @@ function showEditMenu(e, system, field) {
     });
   }
 
-  // Position menu
+  // Position menu (fixed in popup, absolute+scroll in main)
   const rect = e.target.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY}px`;
-  menu.style.left = `${rect.left + window.scrollX}px`;
+  menu.style.top = `${rect.bottom + (popupWin ? 0 : window.scrollY)}px`;
+  menu.style.left = `${rect.left + (popupWin ? 0 : window.scrollX)}px`;
 
   // console.log(`[DEBUG] Menu positioned at top=${menu.style.top}, left=${menu.style.left}`);
   //console.log("===================================");
@@ -1440,33 +1490,27 @@ function renameSystem(system) {
   }
 }
 
-// Change a system's IP
-function changeIP(system) {
-  const newIP = window.prompt("New IP address:", system.ip);
-  if (newIP && newIP.trim()) {
-    system.ip = newIP.trim();
-    saveSystemsToLocalStorage();
-    updateInterface();
+// Edit a system's connection details (IP and Launcher Port) in a single modal
+function showEditConnectionModal(system) {
+  const isLocalHost = system.name === "Local Host";
+  const fields = [];
+  if (!isLocalHost) {
+    fields.push({ key: "ip", label: "IP Address", default: system.ip || "", placeholder: "192.168.1.15" });
   }
-}
+  fields.push({ key: "port", label: "Launcher Port", default: system.serverLauncherPort || "8080", placeholder: "8080" });
 
-// Change a system's Ports
-function changePorts(system) {
-  const newServerLauncherPort = window.prompt("New ServerLauncher port:", system.serverLauncherPort || "8080");
-  const newDeviceServerPort = window.prompt("New VRDeviceServer port:", system.deviceServerPort || "8081");
-  const newCompositingServerPort = window.prompt("New CompositingServer port:", system.compositingServerPort || "8082");
-  if (newCompositingServerPort && newCompositingServerPort.trim()) {
-    system.compositingServerPort = newCompositingServerPort.trim();
-  }
-  if (newDeviceServerPort && newDeviceServerPort.trim()) {
-    system.deviceServerPort = newDeviceServerPort.trim();
-  }
-  if (newServerLauncherPort && newServerLauncherPort.trim()) {
-    system.serverLauncherPort = newServerLauncherPort.trim();
-  }
-
-  saveSystemsToLocalStorage();
-  updateInterface();
+  showFormModal({
+    title: "Edit Connection",
+    submitLabel: "Save",
+    colorClass: system.colorClass || "",
+    fields,
+    onSubmit: ({ ip, port }) => {
+      if (!isLocalHost && ip) system.ip = ip;
+      if (port) system.serverLauncherPort = port;
+      saveSystemsToLocalStorage();
+      updateInterface();
+    },
+  });
 }
 
 // Called by getServerStatus, updating system with data from the server
@@ -1658,10 +1702,18 @@ function getLauncherStatus(system, skipAutoStart = false) {
           status: 'checking...', // Initial status while we check
           lastStatus: null  // Track last status to reduce log spam
         }));
-        
+
+        // Update device/compositing ports from launcher response if provided
+        data.servers.forEach((srv, index) => {
+          if (srv.port) {
+            if (index === 0) system.deviceServerPort = String(srv.port);
+            else if (index === 1) system.compositingServerPort = String(srv.port);
+          }
+        });
+
         // Check if any servers are not running (only auto-start if not skipped)
         const anyServersStopped = data.servers.some(srv => !srv.isRunning);
-        
+
         if (anyServersStopped && !skipAutoStart) {
           autoUpdateConsole(system, "autoStart", "Some servers stopped, starting servers...");
           startLauncherServers(system);
@@ -1674,14 +1726,13 @@ function getLauncherStatus(system, skipAutoStart = false) {
           data.servers.forEach((srv, index) => {
             const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
             autoUpdateConsole(system, "launcherStatus", msg);
-            
+
             // If server is running, ping it to get its status
             if (srv.isRunning) {
-              // Determine which port to use based on server index
-              const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+              const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
               const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
               const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-              
+
               pingServerStatus(system, index, serverEndpoint);
             } else {
               // If not running, mark as stopped
@@ -2021,6 +2072,7 @@ function updateInterface() {
   updateButtonStates();
   updateFilterMenu();
   applyConsoleFilter();
+  if (miniMonitorPopup && !miniMonitorPopup.closed) syncMiniMonitor();
 }
 
 //----------------------------------------------------------------------------
@@ -2098,9 +2150,6 @@ document.addEventListener("DOMContentLoaded", () => {
   
   applyConsoleFilter();
   
-  // Initialize device selector dropdown
-  initDeviceSelector();
-  
   // Initialize dark mode toggle
   initDarkModeToggle();
   
@@ -2122,10 +2171,10 @@ setInterval(() => {
       if (system.servers && system.servers.length > 0) {
         system.servers.forEach((srv, index) => {
           if (srv.isRunning) {
-            const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+            const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
             const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
             const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-            
+
             pingServerStatus(system, index, serverEndpoint);
           }
         });
@@ -2264,18 +2313,18 @@ function openMiniMonitor() {
   }
 
   const screenW = window.screen.availWidth;
-  const cardW = 200;
+  const cardW = 250;
   const cardGap = 16;
   const popPadding = 24;
   const numSystems = allSystems.length;
-  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 240), screenW - 40);
-  const popH = 380;
+  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
+  const popH = 400;
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
   miniMonitorPopup = window.open(
     "",
-    "VRUIMiniMonitor",
+    "VRuiMiniMonitor",
     `width=${popW},height=${popH},top=${popTop},left=${popLeft},resizable=yes,scrollbars=yes`
   );
 
@@ -2292,7 +2341,7 @@ function openMiniMonitor() {
     <html lang="en" data-theme="${currentTheme}">
     <head>
       <meta charset="UTF-8">
-      <title>VRUI Monitor</title>
+      <title>VRui Monitor</title>
       <link rel="stylesheet" href="css/main.css">
       <style>
         *, *::before, *::after { box-sizing: border-box; }
@@ -2338,16 +2387,18 @@ function openMiniMonitor() {
           background: var(--text-secondary);
         }
 
-        /* Cards: match main page exactly but shorter */
+        /* Cards: normal width, slightly shorter */
         .system-card {
-          width: 200px;
-          min-width: 200px;
-          height: 340px;
+          width: 250px;
+          min-width: 250px;
+          height: 360px;
           flex-shrink: 0;
         }
 
-        /* Hide add-system card */
+        /* Hide add-system card, remove button, and power/shutdown button */
         .add-system-card { display: none !important; }
+        .remove-btn { display: none !important; }
+        .shutdown-icon { display: none !important; }
 
         /* Keep the action menu working in the popup */
         .action-menu {
@@ -2375,7 +2426,16 @@ function openMiniMonitor() {
     if (miniMonitorPopup._miniMonitorReady) {
       clearInterval(waitForReady);
       syncMiniMonitor();
-      miniMonitorSyncId = setInterval(syncMiniMonitor, 1200);
+      miniMonitorSyncId = setInterval(syncMiniMonitor, 400);
+
+      // Close popup action menu on click outside
+      miniMonitorPopup.document.addEventListener("click", () => {
+        const popupMenu = miniMonitorPopup.document.getElementById("popupActionMenu");
+        if (popupMenu && popupMenu.classList.contains("visible")) {
+          popupMenu.classList.remove("visible");
+          setTimeout(() => { popupMenu.innerHTML = ""; }, 150);
+        }
+      });
     }
   }, 100);
 }
@@ -2444,87 +2504,33 @@ function rebindMiniMonitorHandlers(container) {
       changeSystem(systemName);
     };
 
-    // Remove button
-    const removeBtn = card.querySelector(".remove-btn");
-    if (removeBtn) {
-      removeBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (systemName === "Local Host") {
-          miniMonitorPopup.alert("Cannot remove 'Local Host'. It is a protected system.");
-          return;
-        }
-        const confirmed = miniMonitorPopup.confirm(`Are you sure you want to remove "${systemName}"?`);
-        if (confirmed) removeSystem(systemName, true);
-      };
-    }
-
-    // Connect button
+    // Connect button (keep — useful for monitor)
     const connectBtn = card.querySelector(".connect-btn");
     if (connectBtn) {
       connectBtn.onclick = (e) => {
         e.stopPropagation();
         const system = allSystems.find((s) => s.name === systemName);
         if (system) {
-          autoUpdateConsole(
-            system,
-            "isAlive",
-            "Attempting to contact launcher..."
-          );
+          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
           checkLauncherAlive(system, true);
         }
       };
     }
 
-    // Shutdown button
-    const shutdownBtn = card.querySelector(".shutdown-icon");
-    if (shutdownBtn && !shutdownBtn.classList.contains("disabled")) {
-      shutdownBtn.onclick = (e) => {
+    // Device name clicks → action menu in popup window
+    card.querySelectorAll(".device-name:not(.inactive-field)").forEach((nameEl) => {
+      nameEl.style.cursor = "pointer";
+      nameEl.onclick = (e) => {
         e.stopPropagation();
         const system = allSystems.find((s) => s.name === systemName);
-        if (system) shutdownSystem(system);
+        if (system) {
+          const deviceKey = nameEl.textContent.trim().toLowerCase();
+          showEditMenu(e, system, deviceKey, miniMonitorPopup);
+        }
       };
-    }
+    });
 
-    // Device name clicks → edit menu in main window
-    card.querySelectorAll(".device-name:not(.inactive-field)").forEach(
-      (nameEl) => {
-        nameEl.style.cursor = "pointer";
-        nameEl.onclick = (e) => {
-          e.stopPropagation();
-          const system = allSystems.find((s) => s.name === systemName);
-          if (system) {
-            const deviceKey = nameEl.textContent.trim().toLowerCase();
-            showEditMenu(e, system, deviceKey);
-          }
-        };
-      }
-    );
-
-    // System title click → rename
-    const titleEl = card.querySelector(
-      ".system-title:not(.inactive-field)"
-    );
-    if (titleEl && systemName !== "Local Host") {
-      titleEl.style.cursor = "pointer";
-      titleEl.onclick = (e) => {
-        e.stopPropagation();
-        const system = allSystems.find((s) => s.name === systemName);
-        if (system) showEditMenu(e, system, "name");
-      };
-    }
-
-    // IP info click → edit IP/port
-    const ipEl = card.querySelector(".ip-info:not(.inactive-field)");
-    if (ipEl) {
-      ipEl.style.cursor = "pointer";
-      ipEl.onclick = (e) => {
-        e.stopPropagation();
-        const system = allSystems.find((s) => s.name === systemName);
-        if (system) showEditMenu(e, system, "ipport");
-      };
-    }
-
-    // Device item clicks
+    // Device item clicks → select system
     card.querySelectorAll(".device-item").forEach((item) => {
       item.onclick = (e) => {
         e.preventDefault();

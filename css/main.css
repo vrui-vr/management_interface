@@ -387,7 +387,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 14px;
 }
 
-#vrui-logo-link {
+#VRui-logo-link {
   display: flex;
   flex-shrink: 0;
 }
@@ -401,7 +401,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: opacity 0.15s ease;
 }
 
-#vrui-logo-link:hover .sidebar-logo {
+#VRui-logo-link:hover .sidebar-logo {
   opacity: 0.8;
 }
 
@@ -514,106 +514,99 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ========================================
-   DEVICE SELECTOR SECTION (In Sidebar)
+   ACTIVE TARGET DISPLAY (In Sidebar)
    ======================================== */
 
-.device-selector-section {
+.sidebar-target {
   margin-bottom: 20px;
-}
-
-.device-selector-wrapper {
-  position: relative;
-}
-
-.device-selector-title {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 12px 16px;
-  background: var(--bg-subtle);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-target-name {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
   color: var(--text-dark);
-  border: 1px solid transparent;
-  font-weight: 500;
-}
-
-[data-theme="dark"] .device-selector-title {
-  background: var(--bg-subtle);
-}
-
-.device-selector-title:hover {
-  background: var(--btn-hover-bg);
-  border-color: var(--border);
-}
-
-.device-selector-title.active {
-  background: var(--btn-hover-bg);
-  border-color: var(--text-muted);
-}
-
-.device-selector-icon {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.2s ease;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
-.device-selector-title.active .device-selector-icon {
-  transform: rotate(180deg);
-}
-
-.device-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
-  z-index: 100;
-  display: none;
-  padding: 6px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-[data-theme="dark"] .device-dropdown {
-  box-shadow: var(--shadow-lg);
-}
-
-.device-dropdown.active {
-  display: block;
-}
-
-.device-dropdown-item {
-  padding: 10px 12px;
+  width: fit-content;
   border-radius: 6px;
+  transition: background-color 0.15s ease, transform 0.15s ease, padding 0.15s ease, margin 0.15s ease;
+}
+
+.sidebar-target-name:hover:not([style*="cursor: default"]) {
+  background-color: rgba(0, 0, 0, 0.06);
+  padding: 0.1rem 0.35rem;
+  margin: -0.1rem -0.35rem;
+  transform: translateY(-1px);
   cursor: pointer;
-  transition: background 0.15s ease;
-  font-size: 14px;
-  color: var(--text-dark);
-  font-weight: 500;
 }
 
-.device-dropdown-item:hover {
-  background: var(--btn-hover-bg);
+[data-theme="dark"] .sidebar-target-name:hover:not([style*="cursor: default"]) {
+  background-color: rgba(255, 255, 255, 0.07);
 }
 
-.device-dropdown-item.selected {
-  background: var(--rig-0-bg);
-  color: var(--rig-0);
-}
-
-.device-dropdown-item.offline {
+.sidebar-target-info {
+  font-size: 0.72rem;
   color: var(--text-muted);
   font-weight: 400;
+  letter-spacing: 0.01em;
+  font-family: "SF Mono", "Monaco", "Cascadia Code", "Consolas", monospace;
+  width: fit-content;
+  transition: color 0.15s ease;
 }
+
+.sidebar-target-info:hover {
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* Connected rig gradient — matches system card title exactly */
+.sidebar[data-color-class="rig-0"]:not(.offline) .sidebar-target-name {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6, #2563eb, #1d4ed8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar[data-color-class="rig-1"]:not(.offline) .sidebar-target-name {
+  background: linear-gradient(135deg, #fb923c, #f97316, #ea580c, #c2410c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar[data-color-class="rig-2"]:not(.offline) .sidebar-target-name {
+  background: linear-gradient(135deg, #4ade80, #22c55e, #16a34a, #15803d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar[data-color-class="rig-3"]:not(.offline) .sidebar-target-name {
+  background: linear-gradient(135deg, #fde047, #facc15, #eab308, #ca8a04);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar[data-color-class="rig-4"]:not(.offline) .sidebar-target-name {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6, #7c3aed, #6d28d9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sidebar[data-color-class="rig-5"]:not(.offline) .sidebar-target-name {
+  background: linear-gradient(135deg, #f472b6, #ec4899, #db2777, #be185d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Offline — muted color, matches disconnected system card title */
+.sidebar.offline[data-color-class="rig-0"] .sidebar-target-name { color: var(--rig-0-muted); }
+.sidebar.offline[data-color-class="rig-1"] .sidebar-target-name { color: var(--rig-1-muted); }
+.sidebar.offline[data-color-class="rig-2"] .sidebar-target-name { color: var(--rig-2-muted); }
+.sidebar.offline[data-color-class="rig-3"] .sidebar-target-name { color: var(--rig-3-muted); }
+.sidebar.offline[data-color-class="rig-4"] .sidebar-target-name { color: var(--rig-4-muted); }
+.sidebar.offline[data-color-class="rig-5"] .sidebar-target-name { color: var(--rig-5-muted); }
 
 .title-row {
   display: flex;
@@ -2713,3 +2706,126 @@ h1, h2, h3, h4, h5, h6 {
 .theme-toggle.dark .theme-icon.moon {
   display: block;
 }
+
+/* ========================================
+   FORM MODAL
+   ======================================== */
+
+.form-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.form-modal-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  min-width: 300px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  letter-spacing: -0.01em;
+}
+
+.form-modal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-modal-row label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.form-modal-row input {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  font-size: 0.875rem;
+  color: var(--text-dark);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-modal-row input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--rig-0-bg);
+}
+
+.form-modal-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.form-modal-cancel {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  font-family: inherit;
+}
+
+.form-modal-cancel:hover {
+  background: var(--btn-hover-bg);
+}
+
+.form-modal-submit {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+
+.form-modal-submit:hover {
+  opacity: 0.85;
+}
+
+/* Rig-colored submit button and input focus ring */
+.form-modal-card[data-color-class="rig-0"] .form-modal-submit { background: var(--rig-0); }
+.form-modal-card[data-color-class="rig-1"] .form-modal-submit { background: var(--rig-1); }
+.form-modal-card[data-color-class="rig-2"] .form-modal-submit { background: var(--rig-2); }
+.form-modal-card[data-color-class="rig-3"] .form-modal-submit { background: var(--rig-3); }
+.form-modal-card[data-color-class="rig-4"] .form-modal-submit { background: var(--rig-4); }
+.form-modal-card[data-color-class="rig-5"] .form-modal-submit { background: var(--rig-5); }
+
+.form-modal-card[data-color-class="rig-0"] .form-modal-row input:focus { border-color: var(--rig-0); box-shadow: 0 0 0 3px var(--rig-0-bg); }
+.form-modal-card[data-color-class="rig-1"] .form-modal-row input:focus { border-color: var(--rig-1); box-shadow: 0 0 0 3px var(--rig-1-bg); }
+.form-modal-card[data-color-class="rig-2"] .form-modal-row input:focus { border-color: var(--rig-2); box-shadow: 0 0 0 3px var(--rig-2-bg); }
+.form-modal-card[data-color-class="rig-3"] .form-modal-row input:focus { border-color: var(--rig-3); box-shadow: 0 0 0 3px var(--rig-3-bg); }
+.form-modal-card[data-color-class="rig-4"] .form-modal-row input:focus { border-color: var(--rig-4); box-shadow: 0 0 0 3px var(--rig-4-bg); }
+.form-modal-card[data-color-class="rig-5"] .form-modal-row input:focus { border-color: var(--rig-5); box-shadow: 0 0 0 3px var(--rig-5-bg); }

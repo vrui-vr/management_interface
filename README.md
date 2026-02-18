@@ -1,9 +1,9 @@
-# Vrui Management Interface
-A lightweight browser-based dashboard for managing systems running the Vrui (Virtual Reality User Interface) software stack. This tool is designed to simplify remote control and monitoring of multiple VR devices and systems over a network — replacing manual console commands with a dynamic, user-friendly web interface.
+# VRui Management Interface
+A lightweight browser-based dashboard for managing systems running the VRui (Virtual Reality User Interface) software stack. This tool is designed to simplify remote control and monitoring of multiple VR devices and systems over a network — replacing manual console commands with a dynamic, user-friendly web interface.
 
 ## Project Overview:
 
-The frontend is built using HTML, CSS, and vanilla JavaScript, and communicates with remote Vrui systems via HTTP POST requests to the backend (coded in C++ within the main Vrui application)
+The frontend is built using HTML, CSS, and vanilla JavaScript, and communicates with remote VRui systems via HTTP POST requests to the backend (coded in C++ within the main VRui application)
 
 This current testing version of the app allows you to:
 
@@ -74,11 +74,11 @@ MANAGEMENT_INTERFACE/
 ├── js/
 │   └── main.js            → Frontend interactivity and fetch logic
 ├── images/
-│   └── Vruilogo.jpg       → Main logo
+│   └── VRuilogo.jpg       → Main logo
 ├── index.html             → Main entry point (UI)
 └── README.md              → This file
 ```
 
 ## How to Run:
 
-After setting up main Vrui application and running ```Make.sh```, all you need to do is run/open the html file in any modern browser
+After setting up main VRui application and running ```Make.sh```, all you need to do is run/open the html file in any modern browser
