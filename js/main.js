@@ -2417,6 +2417,13 @@ function openMiniMonitor() {
         .action-menu {
           position: fixed;
         }
+
+        /* Tighter vertical spacing for the compact popup height */
+        .card-header { margin-bottom: 0.1rem; min-height: unset; }
+        .card-divider { margin: 0.2rem 0; }
+        .server-section { padding: 0.45rem 0.65rem; margin-bottom: 0.25rem; }
+        .device-section { padding: 0.45rem 0.65rem; }
+        .section-title { margin-bottom: 0.25rem; }
       </style>
     </head>
     <body>
