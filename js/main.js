@@ -2326,12 +2326,14 @@ function openMiniMonitor() {
   }
 
   const screenW = window.screen.availWidth;
-  const cardW = 250;
+  const screenH = window.screen.availHeight;
+  // Scale card width based on screen resolution (accounts for OS scaling via CSS px)
+  const cardW = screenW >= 3840 ? 340 : screenW >= 2560 ? 300 : screenW >= 1920 ? 270 : 250;
   const cardGap = 16;
   const popPadding = 24;
   const numSystems = allSystems.length;
   const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
-  const popH = 380;
+  const popH = Math.round(screenH * 0.3);
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
@@ -2400,18 +2402,18 @@ function openMiniMonitor() {
           background: var(--text-secondary);
         }
 
-        /* Cards: normal width, slightly shorter */
+        /* Cards: resolution-scaled width, height driven by content */
         .system-card {
-          width: 250px;
-          min-width: 250px;
-          height: 340px;
+          width: ${cardW}px;
+          min-width: ${cardW}px;
+          height: auto;
           flex-shrink: 0;
         }
 
-        /* Hide add-system card, remove button, and power/shutdown button */
+        /* Hide add-system card, remove button, and entire shutdown container */
         .add-system-card { display: none !important; }
         .remove-btn { display: none !important; }
-        .shutdown-icon { display: none !important; }
+        .shutdown-container { display: none !important; }
 
         /* Keep the action menu working in the popup */
         .action-menu {
