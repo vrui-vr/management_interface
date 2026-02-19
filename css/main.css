@@ -1834,89 +1834,58 @@ h1, h2, h3, h4, h5, h6 {
    CONNECT & SHUTDOWN BUTTONS
    ======================================== */
 
-.connect-btn {
-  display: block;
-  width: fit-content; /* or a fixed width like 240px */
-  margin: 2rem auto;  /* centers horizontally */
-  padding: 1rem 2rem;
-  font-size: 0.75rem;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.01));
+/* -- Connect zone (layout wrapper for offline cards) -- */
+
+.connect-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: -3.5rem;
+}
+
+.connect-btn-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-  font-weight: 600;
-  color: inherit;
-  position: relative;
-  overflow: hidden;
-  letter-spacing: 0.02em;
+  opacity: 0.5;
 }
 
-.connect-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
-  padding: 1px;
-  background: linear-gradient(135deg, currentColor, transparent);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.3;
+.connect-btn-wrap:hover {
+  opacity: 0.75;
+  background: rgba(0, 0, 0, 0.04);
 }
 
-.connect-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+[data-theme="dark"] .connect-btn-wrap:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.connect-btn:hover::before {
-  opacity: 0.6;
+.connect-icon {
+  width: 40px;
+  height: 40px;
 }
 
-
-.system-card.disconnected.rig-0 .connect-btn {
-  background: linear-gradient(135deg, #60a5fa, #3b82f6, #2563eb, #1d4ed8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.connect-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0.45;
+  pointer-events: none;
 }
 
-.system-card.disconnected.rig-1 .connect-btn {
-  background: linear-gradient(135deg, #fb923c, #f97316, #ea580c, #c2410c);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.disconnected.rig-2 .connect-btn {
-  background: linear-gradient(135deg, #4ade80, #22c55e, #16a34a, #15803d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.disconnected.rig-3 .connect-btn {
-  background: linear-gradient(135deg, #fde047, #facc15, #eab308, #ca8a04);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.disconnected.rig-4 .connect-btn {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6, #7c3aed, #6d28d9);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.disconnected.rig-5 .connect-btn {
-  background: linear-gradient(135deg, #f472b6, #ec4899, #db2777, #be185d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+/* Per-rig icon colors */
+.system-card.disconnected.rig-0 .connect-zone { color: var(--rig-0-muted); }
+.system-card.disconnected.rig-1 .connect-zone { color: var(--rig-1-muted); }
+.system-card.disconnected.rig-2 .connect-zone { color: var(--rig-2-muted); }
+.system-card.disconnected.rig-3 .connect-zone { color: var(--rig-3-muted); }
+.system-card.disconnected.rig-4 .connect-zone { color: var(--rig-4-muted); }
+.system-card.disconnected.rig-5 .connect-zone { color: var(--rig-5-muted); }
 
 .shutdown-container {
   display: flex;

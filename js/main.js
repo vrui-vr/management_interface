@@ -839,29 +839,40 @@ function renderSystems(systems) {
       card._sections.divider = divider;
     }
 
-    // ---------- CONNECT BUTTON ---------- 
+    // ---------- CONNECT ZONE ----------
     if (!isAlive) {
-      if (!card._sections.connectBtn || card._needsFullRebuild) {
-        const connectBtn = document.createElement("button");
-        connectBtn.className = `connect-btn ${system.colorClass}`;
-        connectBtn.textContent = "Connect";
-        connectBtn.onclick = e => {
+      if (!card._sections.connectZone || card._needsFullRebuild) {
+        const zone = document.createElement("div");
+        zone.className = "connect-zone";
+        zone.innerHTML = `
+          <div class="connect-btn-wrap">
+            <svg class="connect-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+              <line x1="12" y1="2" x2="12" y2="12"/>
+            </svg>
+          </div>
+        `;
+
+        zone.querySelector(".connect-btn-wrap").onclick = e => {
           e.stopPropagation();
           autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
           checkLauncherAlive(system, true);
         };
 
-        if (card._sections.connectBtn) {
-          card.replaceChild(connectBtn, card._sections.connectBtn);
+        if (card._sections.connectZone) {
+          card.replaceChild(zone, card._sections.connectZone);
         } else {
           const insertAfter = card._sections.divider || card._sections.header;
-          card.insertBefore(connectBtn, insertAfter?.nextSibling || null);
+          card.insertBefore(zone, insertAfter?.nextSibling || null);
         }
-        card._sections.connectBtn = connectBtn;
+
+        card._sections.connectZone = zone;
       }
-    } else if (card._sections.connectBtn) {
-      card.removeChild(card._sections.connectBtn);
-      delete card._sections.connectBtn;
+
+    } else if (card._sections.connectZone) {
+      card.removeChild(card._sections.connectZone);
+      delete card._sections.connectZone;
     }
 
     // ---------- SERVERS ---------- 
@@ -903,7 +914,7 @@ function renderSystems(systems) {
 		if (card._sections.servers) {
 		  card.replaceChild(section, card._sections.servers);
 		} else {
-		  const insertAfter = card._sections.connectBtn || card._sections.divider || card._sections.header;
+		  const insertAfter = card._sections.connectZone || card._sections.divider || card._sections.header;
 		  card.insertBefore(section, insertAfter?.nextSibling || null);
 		}
 		card._sections.servers = section;
@@ -988,7 +999,7 @@ function renderSystems(systems) {
 		if (card._sections.devices) {
 		  card.replaceChild(section, card._sections.devices);
 		} else {
-		  const insertAfter = card._sections.servers || card._sections.connectBtn || card._sections.divider || card._sections.header;
+		  const insertAfter = card._sections.servers || card._sections.connectZone || card._sections.divider || card._sections.header;
 		  card.insertBefore(section, insertAfter?.nextSibling || null);
 		}
 		card._sections.devices = section;
@@ -2323,14 +2334,13 @@ function openMiniMonitor() {
   }
 
   const screenW = window.screen.availWidth;
-  const screenH = window.screen.availHeight;
   // Scale card width based on screen resolution (accounts for OS scaling via CSS px)
   const cardW = screenW >= 3840 ? 340 : screenW >= 2560 ? 300 : screenW >= 1920 ? 270 : 250;
+  const popH  = screenW >= 3840 ? 420 : screenW >= 2560 ? 370 : screenW >= 1920 ? 330 : 300;
   const cardGap = 16;
   const popPadding = 24;
   const numSystems = allSystems.length;
   const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
-  const popH = Math.round(screenH * 0.35);
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
@@ -2380,10 +2390,9 @@ function openMiniMonitor() {
           flex-wrap: nowrap;
           gap: 16px;
           padding: 12px;
-          padding-bottom: 20px;
           overflow-x: auto;
           overflow-y: visible;
-          align-items: flex-start;
+          align-items: stretch;
           min-height: 0;
           scrollbar-width: thin;
           scrollbar-color: var(--border) transparent;
@@ -2399,12 +2408,13 @@ function openMiniMonitor() {
           background: var(--text-secondary);
         }
 
-        /* Cards: resolution-scaled width, height driven by content */
+        /* Cards: width scaled to resolution, height fills the container */
         .system-card {
           width: ${cardW}px;
           min-width: ${cardW}px;
           height: auto;
           flex-shrink: 0;
+          overflow: visible;
         }
 
         /* Hide add-system card, remove button, and entire shutdown container */
@@ -2511,6 +2521,7 @@ function syncMiniMonitor() {
 
   // Re-bind all interactive handlers (cloneNode strips listeners)
   rebindMiniMonitorHandlers(target);
+
 }
 
 function rebindMiniMonitorHandlers(container) {
@@ -2523,18 +2534,19 @@ function rebindMiniMonitorHandlers(container) {
       changeSystem(systemName);
     };
 
-    // Connect button (keep — useful for monitor)
-    const connectBtn = card.querySelector(".connect-btn");
-    if (connectBtn) {
-      connectBtn.onclick = (e) => {
-        e.stopPropagation();
-        const system = allSystems.find((s) => s.name === systemName);
-        if (system) {
-          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-          checkLauncherAlive(system, true);
-        }
-      };
-    }
+    // Connect buttons (keep — useful for monitor)
+    const connectHandler = (e) => {
+      e.stopPropagation();
+      const system = allSystems.find((s) => s.name === systemName);
+      if (system) {
+        autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
+        checkLauncherAlive(system, true);
+      }
+    };
+    const connectIcon = card.querySelector(".connect-btn-wrap");
+    if (connectIcon) connectIcon.onclick = connectHandler;
+    const connectAction = card.querySelector(".connect-action");
+    if (connectAction) connectAction.onclick = connectHandler;
 
     // Device name clicks → action menu in popup window
     card.querySelectorAll(".device-name:not(.inactive-field)").forEach((nameEl) => {
