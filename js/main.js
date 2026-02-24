@@ -2509,7 +2509,7 @@ function openMiniMonitor() {
 
   miniMonitorPopup = window.open(
     "",
-    "VRuiMiniMonitor",
+    "VruiMiniMonitor",
     `width=${popW},height=${popH},top=${popTop},left=${popLeft},resizable=yes,scrollbars=yes`
   );
 
@@ -2526,7 +2526,7 @@ function openMiniMonitor() {
     <html lang="en" data-theme="${currentTheme}">
     <head>
       <meta charset="UTF-8">
-      <title>VRui Monitor</title>
+      <title>Vrui Monitor</title>
       <link rel="stylesheet" href="css/main.css">
       <style>
         *, *::before, *::after { box-sizing: border-box; }

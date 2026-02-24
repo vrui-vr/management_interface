@@ -350,7 +350,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 14px;
 }
 
-#VRui-logo-link {
+#Vrui-logo-link {
   display: flex;
   flex-shrink: 0;
 }
@@ -364,7 +364,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: opacity 0.15s ease;
 }
 
-#VRui-logo-link:hover .sidebar-logo {
+#Vrui-logo-link:hover .sidebar-logo {
   opacity: 0.8;
 }
 
