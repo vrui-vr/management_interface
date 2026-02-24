@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VRUI Interface</title>
+    <title>Vrui Interface</title>
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
@@ -13,12 +13,22 @@
       <!-- Sidebar Header with Logo, Title, and Theme Toggle -->
       <div class="sidebar-header">
         <div class="sidebar-header-left">
-          <img
-            src="images/vruilogo.jpg"
-            alt="VRUI Logo"
-            class="sidebar-logo"
-          />
-          <h2 class="sidebar-title">VRUI Interface</h2>
+          <a href="https://Vrui-vr.github.io/" target="_blank" rel="noopener" id="Vrui-logo-link">
+            <img
+              src="images/vruilogo.jpg"
+              alt="Vrui Logo"
+              class="sidebar-logo"
+            />
+          </a>
+          <div class="sidebar-title-group">
+            <h2 class="sidebar-title">Vrui Interface</h2>
+            <a href="https://Vrui-vr.github.io/" target="_blank" rel="noopener" class="sidebar-docs-link">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
+              </svg>
+              Documentation
+            </a>
+          </div>
         </div>
         <div class="sidebar-header-right">
           <button class="theme-toggle" aria-label="Toggle dark mode">
@@ -42,29 +52,42 @@
         </div>
       </div>
 
-      <!-- Device Selector Dropdown (replaces the old title-row) -->
-      <div class="device-selector-section">
-        <div class="device-selector-wrapper">
-          <div class="device-selector-title" id="deviceSelectorToggle">
-            <span id="deviceSelectorText">Target: localhost</span>
-            <svg class="device-selector-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </div>
-          <div id="deviceDropdown" class="device-dropdown">
-            <!-- Will be populated dynamically with devices -->
-          </div>
+      <!-- Active system display -->
+      <div class="sidebar-target">
+        <div class="sidebar-target-name" id="currentSystemName">Local Host</div>
+        <div class="sidebar-target-info" id="currentSystemInfo">—</div>
+      </div>
+
+      <!-- Environment selector (hidden when no environments available) -->
+      <div class="environment-selector" id="environmentSelector" style="display: none;">
+        <label class="environment-label" for="environmentDropdown">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Front face -->
+            <rect x="3" y="7" width="12" height="12"/>
+            <!-- Back face edges -->
+            <rect x="9" y="3" width="12" height="12"/>
+            <!-- Connecting edges -->
+            <line x1="3" y1="7" x2="9" y2="3"/>
+            <line x1="15" y1="7" x2="21" y2="3"/>
+            <line x1="3" y1="19" x2="9" y2="15"/>
+            <line x1="15" y1="19" x2="21" y2="15"/>
+          </svg>
+          Environment
+        </label>
+        <div class="environment-dropdown-wrapper">
+          <select id="environmentDropdown" class="environment-dropdown">
+            <option value="">Select environment...</option>
+          </select>
+          <svg class="environment-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
         </div>
       </div>
 
       <div class="button-section">
         <button class="button" id="btn-1" onclick="sendButton(1)">Toggle Status Requests</button>
-        <button class="button" id="btn-2" onclick="sendButton(2)">...</button>
+        <button class="button" id="btn-2" onclick="sendButton(2)">Start Servers</button>
         <button class="button" id="btn-3" onclick="sendButton(3)">...</button>
-        <button class="button" id="btn-4" onclick="sendButton(4)">...</button>
-        <button class="button button-danger" id="btn-5" onclick="sendButton(5)">...</button>
-        <button class="button button-danger" id="btn-6" onclick="sendButton(6)">...</button>
-        <button class="button button-danger" id="btn-7" onclick="sendButton(7)">...</button>
       </div>
 
       <!-- File Upload Section -->
@@ -103,7 +126,16 @@
     </div>
 
     <div class="main">
-      <div class="system-section" id="systemContainer"></div>
+      <div class="system-section-wrapper">
+        <button class="mini-monitor-btn" onclick="openMiniMonitor()" title="Detach monitor">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </button>
+        <div class="system-section" id="systemContainer"></div>
+      </div>
       <div class="console-section">
         <div class="console-header">
           <h3>Console</h3>

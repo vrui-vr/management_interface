@@ -16,6 +16,7 @@ compositingServerUrl = "VRCompositingServer.cgi";
 const getServerStatusInterval = 3000;
 
 let getStatusUpdates = true;   // global flag (default ON)
+let showEmptyEnvironmentDropdown = true; // show dropdown even when no environments are available
 
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
@@ -127,6 +128,7 @@ function normalizeSystems(rawSystems) {
       ip: d.ip || "N/A",
       colorClass: `rig-${index % 6}`,
       devices: normalizedDevices,
+      environments: [],
     };
   });
 }
@@ -159,70 +161,152 @@ function getCompositingServerEndpoint(system) {
   return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}`;
 }
 
-// Add system to list of systems
-function addSystem() {
-  const defaultName = `Rig ${String.fromCharCode(65 + allSystems.length)}`;
-  const nameInput = window.prompt("Enter system name:", defaultName);
-  const newName =
-    nameInput && nameInput.trim() !== "" ? nameInput.trim() : defaultName;
+// Shows a modal form with configurable fields for user input
+function showFormModal({ title, submitLabel = "Save", fields, colorClass = "", onSubmit }) {
+  const existing = document.getElementById("formModal");
+  if (existing) existing.remove();
 
-  if (
-    newName.toLowerCase() === "local host" ||
-    newName.toLowerCase() === "localhost"
-  ) {
-    alert("The name 'Local Host' is reserved and cannot be used.");
-    return;
-  }
+  const overlay = document.createElement("div");
+  overlay.id = "formModal";
+  overlay.className = "form-modal-overlay";
 
-  const ipAddress = window.prompt(
-    "Enter system IP address (e.g., 192.168.1.15):",
-    "192.168.1.15"
-  );
-  const ip = ipAddress && ipAddress.trim() !== "" ? ipAddress.trim() : "";
+  const card = document.createElement("div");
+  card.className = "form-modal-card";
+  if (colorClass) card.dataset.colorClass = colorClass;
 
-  const launcherPortInput = window.prompt("Enter ServerLauncher port (default: 8080):", "8080");
-  const serverLauncherPort = launcherPortInput && launcherPortInput.trim() !== "" ? launcherPortInput.trim() : "8080";
+  const h = document.createElement("h3");
+  h.className = "form-modal-title";
+  h.textContent = title;
+  card.appendChild(h);
 
-  const devicePortInput = window.prompt("Enter VRDeviceServer port (default: 8081):", "8081");
-  const deviceServerPort = devicePortInput && devicePortInput.trim() !== "" ? devicePortInput.trim() : "8081";
+  const inputs = {};
+  fields.forEach((f) => {
+    const row = document.createElement("div");
+    row.className = "form-modal-row";
 
-  const compositingPortInput = window.prompt("Enter CompositingServer port (default: 8082):", "8082");
-  const compositingServerPort = compositingPortInput && compositingPortInput.trim() !== "" ? compositingPortInput.trim() : "8082";
+    const label = document.createElement("label");
+    label.textContent = f.label;
+    label.htmlFor = `fmf-${f.key}`;
 
-  const newSystem = {
-    name: newName,
-    ip,
-    serverLauncherPort: serverLauncherPort,
-    deviceServerPort: deviceServerPort,
-    compositingServerPort: compositingServerPort,
-    connected: false,
-    launcherAlive: false,
-    servers: [],
-    colorClass: `rig-${allSystems.length % 6}`,
-    devices: {},
+    const input = document.createElement("input");
+    input.type = f.type || "text";
+    input.id = `fmf-${f.key}`;
+    input.value = f.default !== undefined ? f.default : "";
+    input.placeholder = f.placeholder || "";
+
+    row.appendChild(label);
+    row.appendChild(input);
+    card.appendChild(row);
+    inputs[f.key] = input;
+  });
+
+  const buttons = document.createElement("div");
+  buttons.className = "form-modal-buttons";
+
+  const cancel = document.createElement("button");
+  cancel.className = "form-modal-cancel";
+  cancel.textContent = "Cancel";
+  cancel.type = "button";
+  cancel.onclick = () => overlay.remove();
+
+  const submit = document.createElement("button");
+  submit.className = "form-modal-submit";
+  submit.textContent = submitLabel;
+  submit.type = "button";
+  submit.onclick = () => {
+    const values = {};
+    for (const [key, el] of Object.entries(inputs)) {
+      values[key] = el.value.trim();
+    }
+    overlay.remove();
+    onSubmit(values);
   };
 
-  allSystems.push(newSystem);
-  currentSystem = newName;
-  updateInterface();
-  autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
+  buttons.appendChild(cancel);
+  buttons.appendChild(submit);
+  card.appendChild(buttons);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 
-  saveSystemsToLocalStorage();
-  
-  // Check if launcher is alive
-  checkLauncherAlive(newSystem);
+  Object.values(inputs)[0]?.focus();
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  card.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit.click();
+    if (e.key === "Escape") overlay.remove();
+  });
+}
+
+// Add system to list of systems
+function addSystem() {
+  // Find first color index not already in use; fall back to cycling if all 6 taken
+  const usedColors = new Set(allSystems.map(s => s.colorClass));
+  const availableIndex = [0, 1, 2, 3, 4, 5].find(i => !usedColors.has(`rig-${i}`));
+  const newColorClass = `rig-${availableIndex !== undefined ? availableIndex : allSystems.length % 6}`;
+
+  // Find next default name not already in use
+  const usedNames = new Set(allSystems.map(s => s.name));
+  let nameIndex = allSystems.length;
+  let defaultName = `Rig ${String.fromCharCode(65 + nameIndex)}`;
+  while (usedNames.has(defaultName)) {
+    nameIndex++;
+    defaultName = `Rig ${String.fromCharCode(65 + nameIndex)}`;
+  }
+
+  showFormModal({
+    title: "Add System",
+    submitLabel: "Add",
+    colorClass: newColorClass,
+    fields: [
+      { key: "name", label: "Name", default: defaultName, placeholder: defaultName },
+      { key: "ip", label: "IP Address", default: "192.168.1.15", placeholder: "192.168.1.15" },
+      { key: "port", label: "Launcher Port", default: "8080", placeholder: "8080" },
+    ],
+    onSubmit: ({ name, ip, port }) => {
+      const newName = name || defaultName;
+      if (
+        newName.toLowerCase() === "local host" ||
+        newName.toLowerCase() === "localhost"
+      ) {
+        alert("The name 'Local Host' is reserved and cannot be used.");
+        return;
+      }
+      const newSystem = {
+        name: newName,
+        ip: ip || "",
+        serverLauncherPort: port || "8080",
+        deviceServerPort: "",
+        compositingServerPort: "",
+        connected: false,
+        launcherAlive: false,
+        servers: [],
+        colorClass: newColorClass,
+        devices: {},
+      };
+      allSystems.push(newSystem);
+      updateInterface();
+      autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
+      saveSystemsToLocalStorage();
+      checkLauncherAlive(newSystem);
+    },
+  });
 }
 
 // Remove system from list of systems
 // Protects the Local Host from deletion
-function removeSystem(systemName) {
+function removeSystem(systemName, skipConfirm = false) {
   if (systemName === "Local Host") {
     alert("Cannot remove 'Local Host'. It is a protected system.");
     return;
   }
 
-  const confirmed = confirm(`Are you sure you want to remove "${systemName}"?`);
-  if (!confirmed) return;
+  if (!skipConfirm) {
+    const confirmed = confirm(`Are you sure you want to remove "${systemName}"?`);
+    if (!confirmed) return;
+  }
 
   // If the removed system is currently selected, switch to Local Host
   if (currentSystem === systemName) {
@@ -334,12 +418,6 @@ function changeSystem(name) {
   currentSystem = name;
   updateInterface();
 
-  // Update device selector text
-  const deviceSelectorText = document.getElementById("deviceSelectorText");
-  if (deviceSelectorText) {
-    deviceSelectorText.textContent = `Target: ${name}`;
-  }
-
   const system = allSystems.find((d) => d.name === name);
   
   // Update sidebar border animation and offline state
@@ -356,7 +434,10 @@ function changeSystem(name) {
     
     // Update file drop box state
     updateFileDropState(system);
-    
+
+    // Fetch available environments for this system
+    getEnvironments(system);
+
     // Update command prompt color class
     const commandPrompt = document.getElementById('commandPrompt');
     if (commandPrompt) {
@@ -368,12 +449,16 @@ function changeSystem(name) {
   } else {
     sidebar.removeAttribute('data-color-class');
     sidebar.classList.remove('offline');
-    
+
     // Remove color class from command prompt
     const commandPrompt = document.getElementById('commandPrompt');
     if (commandPrompt) {
       commandPrompt.classList.remove('rig-0', 'rig-1', 'rig-2', 'rig-3', 'rig-4', 'rig-5');
     }
+
+    // Hide environment selector when no system selected
+    const envSelector = document.getElementById('environmentSelector');
+    if (envSelector) envSelector.style.display = 'none';
   }
 }
 
@@ -398,11 +483,41 @@ function updateFileDropState(system) {
   }
 }
 
-// Handles dropdown for changing systems
+// Updates the active target display and binds edit handlers
 function updateDropdown() {
-  // This function now delegates to populateDeviceDropdown
-  // since we're using the new device selector dropdown
-  populateDeviceDropdown();
+  const system = allSystems.find((d) => d.name === currentSystem);
+
+  const nameEl = document.getElementById("currentSystemName");
+  if (nameEl) {
+    nameEl.textContent = currentSystem;
+    if (system && currentSystem !== "Local Host") {
+      nameEl.style.cursor = "pointer";
+      nameEl.title = "Edit name";
+      nameEl.onclick = (e) => {
+        e.stopPropagation();
+        showEditMenu(e, system, "name");
+      };
+    } else {
+      nameEl.style.cursor = "default";
+      nameEl.title = "";
+      nameEl.onclick = null;
+    }
+  }
+
+  const infoEl = document.getElementById("currentSystemInfo");
+  if (infoEl) {
+    infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
+    if (system) {
+      infoEl.style.cursor = "pointer";
+      infoEl.title = "Edit IP / Ports";
+      infoEl.onclick = (e) => {
+        e.stopPropagation();
+        showEditMenu(e, system, "ipport");
+      };
+    } else {
+      infoEl.onclick = null;
+    }
+  }
 }
 
 // Updates button logic based on the state
@@ -420,13 +535,8 @@ function updateButtonStates() {
     btn2.disabled = false;
   }
 
-  // Grey out buttons 3-7
-  for (let i = 3; i <= 7; i++) {
-    const btn = document.getElementById(`btn-${i}`);
-    if (btn) {
-      btn.disabled = true;  // greyed out
-    }
-  }
+  const btn3 = document.getElementById("btn-3");
+  if (btn3) btn3.disabled = true;
 }
 
 // Updates the UI for the system widgets
@@ -529,19 +639,15 @@ function changeTargetColor(systemName) {
   // Keeping it as a no-op for backwards compatibility
 }
   
-// Formats the ports to be pretty printed
+// Formats the ports to be pretty printed; omits unknown ports
 function formatPorts(p1, p2, p3) {
-  // ensure numbers
-  p1 = Number(p1);
-  p2 = Number(p2);
-  p3 = Number(p3);
+  p1 = Number(p1) || 0;
+  p2 = Number(p2) || 0;
+  p3 = Number(p3) || 0;
 
-  // check if consecutive
-  if (p2 === p1 + 1 && p3 === p2 + 1) {
-    return `${p1}-${p3}`;
-  }
-
-  // fallback
+  if (!p2 && !p3) return `${p1}`;
+  if (!p3) return p2 === p1 + 1 ? `${p1}-${p2}` : `${p1}/${p2}`;
+  if (p2 === p1 + 1 && p3 === p2 + 1) return `${p1}-${p3}`;
   return `${p1}/${p2}/${p3}`;
 }
 
@@ -708,26 +814,7 @@ function renderSystems(systems) {
         labelSpan.appendChild(offline);
       }
 
-      const ipSpan = document.createElement("span");
-      ipSpan.className = "ip-info";
-      ipSpan.textContent = `${system.ip}:${formatPorts(
-        system.serverLauncherPort,
-        system.deviceServerPort,
-        system.compositingServerPort
-      )}`;
-
-      if (system.name === currentSystem) {
-        ipSpan.style.cursor = "pointer";
-        ipSpan.title = "Edit IP/Port";
-        ipSpan.onclick = e => {
-          e.stopPropagation();
-          showEditMenu(e, system, "ipport");
-        };
-      } else {
-        ipSpan.classList.add("inactive-field");
-      }
-
-      titleSection.append(labelSpan, ipSpan);
+      titleSection.append(labelSpan);
       header.appendChild(titleSection);
 
       if (system.name !== "Local Host") {
@@ -761,29 +848,40 @@ function renderSystems(systems) {
       card._sections.divider = divider;
     }
 
-    // ---------- CONNECT BUTTON ---------- 
+    // ---------- CONNECT ZONE ----------
     if (!isAlive) {
-      if (!card._sections.connectBtn || card._needsFullRebuild) {
-        const connectBtn = document.createElement("button");
-        connectBtn.className = `connect-btn ${system.colorClass}`;
-        connectBtn.textContent = "Connect";
-        connectBtn.onclick = e => {
+      if (!card._sections.connectZone || card._needsFullRebuild) {
+        const zone = document.createElement("div");
+        zone.className = "connect-zone";
+        zone.innerHTML = `
+          <div class="connect-btn-wrap">
+            <svg class="connect-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+              <line x1="12" y1="2" x2="12" y2="12"/>
+            </svg>
+          </div>
+        `;
+
+        zone.querySelector(".connect-btn-wrap").onclick = e => {
           e.stopPropagation();
           autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
           checkLauncherAlive(system, true);
         };
 
-        if (card._sections.connectBtn) {
-          card.replaceChild(connectBtn, card._sections.connectBtn);
+        if (card._sections.connectZone) {
+          card.replaceChild(zone, card._sections.connectZone);
         } else {
           const insertAfter = card._sections.divider || card._sections.header;
-          card.insertBefore(connectBtn, insertAfter?.nextSibling || null);
+          card.insertBefore(zone, insertAfter?.nextSibling || null);
         }
-        card._sections.connectBtn = connectBtn;
+
+        card._sections.connectZone = zone;
       }
-    } else if (card._sections.connectBtn) {
-      card.removeChild(card._sections.connectBtn);
-      delete card._sections.connectBtn;
+
+    } else if (card._sections.connectZone) {
+      card.removeChild(card._sections.connectZone);
+      delete card._sections.connectZone;
     }
 
     // ---------- SERVERS ---------- 
@@ -797,12 +895,10 @@ function renderSystems(systems) {
 		title.textContent = "Servers";
 		section.appendChild(title);
 
-		system.servers.forEach((server, i) => {
+		system.servers.forEach((server) => {
 		  const item = document.createElement("div");
 		  item.className = "server-item";
 
-		  const port = i === 0 ? system.deviceServerPort : system.compositingServerPort;
-		  
 		  let statusClass = "status-unknown";
 		  if (!server.isRunning) {
 			statusClass = "status-stopped";
@@ -820,18 +916,14 @@ function renderSystems(systems) {
 		  name.className = "server-name";
 		  name.textContent = server.name;
 
-		  const info = document.createElement("div");
-		  info.className = "server-info";
-		  info.textContent = `:${port}`;
-
-		  item.append(dot, name, info);
+		  item.append(dot, name);
 		  section.appendChild(item);
 		});
 
 		if (card._sections.servers) {
 		  card.replaceChild(section, card._sections.servers);
 		} else {
-		  const insertAfter = card._sections.connectBtn || card._sections.divider || card._sections.header;
+		  const insertAfter = card._sections.connectZone || card._sections.divider || card._sections.header;
 		  card.insertBefore(section, insertAfter?.nextSibling || null);
 		}
 		card._sections.servers = section;
@@ -916,7 +1008,7 @@ function renderSystems(systems) {
 		if (card._sections.devices) {
 		  card.replaceChild(section, card._sections.devices);
 		} else {
-		  const insertAfter = card._sections.servers || card._sections.connectBtn || card._sections.divider || card._sections.header;
+		  const insertAfter = card._sections.servers || card._sections.connectZone || card._sections.divider || card._sections.header;
 		  card.insertBefore(section, insertAfter?.nextSibling || null);
 		}
 		card._sections.devices = section;
@@ -1120,15 +1212,17 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
 // Helper function to make the action menu visible when interacting with a system
 function makeMenuVisible(menu) {
   menu.classList.remove("hidden");
-  void menu.offsetWidth;
   menu.classList.add("visible");
 }
 
 // Lets user edit system info
-function showEditMenu(e, system, field) {
+// popupWin: pass miniMonitorPopup when calling from the detached monitor
+function showEditMenu(e, system, field, popupWin = null) {
   e.stopPropagation();
 
-  const menu = document.getElementById("actionMenu");
+  const targetDoc = popupWin ? popupWin.document : document;
+  const menu = targetDoc.getElementById(popupWin ? "popupActionMenu" : "actionMenu");
+  if (!menu) return;
   menu.innerHTML = "";
 
   // console.log("========== showEditMenu ==========");
@@ -1145,14 +1239,7 @@ function showEditMenu(e, system, field) {
 	// console.log("[DEBUG] Adding action: Rename");
 	available.push("Rename");
   } else if (field === "ipport") {
-	if (system.name === "Local Host") {
-		// console.log("[DEBUG] Adding actions: Change Ports");
-		available.push("Change Ports");
-	}
-    else {
-		// console.log("[DEBUG] Adding actions: Change IP, Change Ports");
-		available.push("Change IP", "Change Ports");
-	}
+    available.push("Edit Connection");
   } else {
     // Treat as device if exists
     const device = system.devices?.[field];
@@ -1204,11 +1291,8 @@ function showEditMenu(e, system, field) {
           case "Rename":
             renameSystem(system);
             break;
-          case "Change IP":
-            changeIP(system);
-            break;
-          case "Change Ports":
-            changePorts(system);
+          case "Edit Connection":
+            showEditConnectionModal(system);
             break;
           case "Ping": {
             const device = system.devices?.[field];
@@ -1239,10 +1323,10 @@ function showEditMenu(e, system, field) {
     });
   }
 
-  // Position menu
+  // Position menu (fixed in popup, absolute+scroll in main)
   const rect = e.target.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + window.scrollY}px`;
-  menu.style.left = `${rect.left + window.scrollX}px`;
+  menu.style.top = `${rect.bottom + (popupWin ? 0 : window.scrollY)}px`;
+  menu.style.left = `${rect.left + (popupWin ? 0 : window.scrollX)}px`;
 
   // console.log(`[DEBUG] Menu positioned at top=${menu.style.top}, left=${menu.style.left}`);
   //console.log("===================================");
@@ -1296,7 +1380,10 @@ function checkLauncherAlive(system, shouldGetStatus = false) {
         system.lastSeen = Date.now();
         
         autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
-        
+
+        // Fetch environments on first connect
+        getEnvironments(system);
+
         // Start servers first, then get status
         autoUpdateConsole(system, "autoStart", "Starting servers...");
         startLauncherServers(system);
@@ -1438,33 +1525,27 @@ function renameSystem(system) {
   }
 }
 
-// Change a system's IP
-function changeIP(system) {
-  const newIP = window.prompt("New IP address:", system.ip);
-  if (newIP && newIP.trim()) {
-    system.ip = newIP.trim();
-    saveSystemsToLocalStorage();
-    updateInterface();
+// Edit a system's connection details (IP and Launcher Port) in a single modal
+function showEditConnectionModal(system) {
+  const isLocalHost = system.name === "Local Host";
+  const fields = [];
+  if (!isLocalHost) {
+    fields.push({ key: "ip", label: "IP Address", default: system.ip || "", placeholder: "192.168.1.15" });
   }
-}
+  fields.push({ key: "port", label: "Launcher Port", default: system.serverLauncherPort || "8080", placeholder: "8080" });
 
-// Change a system's Ports
-function changePorts(system) {
-  const newServerLauncherPort = window.prompt("New ServerLauncher port:", system.serverLauncherPort || "8080");
-  const newDeviceServerPort = window.prompt("New VRDeviceServer port:", system.deviceServerPort || "8081");
-  const newCompositingServerPort = window.prompt("New CompositingServer port:", system.compositingServerPort || "8082");
-  if (newCompositingServerPort && newCompositingServerPort.trim()) {
-    system.compositingServerPort = newCompositingServerPort.trim();
-  }
-  if (newDeviceServerPort && newDeviceServerPort.trim()) {
-    system.deviceServerPort = newDeviceServerPort.trim();
-  }
-  if (newServerLauncherPort && newServerLauncherPort.trim()) {
-    system.serverLauncherPort = newServerLauncherPort.trim();
-  }
-
-  saveSystemsToLocalStorage();
-  updateInterface();
+  showFormModal({
+    title: "Edit Connection",
+    submitLabel: "Save",
+    colorClass: system.colorClass || "",
+    fields,
+    onSubmit: ({ ip, port }) => {
+      if (!isLocalHost && ip) system.ip = ip;
+      if (port) system.serverLauncherPort = port;
+      saveSystemsToLocalStorage();
+      updateInterface();
+    },
+  });
 }
 
 // Called by getServerStatus, updating system with data from the server
@@ -1634,6 +1715,152 @@ function stopLauncherServers(system) {
     });
 }
 
+// Fetches available environments from VRServerLauncher and populates the dropdown
+function getEnvironments(system) {
+  if (!system) return;
+
+  const endpoint = getServerLauncherEndpoint(system);
+
+  // If launcher isn't alive, clear stored environments and update UI
+  if (!system.launcherAlive) {
+    system.environments = [];
+    updateEnvironmentDropdown(system);
+    return;
+  }
+
+  autoUpdateConsole(system, "getEnvironments", `Requesting environments from ${endpoint}...`);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "getEnvironments" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      const environments = data?.environments;
+
+      if (!Array.isArray(environments) || environments.length === 0) {
+        system.environments = [];
+        autoUpdateConsole(system, "getEnvironments", "No environments found.");
+      } else {
+        system.environments = environments;
+        autoUpdateConsole(system, "getEnvironments", `Found ${environments.length} environment(s).`);
+      }
+
+      // Only update the dropdown UI if this is the currently selected system
+      updateEnvironmentDropdown(system);
+    })
+    .catch((err) => {
+      system.environments = [];
+      updateEnvironmentDropdown(system);
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "getEnvironments", "Timed out fetching environments", "error");
+      } else {
+        autoUpdateConsole(system, "getEnvironments", "Failed to fetch environments", "error");
+      }
+    });
+}
+
+// Updates the environment dropdown UI based on the system's stored environments
+function updateEnvironmentDropdown(system) {
+  const selector = document.getElementById('environmentSelector');
+  const dropdown = document.getElementById('environmentDropdown');
+  if (!selector || !dropdown) return;
+
+  // Only update UI if this system is currently selected
+  if (system.name !== currentSystem) return;
+
+  const environments = system.environments || [];
+
+  if (environments.length === 0 && !showEmptyEnvironmentDropdown) {
+    selector.style.display = 'none';
+    return;
+  }
+
+  // Populate dropdown
+  dropdown.innerHTML = '<option value="">Select environment...</option>';
+  environments.forEach((env) => {
+    const option = document.createElement('option');
+    option.value = env.path;
+    option.textContent = env.name;
+    dropdown.appendChild(option);
+  });
+
+  selector.style.display = 'flex';
+}
+
+// Sends the selected environment file path to VRDeviceDaemon
+function uploadEnvironment(system, environmentFilePath) {
+  if (!system || !environmentFilePath) return;
+
+  const endpoint = getDeviceServerEndpoint(system);
+
+  autoUpdateConsole(system, "uploadEnvironment", `Uploading environment: ${environmentFilePath}...`);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      command: "uploadEnvironment",
+      environmentFilePath: environmentFilePath,
+    }),
+  }, 5000)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.status === "Success") {
+        autoUpdateConsole(system, "uploadEnvironment", "Environment loaded successfully.", "success");
+      } else {
+        autoUpdateConsole(system, "uploadEnvironment", `Server responded: ${data?.message || "Unknown error"}`, "error");
+      }
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "uploadEnvironment", "Timed out uploading environment", "error");
+      } else {
+        autoUpdateConsole(system, "uploadEnvironment", "Failed to upload environment", "error");
+      }
+    });
+}
+
+// Listen for environment dropdown changes
+// Command history for console
+const commandHistory = [];
+let commandHistoryIndex = -1;
+
+// Handle Enter, Up, Down keys in console input
+document.getElementById('commandInput')?.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendConsoleCommand();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (commandHistory.length === 0) return;
+    if (commandHistoryIndex < commandHistory.length - 1) {
+      commandHistoryIndex++;
+    }
+    this.value = commandHistory[commandHistoryIndex];
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (commandHistoryIndex > 0) {
+      commandHistoryIndex--;
+      this.value = commandHistory[commandHistoryIndex];
+    } else {
+      commandHistoryIndex = -1;
+      this.value = '';
+    }
+  }
+});
+
+document.getElementById('environmentDropdown')?.addEventListener('change', function () {
+  const filePath = this.value;
+  if (!filePath) return;
+
+  const system = allSystems.find((d) => d.name === currentSystem);
+  if (system) {
+    uploadEnvironment(system, filePath);
+  }
+});
+
 // Calls to the launcher to see status
 function getLauncherStatus(system, skipAutoStart = false) {
   if (!system) return;
@@ -1656,10 +1883,18 @@ function getLauncherStatus(system, skipAutoStart = false) {
           status: 'checking...', // Initial status while we check
           lastStatus: null  // Track last status to reduce log spam
         }));
-        
+
+        // Update device/compositing ports from launcher response if provided
+        data.servers.forEach((srv, index) => {
+          if (srv.port) {
+            if (index === 0) system.deviceServerPort = String(srv.port);
+            else if (index === 1) system.compositingServerPort = String(srv.port);
+          }
+        });
+
         // Check if any servers are not running (only auto-start if not skipped)
         const anyServersStopped = data.servers.some(srv => !srv.isRunning);
-        
+
         if (anyServersStopped && !skipAutoStart) {
           autoUpdateConsole(system, "autoStart", "Some servers stopped, starting servers...");
           startLauncherServers(system);
@@ -1672,14 +1907,13 @@ function getLauncherStatus(system, skipAutoStart = false) {
           data.servers.forEach((srv, index) => {
             const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
             autoUpdateConsole(system, "launcherStatus", msg);
-            
+
             // If server is running, ping it to get its status
             if (srv.isRunning) {
-              // Determine which port to use based on server index
-              const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+              const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
               const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
               const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-              
+
               pingServerStatus(system, index, serverEndpoint);
             } else {
               // If not running, mark as stopped
@@ -1797,6 +2031,11 @@ function sendConsoleCommand() {
   const input = document.getElementById("commandInput");
   const rawCommand = input.value.trim();
   if (!rawCommand) return;
+
+  // Store in history and clear input
+  commandHistory.unshift(rawCommand);
+  commandHistoryIndex = -1;
+  input.value = '';
 
   const isReset = rawCommand.toLowerCase() === "reset";
 
@@ -1929,9 +2168,7 @@ document.addEventListener("click", (e) => {
   const actionMenu = document.getElementById("actionMenu");
   if (actionMenu.classList.contains("visible")) {
     actionMenu.classList.remove("visible");
-    setTimeout(() => {
-      actionMenu.innerHTML = "";
-    }, 150); // Matches CSS transition
+    actionMenu.innerHTML = "";
   }
 });
 
@@ -2019,6 +2256,7 @@ function updateInterface() {
   updateButtonStates();
   updateFilterMenu();
   applyConsoleFilter();
+  if (miniMonitorPopup && !miniMonitorPopup.closed) syncMiniMonitor();
 }
 
 //----------------------------------------------------------------------------
@@ -2096,9 +2334,6 @@ document.addEventListener("DOMContentLoaded", () => {
   
   applyConsoleFilter();
   
-  // Initialize device selector dropdown
-  initDeviceSelector();
-  
   // Initialize dark mode toggle
   initDarkModeToggle();
   
@@ -2120,10 +2355,10 @@ setInterval(() => {
       if (system.servers && system.servers.length > 0) {
         system.servers.forEach((srv, index) => {
           if (srv.isRunning) {
-            const port = index === 0 ? system.deviceServerPort : system.compositingServerPort;
+            const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
             const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
             const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-            
+
             pingServerStatus(system, index, serverEndpoint);
           }
         });
@@ -2240,5 +2475,265 @@ function initDarkModeToggle() {
       toggle.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     }
+  });
+}
+
+// ============================================================
+// MINI MONITOR POPUP
+// ============================================================
+
+// ============================================================
+// MINI MONITOR POPUP
+// ============================================================
+
+let miniMonitorPopup = null;
+let miniMonitorSyncId = null;
+
+function openMiniMonitor() {
+  // If already open, focus it
+  if (miniMonitorPopup && !miniMonitorPopup.closed) {
+    miniMonitorPopup.focus();
+    return;
+  }
+
+  const screenW = window.screen.availWidth;
+  // Scale card width based on screen resolution (accounts for OS scaling via CSS px)
+  const cardW = screenW >= 3840 ? 340 : screenW >= 2560 ? 300 : screenW >= 1920 ? 270 : 250;
+  const popH  = screenW >= 3840 ? 420 : screenW >= 2560 ? 370 : screenW >= 1920 ? 330 : 300;
+  const cardGap = 16;
+  const popPadding = 24;
+  const numSystems = allSystems.length;
+  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
+  const popLeft = screenW - popW - 20;
+  const popTop = 40;
+
+  miniMonitorPopup = window.open(
+    "",
+    "VruiMiniMonitor",
+    `width=${popW},height=${popH},top=${popTop},left=${popLeft},resizable=yes,scrollbars=yes`
+  );
+
+  if (!miniMonitorPopup) {
+    alert("Popup was blocked. Please allow popups for this site.");
+    return;
+  }
+
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") || "light";
+
+  miniMonitorPopup.document.write(`
+    <!DOCTYPE html>
+    <html lang="en" data-theme="${currentTheme}">
+    <head>
+      <meta charset="UTF-8">
+      <title>Vrui Monitor</title>
+      <link rel="stylesheet" href="css/main.css">
+      <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg-white);
+          height: 100vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                       "SF Pro Text", "Inter", "Helvetica Neue", "Segoe UI",
+                       system-ui, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          color: var(--text-dark);
+        }
+
+        /* Exact same scroll container as main page system-section */
+        .mini-monitor-container {
+          flex: 1;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 16px;
+          padding: 12px;
+          overflow-x: auto;
+          overflow-y: visible;
+          align-items: stretch;
+          min-height: 0;
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
+        }
+
+        .mini-monitor-container::-webkit-scrollbar { height: 8px; }
+        .mini-monitor-container::-webkit-scrollbar-track { background: transparent; }
+        .mini-monitor-container::-webkit-scrollbar-thumb {
+          background: var(--border);
+          border-radius: 4px;
+        }
+        .mini-monitor-container::-webkit-scrollbar-thumb:hover {
+          background: var(--text-secondary);
+        }
+
+        /* Cards: width scaled to resolution, height fills the container */
+        .system-card {
+          width: ${cardW}px;
+          min-width: ${cardW}px;
+          height: auto;
+          flex-shrink: 0;
+          overflow: visible;
+        }
+
+        /* Hide add-system card, remove button, and entire shutdown container */
+        .add-system-card { display: none !important; }
+        .remove-btn { display: none !important; }
+        .shutdown-container { display: none !important; }
+
+        /* Keep the action menu working in the popup */
+        .action-menu {
+          position: fixed;
+        }
+
+        /* Tighter vertical spacing for the compact popup height */
+        .card-header { margin-bottom: 0.1rem; min-height: unset; }
+        .card-divider { margin: 0.2rem 0; }
+        .server-section { padding: 0.45rem 0.65rem; margin-bottom: 0.25rem; }
+        .device-section { padding: 0.45rem 0.65rem; }
+        .section-title { margin-bottom: 0.25rem; }
+      </style>
+    </head>
+    <body>
+      <div id="popupActionMenu" class="action-menu hidden"></div>
+      <div class="mini-monitor-container" id="miniContainer"></div>
+      <script>
+        window._miniMonitorReady = true;
+      </script>
+    </body>
+    </html>
+  `);
+  miniMonitorPopup.document.close();
+
+  // Wait for popup DOM to be ready, then start syncing
+  const waitForReady = setInterval(() => {
+    if (!miniMonitorPopup || miniMonitorPopup.closed) {
+      clearInterval(waitForReady);
+      return;
+    }
+    if (miniMonitorPopup._miniMonitorReady) {
+      clearInterval(waitForReady);
+      syncMiniMonitor();
+      miniMonitorSyncId = setInterval(syncMiniMonitor, 400);
+
+      // Close popup action menu on click outside
+      miniMonitorPopup.document.addEventListener("click", () => {
+        const popupMenu = miniMonitorPopup.document.getElementById("popupActionMenu");
+        if (popupMenu && popupMenu.classList.contains("visible")) {
+          popupMenu.classList.remove("visible");
+          popupMenu.innerHTML = "";
+        }
+      });
+    }
+  }, 100);
+}
+
+function syncMiniMonitor() {
+  if (!miniMonitorPopup || miniMonitorPopup.closed) {
+    clearInterval(miniMonitorSyncId);
+    miniMonitorPopup = null;
+    miniMonitorSyncId = null;
+    return;
+  }
+
+  const target = miniMonitorPopup.document.getElementById("miniContainer");
+  const source = document.getElementById("systemContainer");
+  if (!target || !source) return;
+
+  // Keep theme in sync
+  const theme =
+    document.documentElement.getAttribute("data-theme") || "light";
+  miniMonitorPopup.document.documentElement.setAttribute("data-theme", theme);
+
+  // Map existing popup cards by system name
+  const existingCards = new Map(
+    [...target.children].map((c) => [c.dataset.system, c])
+  );
+
+  // Source cards (only .system-card, not .add-system-card)
+  const sourceCards = [...source.querySelectorAll(".system-card")];
+  const sourceNames = new Set();
+
+  sourceCards.forEach((srcCard) => {
+    const systemName = srcCard.dataset.system;
+    if (!systemName) return;
+    sourceNames.add(systemName);
+
+    const existing = existingCards.get(systemName);
+
+    if (existing) {
+      // Only update DOM if something visually changed
+      if (existing.innerHTML !== srcCard.innerHTML) {
+        existing.innerHTML = srcCard.innerHTML;
+      }
+      existing.className = srcCard.className;
+    } else {
+      const clone = srcCard.cloneNode(true);
+      target.appendChild(clone);
+    }
+  });
+
+  // Remove cards no longer in source
+  existingCards.forEach((card, name) => {
+    if (!sourceNames.has(name)) card.remove();
+  });
+
+  // Re-bind all interactive handlers (cloneNode strips listeners)
+  rebindMiniMonitorHandlers(target);
+
+}
+
+function rebindMiniMonitorHandlers(container) {
+  container.querySelectorAll(".system-card").forEach((card) => {
+    const systemName = card.dataset.system;
+    if (!systemName) return;
+
+    // Card click → select system in parent
+    card.onclick = () => {
+      changeSystem(systemName);
+    };
+
+    // Connect buttons (keep — useful for monitor)
+    const connectHandler = (e) => {
+      e.stopPropagation();
+      const system = allSystems.find((s) => s.name === systemName);
+      if (system) {
+        autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
+        checkLauncherAlive(system, true);
+      }
+    };
+    const connectIcon = card.querySelector(".connect-btn-wrap");
+    if (connectIcon) connectIcon.onclick = connectHandler;
+    const connectAction = card.querySelector(".connect-action");
+    if (connectAction) connectAction.onclick = connectHandler;
+
+    // Device name clicks → action menu in popup window
+    card.querySelectorAll(".device-name:not(.inactive-field)").forEach((nameEl) => {
+      nameEl.style.cursor = "pointer";
+      nameEl.onclick = (e) => {
+        e.stopPropagation();
+        const system = allSystems.find((s) => s.name === systemName);
+        if (system) {
+          const deviceKey = nameEl.textContent.trim().toLowerCase();
+          showEditMenu(e, system, deviceKey, miniMonitorPopup);
+        }
+      };
+    });
+
+    // Device item clicks → select system
+    card.querySelectorAll(".device-item").forEach((item) => {
+      item.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (currentSystem !== systemName) {
+          changeSystem(systemName);
+        }
+      };
+    });
   });
 }
