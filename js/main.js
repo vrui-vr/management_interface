@@ -1728,6 +1728,8 @@ function getEnvironments(system) {
     return;
   }
 
+  autoUpdateConsole(system, "getEnvironments", `Requesting environments from ${endpoint}...`);
+
   fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1739,6 +1741,7 @@ function getEnvironments(system) {
 
       if (!Array.isArray(environments) || environments.length === 0) {
         system.environments = [];
+        autoUpdateConsole(system, "getEnvironments", "No environments found.");
       } else {
         system.environments = environments;
         autoUpdateConsole(system, "getEnvironments", `Found ${environments.length} environment(s).`);
