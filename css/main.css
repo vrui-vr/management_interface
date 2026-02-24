@@ -2863,8 +2863,55 @@ h1, h2, h3, h4, h5, h6 {
   right: 10px;
   pointer-events: none;
   color: var(--text-muted);
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, color 0.15s ease;
 }
+
+/* Rig-colored environment dropdown — focus ring */
+.sidebar[data-color-class="rig-0"] .environment-dropdown:focus { border-color: var(--rig-0); box-shadow: 0 0 0 3px var(--rig-0-bg); }
+.sidebar[data-color-class="rig-1"] .environment-dropdown:focus { border-color: var(--rig-1); box-shadow: 0 0 0 3px var(--rig-1-bg); }
+.sidebar[data-color-class="rig-2"] .environment-dropdown:focus { border-color: var(--rig-2); box-shadow: 0 0 0 3px var(--rig-2-bg); }
+.sidebar[data-color-class="rig-3"] .environment-dropdown:focus { border-color: var(--rig-3); box-shadow: 0 0 0 3px var(--rig-3-bg); }
+.sidebar[data-color-class="rig-4"] .environment-dropdown:focus { border-color: var(--rig-4); box-shadow: 0 0 0 3px var(--rig-4-bg); }
+.sidebar[data-color-class="rig-5"] .environment-dropdown:focus { border-color: var(--rig-5); box-shadow: 0 0 0 3px var(--rig-5-bg); }
+
+/* Rig-colored environment label icon — connected */
+.sidebar[data-color-class="rig-0"]:not(.offline) .environment-label svg { color: var(--rig-0); opacity: 0.8; }
+.sidebar[data-color-class="rig-1"]:not(.offline) .environment-label svg { color: var(--rig-1); opacity: 0.8; }
+.sidebar[data-color-class="rig-2"]:not(.offline) .environment-label svg { color: var(--rig-2); opacity: 0.8; }
+.sidebar[data-color-class="rig-3"]:not(.offline) .environment-label svg { color: var(--rig-3); opacity: 0.8; }
+.sidebar[data-color-class="rig-4"]:not(.offline) .environment-label svg { color: var(--rig-4); opacity: 0.8; }
+.sidebar[data-color-class="rig-5"]:not(.offline) .environment-label svg { color: var(--rig-5); opacity: 0.8; }
+
+/* Rig-colored environment label text — connected */
+.sidebar[data-color-class="rig-0"]:not(.offline) .environment-label { color: var(--rig-0-muted); }
+.sidebar[data-color-class="rig-1"]:not(.offline) .environment-label { color: var(--rig-1-muted); }
+.sidebar[data-color-class="rig-2"]:not(.offline) .environment-label { color: var(--rig-2-muted); }
+.sidebar[data-color-class="rig-3"]:not(.offline) .environment-label { color: var(--rig-3-muted); }
+.sidebar[data-color-class="rig-4"]:not(.offline) .environment-label { color: var(--rig-4-muted); }
+.sidebar[data-color-class="rig-5"]:not(.offline) .environment-label { color: var(--rig-5-muted); }
+
+/* Rig-colored environment chevron — connected */
+.sidebar[data-color-class="rig-0"]:not(.offline) .environment-dropdown-chevron { color: var(--rig-0); }
+.sidebar[data-color-class="rig-1"]:not(.offline) .environment-dropdown-chevron { color: var(--rig-1); }
+.sidebar[data-color-class="rig-2"]:not(.offline) .environment-dropdown-chevron { color: var(--rig-2); }
+.sidebar[data-color-class="rig-3"]:not(.offline) .environment-dropdown-chevron { color: var(--rig-3); }
+.sidebar[data-color-class="rig-4"]:not(.offline) .environment-dropdown-chevron { color: var(--rig-4); }
+.sidebar[data-color-class="rig-5"]:not(.offline) .environment-dropdown-chevron { color: var(--rig-5); }
+
+/* Offline — muted environment colors */
+.sidebar.offline[data-color-class="rig-0"] .environment-label svg { color: var(--rig-0-muted); }
+.sidebar.offline[data-color-class="rig-1"] .environment-label svg { color: var(--rig-1-muted); }
+.sidebar.offline[data-color-class="rig-2"] .environment-label svg { color: var(--rig-2-muted); }
+.sidebar.offline[data-color-class="rig-3"] .environment-label svg { color: var(--rig-3-muted); }
+.sidebar.offline[data-color-class="rig-4"] .environment-label svg { color: var(--rig-4-muted); }
+.sidebar.offline[data-color-class="rig-5"] .environment-label svg { color: var(--rig-5-muted); }
+
+.sidebar.offline[data-color-class="rig-0"] .environment-dropdown-chevron { color: var(--rig-0-muted); }
+.sidebar.offline[data-color-class="rig-1"] .environment-dropdown-chevron { color: var(--rig-1-muted); }
+.sidebar.offline[data-color-class="rig-2"] .environment-dropdown-chevron { color: var(--rig-2-muted); }
+.sidebar.offline[data-color-class="rig-3"] .environment-dropdown-chevron { color: var(--rig-3-muted); }
+.sidebar.offline[data-color-class="rig-4"] .environment-dropdown-chevron { color: var(--rig-4-muted); }
+.sidebar.offline[data-color-class="rig-5"] .environment-dropdown-chevron { color: var(--rig-5-muted); }
 
 /* 4K native / 5K at 100% OS scaling (≥3840 CSS px) */
 @media (min-width: 3840px) {

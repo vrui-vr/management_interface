@@ -16,6 +16,7 @@ compositingServerUrl = "VRCompositingServer.cgi";
 const getServerStatusInterval = 3000;
 
 let getStatusUpdates = true;   // global flag (default ON)
+let showEmptyEnvironmentDropdown = true; // show dropdown even when no environments are available
 
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
@@ -127,6 +128,7 @@ function normalizeSystems(rawSystems) {
       ip: d.ip || "N/A",
       colorClass: `rig-${index % 6}`,
       devices: normalizedDevices,
+      environments: [],
     };
   });
 }
@@ -1378,7 +1380,10 @@ function checkLauncherAlive(system, shouldGetStatus = false) {
         system.lastSeen = Date.now();
         
         autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
-        
+
+        // Fetch environments on first connect
+        getEnvironments(system);
+
         // Start servers first, then get status
         autoUpdateConsole(system, "autoStart", "Starting servers...");
         startLauncherServers(system);
@@ -1715,14 +1720,11 @@ function getEnvironments(system) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
-  const selector = document.getElementById('environmentSelector');
-  const dropdown = document.getElementById('environmentDropdown');
 
-  if (!selector || !dropdown) return;
-
-  // Hide while loading if launcher isn't alive
+  // If launcher isn't alive, clear stored environments and update UI
   if (!system.launcherAlive) {
-    selector.style.display = 'none';
+    system.environments = [];
+    updateEnvironmentDropdown(system);
     return;
   }
 
@@ -1735,38 +1737,53 @@ function getEnvironments(system) {
     .then((data) => {
       const environments = data?.environments;
 
-      // Hide dropdown if no environments returned
       if (!Array.isArray(environments) || environments.length === 0) {
-        selector.style.display = 'none';
         system.environments = [];
-        return;
+      } else {
+        system.environments = environments;
+        autoUpdateConsole(system, "getEnvironments", `Found ${environments.length} environment(s).`);
       }
 
-      // Store environments on the system object
-      system.environments = environments;
-
-      // Populate dropdown
-      dropdown.innerHTML = '<option value="">Select environment...</option>';
-      environments.forEach((env) => {
-        const option = document.createElement('option');
-        option.value = env.environmentFilePath;
-        option.textContent = env.name;
-        dropdown.appendChild(option);
-      });
-
-      // Show the selector
-      selector.style.display = 'flex';
-
-      autoUpdateConsole(system, "getEnvironments", `Found ${environments.length} environment(s).`);
+      // Only update the dropdown UI if this is the currently selected system
+      updateEnvironmentDropdown(system);
     })
     .catch((err) => {
-      selector.style.display = 'none';
+      system.environments = [];
+      updateEnvironmentDropdown(system);
       if (err.name === "AbortError") {
         autoUpdateConsole(system, "getEnvironments", "Timed out fetching environments", "error");
       } else {
         autoUpdateConsole(system, "getEnvironments", "Failed to fetch environments", "error");
       }
     });
+}
+
+// Updates the environment dropdown UI based on the system's stored environments
+function updateEnvironmentDropdown(system) {
+  const selector = document.getElementById('environmentSelector');
+  const dropdown = document.getElementById('environmentDropdown');
+  if (!selector || !dropdown) return;
+
+  // Only update UI if this system is currently selected
+  if (system.name !== currentSystem) return;
+
+  const environments = system.environments || [];
+
+  if (environments.length === 0 && !showEmptyEnvironmentDropdown) {
+    selector.style.display = 'none';
+    return;
+  }
+
+  // Populate dropdown
+  dropdown.innerHTML = '<option value="">Select environment...</option>';
+  environments.forEach((env) => {
+    const option = document.createElement('option');
+    option.value = env.environmentFilePath;
+    option.textContent = env.name;
+    dropdown.appendChild(option);
+  });
+
+  selector.style.display = 'flex';
 }
 
 // Sends the selected environment file path to VRDeviceDaemon
