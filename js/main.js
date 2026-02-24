@@ -1781,7 +1781,7 @@ function updateEnvironmentDropdown(system) {
   dropdown.innerHTML = '<option value="">Select environment...</option>';
   environments.forEach((env) => {
     const option = document.createElement('option');
-    option.value = env.environmentFilePath;
+    option.value = env.path;
     option.textContent = env.name;
     dropdown.appendChild(option);
   });
