@@ -432,7 +432,10 @@ function changeSystem(name) {
     
     // Update file drop box state
     updateFileDropState(system);
-    
+
+    // Fetch available environments for this system
+    getEnvironments(system);
+
     // Update command prompt color class
     const commandPrompt = document.getElementById('commandPrompt');
     if (commandPrompt) {
@@ -444,12 +447,16 @@ function changeSystem(name) {
   } else {
     sidebar.removeAttribute('data-color-class');
     sidebar.classList.remove('offline');
-    
+
     // Remove color class from command prompt
     const commandPrompt = document.getElementById('commandPrompt');
     if (commandPrompt) {
       commandPrompt.classList.remove('rig-0', 'rig-1', 'rig-2', 'rig-3', 'rig-4', 'rig-5');
     }
+
+    // Hide environment selector when no system selected
+    const envSelector = document.getElementById('environmentSelector');
+    if (envSelector) envSelector.style.display = 'none';
   }
 }
 
@@ -1702,6 +1709,109 @@ function stopLauncherServers(system) {
       }
     });
 }
+
+// Fetches available environments from VRServerLauncher and populates the dropdown
+function getEnvironments(system) {
+  if (!system) return;
+
+  const endpoint = getServerLauncherEndpoint(system);
+  const selector = document.getElementById('environmentSelector');
+  const dropdown = document.getElementById('environmentDropdown');
+
+  if (!selector || !dropdown) return;
+
+  // Hide while loading if launcher isn't alive
+  if (!system.launcherAlive) {
+    selector.style.display = 'none';
+    return;
+  }
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "getEnvironments" }),
+  }, 3000)
+    .then((r) => r.json())
+    .then((data) => {
+      const environments = data?.environments;
+
+      // Hide dropdown if no environments returned
+      if (!Array.isArray(environments) || environments.length === 0) {
+        selector.style.display = 'none';
+        system.environments = [];
+        return;
+      }
+
+      // Store environments on the system object
+      system.environments = environments;
+
+      // Populate dropdown
+      dropdown.innerHTML = '<option value="">Select environment...</option>';
+      environments.forEach((env) => {
+        const option = document.createElement('option');
+        option.value = env.environmentFilePath;
+        option.textContent = env.name;
+        dropdown.appendChild(option);
+      });
+
+      // Show the selector
+      selector.style.display = 'flex';
+
+      autoUpdateConsole(system, "getEnvironments", `Found ${environments.length} environment(s).`);
+    })
+    .catch((err) => {
+      selector.style.display = 'none';
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "getEnvironments", "Timed out fetching environments", "error");
+      } else {
+        autoUpdateConsole(system, "getEnvironments", "Failed to fetch environments", "error");
+      }
+    });
+}
+
+// Sends the selected environment file path to VRDeviceDaemon
+function uploadEnvironment(system, environmentFilePath) {
+  if (!system || !environmentFilePath) return;
+
+  const endpoint = getDeviceServerEndpoint(system);
+
+  autoUpdateConsole(system, "uploadEnvironment", `Uploading environment: ${environmentFilePath}...`);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      command: "uploadEnvironment",
+      environmentFilePath: environmentFilePath,
+    }),
+  }, 5000)
+    .then((r) => r.json())
+    .then((data) => {
+      if (data?.status === "Success") {
+        autoUpdateConsole(system, "uploadEnvironment", "Environment loaded successfully.", "success");
+      } else {
+        autoUpdateConsole(system, "uploadEnvironment", `Server responded: ${data?.message || "Unknown error"}`, "error");
+      }
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "uploadEnvironment", "Timed out uploading environment", "error");
+      } else {
+        autoUpdateConsole(system, "uploadEnvironment", "Failed to upload environment", "error");
+      }
+    });
+}
+
+// Listen for environment dropdown changes
+document.getElementById('environmentDropdown')?.addEventListener('change', function () {
+  const filePath = this.value;
+  if (!filePath) return;
+
+  const system = allSystems.find((d) => d.name === currentSystem);
+  if (system) {
+    uploadEnvironment(system, filePath);
+  }
+});
 
 // Calls to the launcher to see status
 function getLauncherStatus(system, skipAutoStart = false) {

@@ -58,6 +58,26 @@
         <div class="sidebar-target-info" id="currentSystemInfo">—</div>
       </div>
 
+      <!-- Environment selector (hidden when no environments available) -->
+      <div class="environment-selector" id="environmentSelector" style="display: none;">
+        <label class="environment-label" for="environmentDropdown">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          Environment
+        </label>
+        <div class="environment-dropdown-wrapper">
+          <select id="environmentDropdown" class="environment-dropdown">
+            <option value="">Select environment...</option>
+          </select>
+          <svg class="environment-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+
       <div class="button-section">
         <button class="button" id="btn-1" onclick="sendButton(1)">Toggle Status Requests</button>
         <button class="button" id="btn-2" onclick="sendButton(2)">Start Servers</button>
