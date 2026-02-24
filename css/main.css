@@ -2808,7 +2808,7 @@ h1, h2, h3, h4, h5, h6 {
 .environment-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 0.7rem;
   font-weight: 500;
   color: var(--text-muted);
@@ -2818,6 +2818,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .environment-label svg {
   opacity: 0.6;
+  position: relative;
+  top: 1px;
 }
 
 .environment-dropdown-wrapper {

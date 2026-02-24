@@ -61,10 +61,16 @@
       <!-- Environment selector (hidden when no environments available) -->
       <div class="environment-selector" id="environmentSelector" style="display: none;">
         <label class="environment-label" for="environmentDropdown">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Front face -->
+            <rect x="3" y="7" width="12" height="12"/>
+            <!-- Back face edges -->
+            <rect x="9" y="3" width="12" height="12"/>
+            <!-- Connecting edges -->
+            <line x1="3" y1="7" x2="9" y2="3"/>
+            <line x1="15" y1="7" x2="21" y2="3"/>
+            <line x1="3" y1="19" x2="9" y2="15"/>
+            <line x1="15" y1="19" x2="21" y2="15"/>
           </svg>
           Environment
         </label>
