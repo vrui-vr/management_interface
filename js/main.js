@@ -1823,6 +1823,34 @@ function uploadEnvironment(system, environmentFilePath) {
 }
 
 // Listen for environment dropdown changes
+// Command history for console
+const commandHistory = [];
+let commandHistoryIndex = -1;
+
+// Handle Enter, Up, Down keys in console input
+document.getElementById('commandInput')?.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendConsoleCommand();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (commandHistory.length === 0) return;
+    if (commandHistoryIndex < commandHistory.length - 1) {
+      commandHistoryIndex++;
+    }
+    this.value = commandHistory[commandHistoryIndex];
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (commandHistoryIndex > 0) {
+      commandHistoryIndex--;
+      this.value = commandHistory[commandHistoryIndex];
+    } else {
+      commandHistoryIndex = -1;
+      this.value = '';
+    }
+  }
+});
+
 document.getElementById('environmentDropdown')?.addEventListener('change', function () {
   const filePath = this.value;
   if (!filePath) return;
@@ -2003,6 +2031,11 @@ function sendConsoleCommand() {
   const input = document.getElementById("commandInput");
   const rawCommand = input.value.trim();
   if (!rawCommand) return;
+
+  // Store in history and clear input
+  commandHistory.unshift(rawCommand);
+  commandHistoryIndex = -1;
+  input.value = '';
 
   const isReset = rawCommand.toLowerCase() === "reset";
 
