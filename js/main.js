@@ -41,12 +41,7 @@ function sendButton(buttonNumber) {
     // Start servers on current system
     const system = allSystems.find((d) => d.name === currentSystem);
     if (system) {
-      autoUpdateConsole(system, "startServers", "Manually starting servers...");
-      startLauncherServers(system);
-      // Wait a bit then check status
-      setTimeout(() => {
-        getLauncherStatus(system);
-      }, 2000);
+      startAndCheckServers(system);
     } else {
       console.log(`System ${currentSystem} not found`);
     }
@@ -62,17 +57,17 @@ function sendButton(buttonNumber) {
 }
 
 // File drag-and-drop handlers
-// CURRENTLY NOT USED
-fileDropBox.addEventListener("dragover", (e) => {
+// CURRENTLY NOT USED — file drop elements commented out in HTML
+fileDropBox?.addEventListener("dragover", (e) => {
   e.preventDefault();
   fileDropBox.classList.add("dragover");
 });
 
-fileDropBox.addEventListener("dragleave", () => {
+fileDropBox?.addEventListener("dragleave", () => {
   fileDropBox.classList.remove("dragover");
 });
 
-fileDropBox.addEventListener("drop", (e) => {
+fileDropBox?.addEventListener("drop", (e) => {
   e.preventDefault();
   fileDropBox.classList.remove("dragover");
 
@@ -82,7 +77,7 @@ fileDropBox.addEventListener("drop", (e) => {
   }
 });
 
-fileInput.addEventListener("change", () => {
+fileInput?.addEventListener("change", () => {
   if (fileInput.files.length > 0) {
     handleFile(fileInput.files[0]);
   }
@@ -129,6 +124,7 @@ function normalizeSystems(rawSystems) {
       colorClass: `rig-${index % 6}`,
       devices: normalizedDevices,
       environments: [],
+      serversRunning: false,
     };
   });
 }
@@ -425,12 +421,11 @@ function changeSystem(name) {
   if (system) {
     sidebar.dataset.colorClass = system.colorClass;
     
-    // Add or remove offline class based on launcher status
-    if (!system.launcherAlive) {
-      sidebar.classList.add('offline');
-    } else {
-      sidebar.classList.remove('offline');
-    }
+    // Three sidebar states: unreachable (gray), offline (muted rig), or online (full rig)
+    const sidebarUnreachable = !system.launcherAlive;
+    const sidebarOffline = system.launcherAlive && !system.connected;
+    sidebar.classList.toggle('unreachable', sidebarUnreachable);
+    sidebar.classList.toggle('offline', sidebarOffline);
     
     // Update file drop box state
     updateFileDropState(system);
@@ -449,6 +444,7 @@ function changeSystem(name) {
   } else {
     sidebar.removeAttribute('data-color-class');
     sidebar.classList.remove('offline');
+    sidebar.classList.remove('unreachable');
 
     // Remove color class from command prompt
     const commandPrompt = document.getElementById('commandPrompt');
@@ -554,15 +550,14 @@ function updateSystemUI(updatedSystem) {
   // Update button availability based on current system state
   updateButtonStates();
   
-  // Update sidebar offline state if this is the current system
+  // Update sidebar state if this is the current system
   if (updatedSystem.name === currentSystem) {
     const sidebar = document.querySelector('.sidebar');
-    if (!updatedSystem.launcherAlive) {
-      sidebar.classList.add('offline');
-    } else {
-      sidebar.classList.remove('offline');
-    }
-    
+    const sidebarUnreachable = !updatedSystem.launcherAlive;
+    const sidebarOffline = updatedSystem.launcherAlive && !updatedSystem.connected;
+    sidebar.classList.toggle('unreachable', sidebarUnreachable);
+    sidebar.classList.toggle('offline', sidebarOffline);
+
     // Update file drop box state
     updateFileDropState(updatedSystem);
   }
@@ -679,8 +674,15 @@ function renderSystems(systems) {
     // =============================== 
     // UPDATE CARD STATE (always cheap)
     // =============================== 
-    card.classList.toggle("connected", isAlive && isConnected);
-    card.classList.toggle("disconnected", !isAlive || !isConnected);
+    // Three visual states:
+    // - unreachable: can't contact launcher (fully gray)
+    // - disconnected: launcher alive but servers stopped (faded rig color)
+    // - connected: everything running (full rig color)
+    const serversUp = isAlive && isConnected && system.serversRunning !== false;
+    const launcherOnly = isAlive && !serversUp;
+    card.classList.toggle("connected", serversUp);
+    card.classList.toggle("disconnected", launcherOnly);
+    card.classList.toggle("unreachable", !isAlive);
     card.classList.toggle("selected", system.name === currentSystem);
     
     // Update color class
@@ -849,8 +851,12 @@ function renderSystems(systems) {
     }
 
     // ---------- CONNECT ZONE ----------
-    if (!isAlive) {
-      if (!card._sections.connectZone || card._needsFullRebuild) {
+    // Show power button when: launcher not reachable, OR launcher alive but servers stopped
+    const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
+    const showConnectZone = !isAlive || serversAllStopped;
+
+    if (showConnectZone) {
+      if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== (isAlive ? 'start' : 'connect')) {
         const zone = document.createElement("div");
         zone.className = "connect-zone";
         zone.innerHTML = `
@@ -865,8 +871,14 @@ function renderSystems(systems) {
 
         zone.querySelector(".connect-btn-wrap").onclick = e => {
           e.stopPropagation();
-          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-          checkLauncherAlive(system, true);
+          if (isAlive) {
+            // Launcher is alive but servers are stopped — start them
+            startAndCheckServers(system);
+          } else {
+            // Launcher not reachable — try to connect
+            autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
+            checkLauncherAlive(system);
+          }
         };
 
         if (card._sections.connectZone) {
@@ -877,11 +889,13 @@ function renderSystems(systems) {
         }
 
         card._sections.connectZone = zone;
+        card._connectZoneMode = isAlive ? 'start' : 'connect';
       }
 
     } else if (card._sections.connectZone) {
       card.removeChild(card._sections.connectZone);
       delete card._sections.connectZone;
+      delete card._connectZoneMode;
     }
 
     // ---------- SERVERS ---------- 
@@ -1354,69 +1368,51 @@ function handleServerResponse(system, command, data) {
 	}
 }
 
-// NEW: Check if launcher is alive
-function checkLauncherAlive(system, shouldGetStatus = false) {
+// Check if the VRServerLauncher daemon is reachable
+// Does NOT start any servers — just confirms the launcher is alive, then queries status
+function checkLauncherAlive(system) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
-  
-  console.log(`🔍 Checking launcher alive for ${system.name} at: ${endpoint}`);
+
   autoUpdateConsole(system, "isAlive", `Checking launcher at ${endpoint}...`);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "isAlive" }),
-  }, 3000)
-    .then((r) => {
-      console.log(`📡 Response status for ${system.name}:`, r.status, r.statusText);
-      return r.json();
-    })
+  }, 8000)
+    .then((r) => r.json())
     .then((data) => {
-      console.log(`📦 Response data for ${system.name}:`, data);
-      
       if (data?.isRunning === true) {
         system.launcherAlive = true;
         system.lastSeen = Date.now();
-        
+
         autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
 
         // Fetch environments on first connect
         getEnvironments(system);
 
-        // Start servers first, then get status
-        autoUpdateConsole(system, "autoStart", "Starting servers...");
-        startLauncherServers(system);
-        
-        // Wait for servers to start, then get status
-        setTimeout(() => {
-          getLauncherStatus(system);
-        }, 2000);
+        // Check server states — auto-start if stopped (initial page load)
+        getLauncherStatus(system, true);
       } else {
         system.launcherAlive = false;
         autoUpdateConsole(system, "isAlive", `Launcher responded but isRunning=${data?.isRunning}`, "error");
       }
-      
+
       updateSystemUI(system);
     })
     .catch((err) => {
       system.launcherAlive = false;
-      
-      console.error(`❌ Full error details for ${system.name}:`, err);
-      console.error(`Error name: ${err.name}`);
-      console.error(`Error message: ${err.message}`);
-      
+
       if (err.name === "AbortError") {
-        console.error(`Timeout checking launcher on ${system.name}`);
-        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher (3 seconds)", "error");
+        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher (8s)", "error");
       } else if (err.name === "TypeError" && err.message.includes("Failed to fetch")) {
-        console.error(`Network error - possibly CORS or server not running`);
         autoUpdateConsole(system, "isAlive", "Network error - check if launcher is running and CORS is configured", "error");
       } else {
-        console.error(`Failed to check launcher on ${system.name}:`, err);
         autoUpdateConsole(system, "isAlive", `Failed to contact launcher: ${err.message}`, "error");
       }
-      
+
       updateSystemUI(system);
     });
 }
@@ -1861,8 +1857,9 @@ document.getElementById('environmentDropdown')?.addEventListener('change', funct
   }
 });
 
-// Calls to the launcher to see status
-function getLauncherStatus(system, skipAutoStart = false) {
+// Query the launcher for server list and their running state
+// autoStart: if true, will automatically start servers that are stopped (used on page load)
+function getLauncherStatus(system, autoStart = false) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
@@ -1871,77 +1868,93 @@ function getLauncherStatus(system, skipAutoStart = false) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 3000)
+  }, 5000)
     .then((r) => r.json())
     .then((data) => {
       autoUpdateConsole(system, "getLauncherStatus", "Received launcher status response.");
 
-      // Store server information
-      if (Array.isArray(data.servers)) {
-        system.servers = data.servers.map(srv => ({
-          ...srv,
-          status: 'checking...', // Initial status while we check
-          lastStatus: null  // Track last status to reduce log spam
-        }));
-
-        // Update device/compositing ports from launcher response if provided
-        data.servers.forEach((srv, index) => {
-          if (srv.port) {
-            if (index === 0) system.deviceServerPort = String(srv.port);
-            else if (index === 1) system.compositingServerPort = String(srv.port);
-          }
-        });
-
-        // Check if any servers are not running (only auto-start if not skipped)
-        const anyServersStopped = data.servers.some(srv => !srv.isRunning);
-
-        if (anyServersStopped && !skipAutoStart) {
-          autoUpdateConsole(system, "autoStart", "Some servers stopped, starting servers...");
-          startLauncherServers(system);
-          // Wait a bit then check status again
-          setTimeout(() => {
-            getLauncherStatus(system, true); // Skip auto-start on retry
-          }, 2000);
-        } else {
-          // All servers running (or we're skipping auto-start), ping them
-          data.servers.forEach((srv, index) => {
-            const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
-            autoUpdateConsole(system, "launcherStatus", msg);
-
-            // If server is running, ping it to get its status
-            if (srv.isRunning) {
-              const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
-              const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-              const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-
-              pingServerStatus(system, index, serverEndpoint);
-            } else {
-              // If not running, mark as stopped
-              if (system.servers[index]) {
-                system.servers[index].status = 'stopped';
-              }
-              updateSystemUI(system);
-            }
-          });
-        }
+      if (!Array.isArray(data.servers)) {
+        updateSystemUI(system);
+        return;
       }
 
-      handleServerResponse(system, "getLauncherStatus", {
-        status: "Success",
-        message: "Launcher status retrieved successfully.",
+      // Store server info, preserving lastStatus to reduce log spam
+      system.servers = data.servers.map((srv, i) => ({
+        ...srv,
+        status: srv.isRunning ? 'checking...' : 'stopped',
+        lastStatus: system.servers?.[i]?.lastStatus ?? null,
+      }));
+
+      // Update device/compositing ports from launcher response
+      data.servers.forEach((srv, index) => {
+        if (srv.port) {
+          if (index === 0) system.deviceServerPort = String(srv.port);
+          else if (index === 1) system.compositingServerPort = String(srv.port);
+        }
+      });
+
+      const allStopped = data.servers.every(srv => !srv.isRunning);
+      const anyStopped = data.servers.some(srv => !srv.isRunning);
+
+      // Track whether servers are running on the system object
+      system.serversRunning = !anyStopped;
+
+      // If all servers are stopped — auto-start on page load, otherwise show power button
+      if (allStopped) {
+        system.connected = false;
+        data.servers.forEach((srv) => {
+          autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`);
+        });
+
+        if (autoStart) {
+          autoUpdateConsole(system, "autoStart", "Servers stopped — auto-starting...");
+          startAndCheckServers(system);
+          return;
+        }
+
+        updateSystemUI(system);
+        return;
+      }
+
+      // Ping each running server to verify it's actually responding
+      data.servers.forEach((srv, index) => {
+        const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
+        autoUpdateConsole(system, "launcherStatus", msg);
+
+        if (srv.isRunning) {
+          const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
+          const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
+          const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+          pingServerStatus(system, index, serverEndpoint);
+        } else {
+          if (system.servers[index]) {
+            system.servers[index].status = 'stopped';
+          }
+        }
       });
 
       updateSystemUI(system);
     })
     .catch((err) => {
       if (err.name === "AbortError") {
-        console.error(`Timeout contacting launcher on ${system.name}`);
         autoUpdateConsole(system, "getLauncherStatus", "Timed out contacting launcher", "error");
       } else {
-        console.error(`Failed to contact launcher on ${system.name}:`, err);
         autoUpdateConsole(system, "getLauncherStatus", "Failed to contact launcher — connection error", "error");
       }
     });
+}
+
+// Starts servers via the launcher, then re-checks status after a delay
+function startAndCheckServers(system) {
+  if (!system) return;
+
+  autoUpdateConsole(system, "startServers", "Starting servers...");
+  startLauncherServers(system);
+
+  // Wait for servers to spin up, then check their status
+  setTimeout(() => {
+    getLauncherStatus(system);
+  }, 3000);
 }
 
 // Ping individual server to get its status
@@ -2344,27 +2357,34 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 setInterval(() => {
-  const now = Date.now();
+  if (!getStatusUpdates) return;
 
-  if (getStatusUpdates) {
-    allSystems.forEach((system) => {
-      // Only ping systems with launcher alive
-      if (!system.launcherAlive) return;
-      
-      // Attempt to ping both servers if they exist and are running
-      if (system.servers && system.servers.length > 0) {
-        system.servers.forEach((srv, index) => {
-          if (srv.isRunning) {
-            const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
-            const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-            const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+  allSystems.forEach((system) => {
+    if (!system.launcherAlive) return;
 
-            pingServerStatus(system, index, serverEndpoint);
-          }
-        });
-      }
-    });
-  }
+    const hasServers = system.servers && system.servers.length > 0;
+    const anyRunning = hasServers && system.servers.some(srv => srv.isRunning);
+
+    // If launcher is alive but no servers are running, re-check launcher status
+    // so the UI stays accurate (e.g. if servers were started externally)
+    if (hasServers && !anyRunning) {
+      getLauncherStatus(system);
+      return;
+    }
+
+    // Ping running servers
+    if (hasServers) {
+      system.servers.forEach((srv, index) => {
+        if (srv.isRunning) {
+          const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
+          const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
+          const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+
+          pingServerStatus(system, index, serverEndpoint);
+        }
+      });
+    }
+  });
 }, getServerStatusInterval); // every certain amount of seconds
 
 //----------------------------------------------------------------------------

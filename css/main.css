@@ -279,6 +279,23 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 2px var(--bg-light), 0 0 24px rgba(236, 72, 153, 0.3);
 }
 
+/* Unreachable — can't contact launcher, fully gray sidebar */
+.sidebar.unreachable::before {
+  animation: none !important;
+  background: linear-gradient(135deg, #999, #bbb, #999) !important;
+}
+
+.sidebar.unreachable {
+  box-shadow: 0 0 0 2px var(--bg-light), 0 0 12px rgba(150, 150, 150, 0.15) !important;
+}
+
+.sidebar.unreachable .sidebar-target-name {
+  color: #999 !important;
+  background: none !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* Offline — launcher alive but servers stopped, muted rig color */
 .sidebar.offline::before {
   animation: none !important;
 }
@@ -1010,13 +1027,26 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #252525;
 }
 
+/* Unreachable — can't contact launcher at all, fully gray */
+.system-card.unreachable {
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+[data-theme="dark"] .system-card.unreachable {
+  opacity: 0.5;
+  background-color: #272727;
+  filter: grayscale(100%);
+}
+
+/* Disconnected — launcher alive but servers stopped, faded rig color */
 .system-card.disconnected {
-  opacity: 0.6;
+  opacity: 0.7;
   filter: saturate(0.65);
 }
 
 [data-theme="dark"] .system-card.disconnected {
-  opacity: 0.6;
+  opacity: 0.7;
   background-color: #272727;
   filter: saturate(0.65);
 }
@@ -1154,6 +1184,34 @@ h1, h2, h3, h4, h5, h6 {
 
 .system-card.selected.disconnected.rig-5 {
   box-shadow: 0 0 0 2px var(--bg-white), 0 0 16px rgba(236, 72, 153, 0.25);
+}
+
+/* Unreachable — gray border, no rig color */
+.system-card.unreachable::before {
+  padding: 2px;
+  background: linear-gradient(135deg, #999, #bbb, #999);
+  animation: none !important;
+}
+
+.system-card.selected.unreachable::before {
+  animation: none !important;
+  inset: -3px;
+  padding: 3px;
+  background: #999;
+}
+
+.system-card.selected.unreachable {
+  box-shadow: 0 0 0 2px var(--bg-white), 0 0 12px rgba(150, 150, 150, 0.2);
+}
+
+.system-card.unreachable .system-title {
+  color: #999 !important;
+  background: none !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+.system-card.unreachable .connect-zone {
+  color: #999;
 }
 
 .system-card.disconnected::before {
