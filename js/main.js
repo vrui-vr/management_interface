@@ -1952,17 +1952,62 @@ function getLauncherStatus(system, autoStart = false) {
     });
 }
 
-// Starts servers via the launcher, then re-checks status after a delay
+// Starts servers via the launcher, then verifies device server is up before checking compositor
 function startAndCheckServers(system) {
   if (!system) return;
 
   autoUpdateConsole(system, "startServers", "Starting servers...");
 
-  // Wait for start response, then give servers time to spin up before checking
   startLauncherServers(system).then(() => {
-    setTimeout(() => {
-      getLauncherStatus(system);
-    }, 2000);
+    autoUpdateConsole(system, "startServers", "Waiting for tracking driver...");
+
+    // Poll for the device server (index 0) to come online first
+    let attempts = 0;
+    const maxAttempts = 10;
+    const pollInterval = 1500;
+
+    const waitForDeviceServer = () => {
+      attempts++;
+      const devicePort = system.deviceServerPort;
+      const deviceEndpoint = `http://${system.ip}:${devicePort}/${deviceServerUrl}`;
+
+      fetchWithTimeout(deviceEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ command: "getServerStatus" }),
+      }, 3000)
+        .then(r => r.json())
+        .then(data => {
+          if (data?.status === "Success") {
+            autoUpdateConsole(system, "startServers", "Tracking driver is online ✓");
+            system.connected = true;
+            activeSystems.add(system.name);
+            updateSystemWithJsonData(system, data);
+
+            // Now wait a moment then check full launcher status (including compositor)
+            autoUpdateConsole(system, "startServers", "Waiting for compositor...");
+            setTimeout(() => {
+              getLauncherStatus(system);
+            }, 1500);
+          } else if (attempts < maxAttempts) {
+            setTimeout(waitForDeviceServer, pollInterval);
+          } else {
+            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
+            getLauncherStatus(system);
+          }
+        })
+        .catch(() => {
+          if (attempts < maxAttempts) {
+            setTimeout(waitForDeviceServer, pollInterval);
+          } else {
+            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
+            getLauncherStatus(system);
+          }
+        });
+    };
+
+    // Give the launcher a moment to kick things off, then start polling
+    setTimeout(waitForDeviceServer, 1500);
   });
 }
 
