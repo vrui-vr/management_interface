@@ -430,8 +430,8 @@ function changeSystem(name) {
     // Update file drop box state
     updateFileDropState(system);
 
-    // Fetch available environments for this system
-    getEnvironments(system);
+    // Update environment dropdown from cached data (fetched once on first connect)
+    updateEnvironmentDropdown(system);
 
     // Update command prompt color class
     const commandPrompt = document.getElementById('commandPrompt');
@@ -898,8 +898,9 @@ function renderSystems(systems) {
       delete card._connectZoneMode;
     }
 
-    // ---------- SERVERS ---------- 
-	if (isAlive && system.servers?.length) {
+    // ---------- SERVERS ----------
+    // Only show server status when at least one server is running
+	if (isAlive && system.servers?.length && system.servers.some(s => s.isRunning)) {
 	  if (needsServersRebuild || card._needsFullRebuild) {
 		const section = document.createElement("div");
 		section.className = "server-section";
@@ -1032,8 +1033,9 @@ function renderSystems(systems) {
 	  delete card._sections.devices;
 	}
 
-    // ---------- SHUTDOWN ---------- 
-    if (isAlive) {
+    // ---------- SHUTDOWN ----------
+    // Only show shutdown button when fully connected (servers running)
+    if (isAlive && isConnected) {
       if (needsShutdownRebuild || card._needsFullRebuild) {
         const wrap = document.createElement("div");
         wrap.className = "shutdown-container";
@@ -1662,25 +1664,24 @@ function getCompositingServerStatus(system) {
 }
 
 // Start VR Compositor and VRRunDeviceTracker
+// Returns a promise so callers can chain after the response
 function startLauncherServers(system) {
-  if (!system) return;
+  if (!system) return Promise.reject("No system");
 
   const endpoint = getServerLauncherEndpoint(system);
 
-  fetchWithTimeout(endpoint, {
+  return fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "startServers" }),
-  }, 3000)
+  }, 5000)
     .then(() => {
       autoUpdateConsole(system, "startServers", "Start command sent to launcher.");
     })
     .catch((err) => {
       if (err.name === "AbortError") {
-        console.error(`Timeout starting launcher servers on ${system.name}`);
         autoUpdateConsole(system, "startServers", "Timed out contacting launcher", "error");
       } else {
-        console.error(`Failed to start servers on ${system.name}:`, err);
         autoUpdateConsole(system, "startServers", "Failed to contact launcher", "error");
       }
     });
@@ -1949,12 +1950,13 @@ function startAndCheckServers(system) {
   if (!system) return;
 
   autoUpdateConsole(system, "startServers", "Starting servers...");
-  startLauncherServers(system);
 
-  // Wait for servers to spin up, then check their status
-  setTimeout(() => {
-    getLauncherStatus(system);
-  }, 3000);
+  // Wait for start response, then give servers time to spin up before checking
+  startLauncherServers(system).then(() => {
+    setTimeout(() => {
+      getLauncherStatus(system);
+    }, 2000);
+  });
 }
 
 // Ping individual server to get its status
