@@ -1991,22 +1991,27 @@ function pingServerStatus(system, serverIndex, endpoint) {
       
       if (data?.status === "Success") {
         system.servers[serverIndex].status = 'online';
-        
+        system.servers[serverIndex].isRunning = true;
+
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
           autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} is online ✓`);
           system.servers[serverIndex].lastStatus = 'online';
         }
-        
+
+        // Re-derive serversRunning from actual ping results
+        const allOnline = system.servers.every(s => s.status === 'online' || s.isRunning);
+        system.serversRunning = allOnline;
+
         // If this is the device server (index 0) and it's online, mark system as connected
         // and ALWAYS update device data (not just on first connection)
         if (serverIndex === 0) {
           system.connected = true;
           activeSystems.add(system.name);
-          
+
           // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
-          
+
           // Update the UI to show the new device states
           updateSystemUI(system);
         }
@@ -2367,9 +2372,9 @@ setInterval(() => {
     const hasServers = system.servers && system.servers.length > 0;
     const anyRunning = hasServers && system.servers.some(srv => srv.isRunning);
 
-    // If launcher is alive but no servers are running, re-check launcher status
-    // so the UI stays accurate (e.g. if servers were started externally)
-    if (hasServers && !anyRunning) {
+    // If launcher is alive but no servers are running, or some servers are still
+    // reported as stopped, re-check launcher status so stale isRunning flags get refreshed
+    if (hasServers && (!anyRunning || !system.serversRunning)) {
       getLauncherStatus(system);
       return;
     }
