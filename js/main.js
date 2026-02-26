@@ -16,7 +16,7 @@ compositingServerUrl = "VRCompositingServer.cgi";
 const getServerStatusInterval = 3000;
 
 let getStatusUpdates = true;   // global flag (default ON)
-let showEmptyEnvironmentDropdown = true; // show dropdown even when no environments are available
+let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
 
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
@@ -1872,8 +1872,6 @@ function getLauncherStatus(system, autoStart = false) {
   }, 5000)
     .then((r) => r.json())
     .then((data) => {
-      autoUpdateConsole(system, "getLauncherStatus", "Received launcher status response.");
-
       if (!Array.isArray(data.servers)) {
         updateSystemUI(system);
         return;
@@ -1904,7 +1902,7 @@ function getLauncherStatus(system, autoStart = false) {
       if (allStopped) {
         system.connected = false;
         data.servers.forEach((srv) => {
-          autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`);
+          autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
         });
 
         if (autoStart) {
@@ -1919,8 +1917,10 @@ function getLauncherStatus(system, autoStart = false) {
 
       // Ping each running server to verify it's actually responding
       data.servers.forEach((srv, index) => {
-        const msg = `${srv.name}: ${srv.isRunning ? "running" : "stopped"}${srv.pid ? ` (pid: ${srv.pid})` : ""}`;
-        autoUpdateConsole(system, "launcherStatus", msg);
+        // Only log stopped servers as warnings — don't spam console with healthy status
+        if (!srv.isRunning) {
+          autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+        }
 
         if (srv.isRunning) {
           const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
