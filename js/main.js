@@ -1901,8 +1901,12 @@ function getLauncherStatus(system, autoStart = false) {
       // If all servers are stopped — auto-start on page load, otherwise show power button
       if (allStopped) {
         system.connected = false;
-        data.servers.forEach((srv) => {
-          autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+        data.servers.forEach((srv, index) => {
+          // Only log if this is a state change
+          if (system.servers[index]?.lastStatus !== 'stopped') {
+            autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+            if (system.servers[index]) system.servers[index].lastStatus = 'stopped';
+          }
         });
 
         if (autoStart) {
@@ -1917,9 +1921,12 @@ function getLauncherStatus(system, autoStart = false) {
 
       // Ping each running server to verify it's actually responding
       data.servers.forEach((srv, index) => {
-        // Only log stopped servers as warnings — don't spam console with healthy status
         if (!srv.isRunning) {
-          autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+          // Only log stopped as warning if it's a state change
+          if (system.servers[index]?.lastStatus !== 'stopped') {
+            autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+            if (system.servers[index]) system.servers[index].lastStatus = 'stopped';
+          }
         }
 
         if (srv.isRunning) {
