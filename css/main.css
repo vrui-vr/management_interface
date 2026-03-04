@@ -279,48 +279,48 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 2px var(--bg-light), 0 0 24px rgba(236, 72, 153, 0.3);
 }
 
-/* Unreachable — can't contact launcher, fully gray sidebar */
+/* Unreachable — can't contact launcher, red error sidebar */
 .sidebar.unreachable::before {
   animation: none !important;
-  background: linear-gradient(135deg, #999, #bbb, #999) !important;
+  background: linear-gradient(135deg, #c0392b, #e74c3c, #c0392b) !important;
 }
 
 .sidebar.unreachable {
-  box-shadow: 0 0 0 2px var(--bg-light), 0 0 12px rgba(150, 150, 150, 0.15) !important;
+  box-shadow: 0 0 0 2px var(--bg-light), 0 0 12px rgba(231, 76, 60, 0.2) !important;
 }
 
 .sidebar.unreachable .sidebar-target-name {
-  color: #999 !important;
+  color: #e74c3c !important;
   background: none !important;
   -webkit-text-fill-color: unset !important;
 }
 
 .sidebar.unreachable .sidebar-docs-link {
-  color: #999 !important;
-  border-color: rgba(150, 150, 150, 0.25) !important;
-  background-color: rgba(150, 150, 150, 0.06) !important;
+  color: #e74c3c !important;
+  border-color: rgba(231, 76, 60, 0.25) !important;
+  background-color: rgba(231, 76, 60, 0.06) !important;
 }
 .sidebar.unreachable .sidebar-docs-link:hover {
-  border-color: rgba(150, 150, 150, 0.5) !important;
-  background-color: rgba(150, 150, 150, 0.12) !important;
+  border-color: rgba(231, 76, 60, 0.5) !important;
+  background-color: rgba(231, 76, 60, 0.12) !important;
 }
 .sidebar.unreachable .sidebar-docs-link svg {
-  color: #999 !important;
+  color: #e74c3c !important;
 }
 
 .sidebar.unreachable .environment-label,
 .sidebar.unreachable .environment-label svg,
 .sidebar.unreachable .environment-dropdown-chevron {
-  color: #999 !important;
+  color: #e74c3c !important;
   opacity: 0.7 !important;
 }
 .sidebar.unreachable .environment-dropdown {
-  border-color: rgba(150, 150, 150, 0.3) !important;
-  color: #999 !important;
+  border-color: rgba(231, 76, 60, 0.3) !important;
+  color: #e74c3c !important;
 }
 .sidebar.unreachable .environment-dropdown:focus {
-  box-shadow: 0 0 0 2px rgba(150, 150, 150, 0.2) !important;
-  border-color: rgba(150, 150, 150, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2) !important;
+  border-color: rgba(231, 76, 60, 0.5) !important;
 }
 
 /* Offline — launcher alive but servers stopped, muted rig color */
@@ -1055,16 +1055,16 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #252525;
 }
 
-/* Unreachable — can't contact launcher at all, fully gray */
+/* Unreachable — can't contact launcher at all, red error state */
 .system-card.unreachable {
-  opacity: 0.5;
-  filter: grayscale(100%);
+  opacity: 0.85;
+  filter: none;
 }
 
 [data-theme="dark"] .system-card.unreachable {
-  opacity: 0.5;
-  background-color: #272727;
-  filter: grayscale(100%);
+  opacity: 0.85;
+  background-color: #2a1a1a;
+  filter: none;
 }
 
 /* Disconnected — launcher alive but servers stopped, faded rig color */
@@ -1214,10 +1214,10 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 2px var(--bg-white), 0 0 16px rgba(236, 72, 153, 0.25);
 }
 
-/* Unreachable — gray border, no rig color */
+/* Unreachable — red border, error state */
 .system-card.unreachable::before {
   padding: 2px;
-  background: linear-gradient(135deg, #999, #bbb, #999);
+  background: linear-gradient(135deg, #c0392b, #e74c3c, #c0392b);
   animation: none !important;
 }
 
@@ -1225,21 +1225,55 @@ h1, h2, h3, h4, h5, h6 {
   animation: none !important;
   inset: -3px;
   padding: 3px;
-  background: #999;
+  background: #e74c3c;
 }
 
 .system-card.selected.unreachable {
-  box-shadow: 0 0 0 2px var(--bg-white), 0 0 12px rgba(150, 150, 150, 0.2);
+  box-shadow: 0 0 0 2px var(--bg-white), 0 0 12px rgba(231, 76, 60, 0.3);
 }
 
 .system-card.unreachable .system-title {
-  color: #999 !important;
+  color: #e74c3c !important;
   background: none !important;
   -webkit-text-fill-color: unset !important;
 }
 
-.system-card.unreachable .connect-zone {
-  color: #999;
+.system-card.unreachable .unreachable-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  color: #e74c3c;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.system-card.unreachable .unreachable-message .unreachable-icon {
+  font-size: 1.4rem;
+}
+
+[data-theme="dark"] .system-card.unreachable .unreachable-message {
+  color: #e57373;
+}
+
+[data-theme="dark"] .system-card.unreachable .system-title {
+  color: #e57373 !important;
+}
+
+[data-theme="dark"] .system-card.unreachable::before {
+  background: linear-gradient(135deg, #b71c1c, #e53935, #b71c1c);
+}
+
+[data-theme="dark"] .system-card.selected.unreachable::before {
+  background: #e53935;
+}
+
+[data-theme="dark"] .system-card.selected.unreachable {
+  box-shadow: 0 0 0 2px var(--bg-white), 0 0 12px rgba(229, 57, 53, 0.3);
 }
 
 .system-card.disconnected::before {
@@ -1477,6 +1511,14 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 400;
   color: #999;
   margin-left: 0.4rem;
+}
+
+.system-card.unreachable .offline-badge {
+  color: #e74c3c;
+}
+
+[data-theme="dark"] .system-card.unreachable .offline-badge {
+  color: #e57373;
 }
 
 .ip-info {

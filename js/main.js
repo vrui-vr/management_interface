@@ -14,6 +14,7 @@ deviceServerUrl = "VRDeviceServer.cgi";
 compositingServerUrl = "VRCompositingServer.cgi";
 
 const getServerStatusInterval = 3000;
+const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before resuming regular pings
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
@@ -38,7 +39,16 @@ function sendButton(buttonNumber) {
     );
   }
   else if (buttonNumber === 2) {
-    // Start servers on current system
+    // Start servers — only allowed on Local Host
+    if (currentSystem !== "Local Host") {
+      autoUpdateConsole(
+        { name: currentSystem },
+        "startServers",
+        "Server controls are only available on Local Host",
+        "warning"
+      );
+      return;
+    }
     const system = allSystems.find((d) => d.name === currentSystem);
     if (system) {
       startAndCheckServers(system);
@@ -125,6 +135,7 @@ function normalizeSystems(rawSystems) {
       devices: normalizedDevices,
       environments: [],
       serversRunning: false,
+      isConnecting: false,
     };
   });
 }
@@ -304,13 +315,17 @@ function removeSystem(systemName, skipConfirm = false) {
     if (!confirmed) return;
   }
 
+  // Clean up name-based references
+  activeSystems.delete(systemName);
+  filterState.delete(systemName);
+
+  allSystems = allSystems.filter((d) => d.name !== systemName);
+
   // If the removed system is currently selected, switch to Local Host
   if (currentSystem === systemName) {
-    currentSystem = "Local Host";
     changeSystem("Local Host");
   }
 
-  allSystems = allSystems.filter((d) => d.name !== systemName);
   updateInterface();
 
   autoUpdateConsole(
@@ -811,7 +826,7 @@ function renderSystems(systems) {
 
       if (!isAlive) {
         const offline = document.createElement("span");
-        offline.textContent = " (offline)";
+        offline.textContent = " (unreachable)";
         offline.className = "offline-badge";
         labelSpan.appendChild(offline);
       }
@@ -850,13 +865,54 @@ function renderSystems(systems) {
       card._sections.divider = divider;
     }
 
-    // ---------- CONNECT ZONE ----------
-    // Show power button when: launcher not reachable, OR launcher alive but servers stopped
-    const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
-    const showConnectZone = !isAlive || serversAllStopped;
+    // ---------- UNREACHABLE MESSAGE ----------
+    // Show error message when launcher is not reachable (no power button)
+    if (!isAlive) {
+      if (!card._sections.unreachableMsg || card._needsFullRebuild) {
+        const msg = document.createElement("div");
+        msg.className = "unreachable-message";
+        msg.innerHTML = `
+          <span class="unreachable-icon">&#9888;</span>
+          <span>VRServerLauncher unreachable</span>
+        `;
+        msg.onclick = e => {
+          e.stopPropagation();
+          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
+          checkLauncherAlive(system);
+        };
+        msg.style.cursor = "pointer";
+        msg.title = "Click to retry connection";
 
-    if (showConnectZone) {
-      if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== (isAlive ? 'start' : 'connect')) {
+        if (card._sections.unreachableMsg) {
+          card.replaceChild(msg, card._sections.unreachableMsg);
+        } else {
+          const insertAfter = card._sections.divider || card._sections.header;
+          card.insertBefore(msg, insertAfter?.nextSibling || null);
+        }
+        card._sections.unreachableMsg = msg;
+      }
+      // Remove connect zone if present
+      if (card._sections.connectZone) {
+        card.removeChild(card._sections.connectZone);
+        delete card._sections.connectZone;
+        delete card._connectZoneMode;
+      }
+    } else {
+      // Remove unreachable message when launcher is alive
+      if (card._sections.unreachableMsg) {
+        card.removeChild(card._sections.unreachableMsg);
+        delete card._sections.unreachableMsg;
+      }
+    }
+
+    // ---------- CONNECT ZONE ----------
+    // Show power button ONLY on Local Host when launcher is alive but servers are stopped
+    // Non-localhost systems are monitor-only — no server start/stop controls
+    const isLocalHost = system.name === "Local Host";
+    const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
+
+    if (isLocalHost && isAlive && serversAllStopped) {
+      if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== 'start') {
         const zone = document.createElement("div");
         zone.className = "connect-zone";
         zone.innerHTML = `
@@ -871,25 +927,18 @@ function renderSystems(systems) {
 
         zone.querySelector(".connect-btn-wrap").onclick = e => {
           e.stopPropagation();
-          if (isAlive) {
-            // Launcher is alive but servers are stopped — start them
-            startAndCheckServers(system);
-          } else {
-            // Launcher not reachable — try to connect
-            autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-            checkLauncherAlive(system);
-          }
+          startAndCheckServers(system);
         };
 
         if (card._sections.connectZone) {
           card.replaceChild(zone, card._sections.connectZone);
         } else {
-          const insertAfter = card._sections.divider || card._sections.header;
+          const insertAfter = card._sections.unreachableMsg || card._sections.divider || card._sections.header;
           card.insertBefore(zone, insertAfter?.nextSibling || null);
         }
 
         card._sections.connectZone = zone;
-        card._connectZoneMode = isAlive ? 'start' : 'connect';
+        card._connectZoneMode = 'start';
       }
 
     } else if (card._sections.connectZone) {
@@ -1034,8 +1083,9 @@ function renderSystems(systems) {
 	}
 
     // ---------- SHUTDOWN ----------
-    // Only show shutdown button when fully connected (servers running)
-    if (isAlive && isConnected) {
+    // Only show shutdown button on Local Host when fully connected (servers running)
+    // Non-localhost systems are monitor-only — no server controls
+    if (isLocalHost && isAlive && isConnected) {
       if (needsShutdownRebuild || card._needsFullRebuild) {
         const wrap = document.createElement("div");
         wrap.className = "shutdown-container";
@@ -1395,8 +1445,9 @@ function checkLauncherAlive(system) {
         // Fetch environments on first connect
         getEnvironments(system);
 
-        // Check server states — auto-start if stopped (initial page load)
-        getLauncherStatus(system, true);
+        // Check server states — only auto-start on Local Host
+        const isLocal = system.name === "Local Host";
+        getLauncherStatus(system, isLocal);
       } else {
         system.launcherAlive = false;
         autoUpdateConsole(system, "isAlive", `Launcher responded but isRunning=${data?.isRunning}`, "error");
@@ -1516,8 +1567,24 @@ function sendPowerOff(system, deviceName, featureIndex) {
 // Functions to change info about a system
 function renameSystem(system) {
   const newName = window.prompt("New name:", system.name);
-  if (newName && newName.trim()) {
-    system.name = newName.trim();
+  if (newName && newName.trim() && newName.trim() !== system.name) {
+    const oldName = system.name;
+    const trimmed = newName.trim();
+
+    // Update all name-based references before changing the name
+    if (currentSystem === oldName) {
+      currentSystem = trimmed;
+    }
+    if (activeSystems.has(oldName)) {
+      activeSystems.delete(oldName);
+      activeSystems.add(trimmed);
+    }
+    if (filterState.has(oldName)) {
+      filterState.delete(oldName);
+      filterState.add(trimmed);
+    }
+
+    system.name = trimmed;
     saveSystemsToLocalStorage();
     updateInterface();
   }
@@ -1909,7 +1976,7 @@ function getLauncherStatus(system, autoStart = false) {
           }
         });
 
-        if (autoStart) {
+        if (autoStart && system.name === "Local Host") {
           autoUpdateConsole(system, "autoStart", "Servers stopped — auto-starting...");
           startAndCheckServers(system);
           return;
@@ -1956,6 +2023,9 @@ function getLauncherStatus(system, autoStart = false) {
 function startAndCheckServers(system) {
   if (!system) return;
 
+  // Suppress regular status pings while connecting
+  system.isConnecting = true;
+
   autoUpdateConsole(system, "startServers", "Starting servers...");
 
   startLauncherServers(system).then(() => {
@@ -1988,12 +2058,15 @@ function startAndCheckServers(system) {
             autoUpdateConsole(system, "startServers", "Waiting for compositor...");
             setTimeout(() => {
               getLauncherStatus(system);
+              // Resume regular pings after a delay
+              setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
             }, 1500);
           } else if (attempts < maxAttempts) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
             autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
             getLauncherStatus(system);
+            setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
           }
         })
         .catch(() => {
@@ -2002,6 +2075,7 @@ function startAndCheckServers(system) {
           } else {
             autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
             getLauncherStatus(system);
+            setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
           }
         });
     };
@@ -2420,6 +2494,7 @@ setInterval(() => {
 
   allSystems.forEach((system) => {
     if (!system.launcherAlive) return;
+    if (system.isConnecting) return; // skip pings while connecting to servers
 
     const hasServers = system.servers && system.servers.length > 0;
     const anyRunning = hasServers && system.servers.some(srv => srv.isRunning);
