@@ -584,7 +584,8 @@ function autoUpdateConsole(system, command, message, severity = "") {
   const consoleBox = document.getElementById("consoleOutput");
 
   // REJECT unknown systems - don't log them at all
-  const knownSystem = allSystems.find((d) => d.name === system.name);
+  // Check by reference first (handles renamed systems), then fall back to name lookup
+  const knownSystem = allSystems.includes(system) ? system : allSystems.find((d) => d.name === system.name);
   if (!knownSystem) {
     console.warn(`[REJECTED] Message from unknown system: ${system.name}`);
     return; // Exit early - don't log anything
