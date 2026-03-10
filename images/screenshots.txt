@@ -1,0 +1,12 @@
+Screenshots needed for documentation:
+
+dashboard-overview.png      - Full view of the interface with a connected system and devices visible
+add-system-dialog.png       - The "Add System" modal with fields filled in
+system-card-connected.png   - A single system card in the connected state showing devices and battery levels
+system-card-disconnected.png - A system card in the disconnected/unreachable state
+sidebar.png                 - The sidebar showing active system info, theme toggle, and environment selector
+console.png                 - The console section with log messages and filter options
+dark-mode.png               - The interface in dark mode
+mini-monitor.png            - The detachable mini monitor popup window
+device-controls.png         - Close-up of device list showing haptic ping and power off buttons
+edit-system-menu.png        - The context menu for editing/renaming/removing a system
