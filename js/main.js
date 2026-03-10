@@ -18,6 +18,7 @@ const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before 
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
+let localhostOnly = true; // when true, only Local Host systems can be modified or have servers started/stopped
 
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
@@ -907,12 +908,13 @@ function renderSystems(systems) {
     }
 
     // ---------- CONNECT ZONE ----------
-    // Show power button ONLY on Local Host when launcher is alive but servers are stopped
-    // Non-localhost systems are monitor-only — no server start/stop controls
+    // Show power button when launcher is alive but servers are stopped
+    // When localhostOnly is true, only Local Host gets server controls
     const isLocalHost = system.name === "Local Host";
+    const canControl = isLocalHost || !localhostOnly;
     const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
 
-    if (isLocalHost && isAlive && serversAllStopped) {
+    if (canControl && isAlive && serversAllStopped) {
       if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== 'start') {
         const zone = document.createElement("div");
         zone.className = "connect-zone";
@@ -1084,9 +1086,9 @@ function renderSystems(systems) {
 	}
 
     // ---------- SHUTDOWN ----------
-    // Only show shutdown button on Local Host when fully connected (servers running)
-    // Non-localhost systems are monitor-only — no server controls
-    if (isLocalHost && isAlive && isConnected) {
+    // Only show shutdown button when fully connected (servers running)
+    // When localhostOnly is true, only Local Host gets server controls
+    if (canControl && isAlive && isConnected) {
       if (needsShutdownRebuild || card._needsFullRebuild) {
         const wrap = document.createElement("div");
         wrap.className = "shutdown-container";
@@ -1301,8 +1303,9 @@ function showEditMenu(e, system, field, popupWin = null) {
   makeMenuVisible(menu);
 
   const available = [];
+  const isLocal = system.name === "Local Host";
 
-  if (field === "name" && system.name !== "Local Host") {
+  if (field === "name" && !isLocal) {
 	// console.log("[DEBUG] Adding action: Rename");
 	available.push("Rename");
   } else if (field === "ipport") {
