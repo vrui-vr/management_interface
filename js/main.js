@@ -2658,7 +2658,7 @@ function openMiniMonitor() {
   const cardGap = 16;
   const popPadding = 24;
   const numSystems = allSystems.length;
-  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding, 270), screenW - 40);
+  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding + 2, 270), screenW - 40);
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
@@ -2708,8 +2708,8 @@ function openMiniMonitor() {
           flex-wrap: nowrap;
           gap: 16px;
           padding: 12px;
-          overflow-x: auto;
-          overflow-y: visible;
+          overflow-x: hidden;
+          overflow-y: hidden;
           align-items: stretch;
           min-height: 0;
           scrollbar-width: thin;
@@ -2751,6 +2751,12 @@ function openMiniMonitor() {
         .server-section { padding: 0.45rem 0.65rem; margin-bottom: 0.25rem; }
         .device-section { padding: 0.45rem 0.65rem; }
         .section-title { margin-bottom: 0.25rem; }
+
+        /* Make unreachable cards more compact in popup */
+        .system-card.unreachable .unreachable-message {
+          font-size: 0.7rem;
+          padding: 12px 8px;
+        }
       </style>
     </head>
     <body>
