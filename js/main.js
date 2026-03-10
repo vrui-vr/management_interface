@@ -1570,28 +1570,36 @@ function sendPowerOff(system, deviceName, featureIndex) {
 
 // Functions to change info about a system
 function renameSystem(system) {
-  const newName = window.prompt("New name:", system.name);
-  if (newName && newName.trim() && newName.trim() !== system.name) {
-    const oldName = system.name;
-    const trimmed = newName.trim();
+  showFormModal({
+    title: "Rename System",
+    submitLabel: "Rename",
+    colorClass: system.colorClass || "",
+    fields: [
+      { key: "name", label: "Name", default: system.name, placeholder: "System name" }
+    ],
+    onSubmit: ({ name }) => {
+      if (name && name !== system.name) {
+        const oldName = system.name;
 
-    // Update all name-based references before changing the name
-    if (currentSystem === oldName) {
-      currentSystem = trimmed;
-    }
-    if (activeSystems.has(oldName)) {
-      activeSystems.delete(oldName);
-      activeSystems.add(trimmed);
-    }
-    if (filterState.has(oldName)) {
-      filterState.delete(oldName);
-      filterState.add(trimmed);
-    }
+        // Update all name-based references before changing the name
+        if (currentSystem === oldName) {
+          currentSystem = name;
+        }
+        if (activeSystems.has(oldName)) {
+          activeSystems.delete(oldName);
+          activeSystems.add(name);
+        }
+        if (filterState.has(oldName)) {
+          filterState.delete(oldName);
+          filterState.add(name);
+        }
 
-    system.name = trimmed;
-    saveSystemsToLocalStorage();
-    updateInterface();
-  }
+        system.name = name;
+        saveSystemsToLocalStorage();
+        updateInterface();
+      }
+    },
+  });
 }
 
 // Edit a system's connection details (IP and Launcher Port) in a single modal
