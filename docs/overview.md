@@ -30,9 +30,9 @@ Each system card shows one of three states:
 
 | State | What It Means |
 |-------|---------------|
-| **Connected** | Launcher alive and servers running (full color) |
+| **Connected** | Launcher alive and servers running (system color) |
 | **Disconnected** | Launcher alive but servers stopped (muted) |
-| **Unreachable** | Can't contact launcher (grayed out) |
+| **Unreachable** | Can't contact launcher (red) |
 
 ## Adding a System
 
