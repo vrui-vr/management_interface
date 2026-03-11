@@ -18,6 +18,7 @@ const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before 
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
+let showLogo = false; // show the sidebar logo (set to true when a real logo is available)
 // Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 
 function sendButton(buttonNumber) {
@@ -2427,6 +2428,12 @@ function updateInterface() {
 
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
+  // Hide logo if showLogo is false
+  if (!showLogo) {
+    const logoLink = document.getElementById("Vrui-logo-link");
+    if (logoLink) logoLink.style.display = "none";
+  }
+
   const saved = localStorage.getItem("savedSystems");
 
   if (saved) {
@@ -2623,8 +2630,9 @@ function initDarkModeToggle() {
   const toggle = document.querySelector('.theme-toggle');
   if (!toggle) return;
   
-  // Load saved theme preference
-  const savedTheme = localStorage.getItem('theme') || 'light';
+  // Load saved theme preference, fall back to system preference
+  const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const savedTheme = localStorage.getItem('theme') || (systemPrefersDark ? 'dark' : 'light');
   if (savedTheme === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
     toggle.classList.add('dark');
@@ -2669,9 +2677,10 @@ function openMiniMonitor() {
   const cardW = screenW >= 3840 ? 340 : screenW >= 2560 ? 300 : screenW >= 1920 ? 270 : 250;
   const popH  = screenW >= 3840 ? 420 : screenW >= 2560 ? 370 : screenW >= 1920 ? 330 : 300;
   const cardGap = 16;
-  const popPadding = 24;
+  const popPadding = 12; // matches container padding on each side
   const numSystems = allSystems.length;
-  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding + 2, 270), screenW - 40);
+  const chromeBuffer = 16; // extra space for window frame / rendering
+  const popW = Math.min(Math.max(numSystems * cardW + (numSystems - 1) * cardGap + popPadding * 2 + chromeBuffer, 270), screenW - 40);
   const popLeft = screenW - popW - 20;
   const popTop = 40;
 
@@ -2720,7 +2729,7 @@ function openMiniMonitor() {
           display: flex;
           flex-wrap: nowrap;
           gap: 16px;
-          padding: 12px;
+          padding: 12px 16px 12px 12px;
           overflow-x: hidden;
           overflow-y: hidden;
           align-items: stretch;
