@@ -1,11 +1,6 @@
 /* Force Google Fonts to load */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* Preload SF Pro alternatives */
-@font-face {
-  font-family: 'Inter';
-  font-display: swap;
-}
 
 /* ========================================
    CSS VARIABLES
@@ -220,6 +215,7 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--border);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
   opacity: 1;
@@ -420,8 +416,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .sidebar-title {
-  margin: 0 0 6px 0;
-  font-size: 23px;
+  margin: 0;
+  font-size: 19px;
   font-weight: 700;
   color: var(--text-dark);
   letter-spacing: -0.03em;
@@ -1088,6 +1084,7 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--border);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
   opacity: 1;
