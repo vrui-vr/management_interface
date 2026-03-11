@@ -18,7 +18,6 @@ const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before 
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
-let showLogo = false; // show the sidebar logo (set to true when a real logo is available)
 let localhostOnly = true; // when true, only Local Host systems can be modified or have servers started/stopped
 
 function sendButton(buttonNumber) {
@@ -2426,12 +2425,6 @@ function updateInterface() {
 
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
-  // Hide logo if showLogo is false
-  if (!showLogo) {
-    const logoLink = document.getElementById("Vrui-logo-link");
-    if (logoLink) logoLink.style.display = "none";
-  }
-
   const saved = localStorage.getItem("savedSystems");
 
   if (saved) {
