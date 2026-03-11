@@ -18,7 +18,7 @@ const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before 
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
-let localhostOnly = true; // when true, only Local Host systems can be modified or have servers started/stopped
+// Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
@@ -40,12 +40,12 @@ function sendButton(buttonNumber) {
     );
   }
   else if (buttonNumber === 2) {
-    // Start servers — only allowed on Local Host
-    if (currentSystem !== "Local Host") {
+    // Start servers — only allowed on localhost
+    if (currentSystem !== "localhost") {
       autoUpdateConsole(
         { name: currentSystem },
         "startServers",
-        "Server controls are only available on Local Host",
+        "Server controls are only available on localhost",
         "warning"
       );
       return;
@@ -279,7 +279,7 @@ function addSystem() {
         newName.toLowerCase() === "local host" ||
         newName.toLowerCase() === "localhost"
       ) {
-        alert("The name 'Local Host' is reserved and cannot be used.");
+        alert("The name 'localhost' is reserved and cannot be used.");
         return;
       }
       const newSystem = {
@@ -304,10 +304,10 @@ function addSystem() {
 }
 
 // Remove system from list of systems
-// Protects the Local Host from deletion
+// Protects the localhost from deletion
 function removeSystem(systemName, skipConfirm = false) {
-  if (systemName === "Local Host") {
-    alert("Cannot remove 'Local Host'. It is a protected system.");
+  if (systemName === "localhost") {
+    alert("Cannot remove 'localhost'. It is a protected system.");
     return;
   }
 
@@ -322,9 +322,9 @@ function removeSystem(systemName, skipConfirm = false) {
 
   allSystems = allSystems.filter((d) => d.name !== systemName);
 
-  // If the removed system is currently selected, switch to Local Host
+  // If the removed system is currently selected, switch to localhost
   if (currentSystem === systemName) {
-    changeSystem("Local Host");
+    changeSystem("localhost");
   }
 
   updateInterface();
@@ -347,6 +347,7 @@ document.querySelectorAll(".log-entry .label").forEach((labelEl) => {
 
 // New shutdown function that targets the launcher to stop servers
 function shutdownSystem(system) {
+  if (system.name !== "localhost") return; // remote systems are monitor-only
   const confirmed = window.confirm(`Are you sure you want to shut down ${system.name}?`);
   if (!confirmed) return;
 
@@ -502,7 +503,7 @@ function updateDropdown() {
   const nameEl = document.getElementById("currentSystemName");
   if (nameEl) {
     nameEl.textContent = currentSystem;
-    if (system && currentSystem !== "Local Host") {
+    if (system && currentSystem !== "localhost") {
       nameEl.style.cursor = "pointer";
       nameEl.title = "Edit name";
       nameEl.onclick = (e) => {
@@ -815,7 +816,7 @@ function renderSystems(systems) {
       labelSpan.className = "system-title";
       labelSpan.textContent = system.name;
 
-      if (system.name !== "Local Host" && system.name === currentSystem) {
+      if (system.name !== "localhost" && system.name === currentSystem) {
         labelSpan.style.cursor = "pointer";
         labelSpan.title = "Edit name";
         labelSpan.onclick = e => {
@@ -836,7 +837,7 @@ function renderSystems(systems) {
       titleSection.append(labelSpan);
       header.appendChild(titleSection);
 
-      if (system.name !== "Local Host") {
+      if (system.name !== "localhost") {
         const removeBtn = document.createElement("button");
         removeBtn.className = `remove-btn ${system.colorClass}`;
         removeBtn.textContent = "×";
@@ -909,12 +910,11 @@ function renderSystems(systems) {
 
     // ---------- CONNECT ZONE ----------
     // Show power button when launcher is alive but servers are stopped
-    // When localhostOnly is true, only Local Host gets server controls
-    const isLocalHost = system.name === "Local Host";
-    const canControl = isLocalHost || !localhostOnly;
+    // Only localhost can start/stop servers; remote systems are monitor-only
+    const isLocalHost = system.name === "localhost";
     const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
 
-    if (canControl && isAlive && serversAllStopped) {
+    if (isLocalHost && isAlive && serversAllStopped) {
       if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== 'start') {
         const zone = document.createElement("div");
         zone.className = "connect-zone";
@@ -1086,9 +1086,8 @@ function renderSystems(systems) {
 	}
 
     // ---------- SHUTDOWN ----------
-    // Only show shutdown button when fully connected (servers running)
-    // When localhostOnly is true, only Local Host gets server controls
-    if (canControl && isAlive && isConnected) {
+    // Only localhost can shut down servers; remote systems are monitor-only
+    if (isLocalHost && isAlive && isConnected) {
       if (needsShutdownRebuild || card._needsFullRebuild) {
         const wrap = document.createElement("div");
         wrap.className = "shutdown-container";
@@ -1303,7 +1302,7 @@ function showEditMenu(e, system, field, popupWin = null) {
   makeMenuVisible(menu);
 
   const available = [];
-  const isLocal = system.name === "Local Host";
+  const isLocal = system.name === "localhost";
 
   if (field === "name" && !isLocal) {
 	// console.log("[DEBUG] Adding action: Rename");
@@ -1449,8 +1448,8 @@ function checkLauncherAlive(system) {
         // Fetch environments on first connect
         getEnvironments(system);
 
-        // Check server states — only auto-start on Local Host
-        const isLocal = system.name === "Local Host";
+        // Check server states — only auto-start on localhost
+        const isLocal = system.name === "localhost";
         getLauncherStatus(system, isLocal);
       } else {
         system.launcherAlive = false;
@@ -1604,7 +1603,7 @@ function renameSystem(system) {
 
 // Edit a system's connection details (IP and Launcher Port) in a single modal
 function showEditConnectionModal(system) {
-  const isLocalHost = system.name === "Local Host";
+  const isLocalHost = system.name === "localhost";
   const fields = [];
   if (!isLocalHost) {
     fields.push({ key: "ip", label: "IP Address", default: system.ip || "", placeholder: "192.168.1.15" });
@@ -1746,6 +1745,7 @@ function getCompositingServerStatus(system) {
 // Returns a promise so callers can chain after the response
 function startLauncherServers(system) {
   if (!system) return Promise.reject("No system");
+  if (system.name !== "localhost") return Promise.reject("Remote systems are monitor-only");
 
   const endpoint = getServerLauncherEndpoint(system);
 
@@ -1769,6 +1769,7 @@ function startLauncherServers(system) {
 // Stop VR Compositor and VRRunDeviceTracker
 function stopLauncherServers(system) {
   if (!system) return;
+  if (system.name !== "localhost") return; // remote systems are monitor-only
 
   const endpoint = getServerLauncherEndpoint(system);
 
@@ -1988,7 +1989,7 @@ function getLauncherStatus(system, autoStart = false) {
           }
         });
 
-        if (autoStart && system.name === "Local Host") {
+        if (autoStart && system.name === "localhost") {
           autoUpdateConsole(system, "autoStart", "Servers stopped — auto-starting...");
           startAndCheckServers(system);
           return;
@@ -2034,6 +2035,7 @@ function getLauncherStatus(system, autoStart = false) {
 // Starts servers via the launcher, then verifies device server is up before checking compositor
 function startAndCheckServers(system) {
   if (!system) return;
+  if (system.name !== "localhost") return; // remote systems are monitor-only
 
   // Suppress regular status pings while connecting
   system.isConnecting = true;
@@ -2226,8 +2228,8 @@ function sendConsoleCommand() {
         allSystems = normalizeSystems(data.systems);
 
         if (allSystems.length > 0) {
-          allSystems[0].name = "Local Host";
-          currentSystem = "Local Host";
+          allSystems[0].name = "localhost";
+          currentSystem = "localhost";
 
           const label = document.getElementById("targetLabel");
           const currentSystem = allSystems.find(
@@ -2450,7 +2452,7 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     // fallback if nothing is stored — hardcoded default system
     allSystems = [{
-      name: "Local Host",
+      name: "localhost",
       ip: "127.0.0.1",
       serverLauncherPort: "8080",
       deviceServerPort: "8081",
@@ -2463,10 +2465,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }];
   }
 
-  // ROBUST DEFAULT: Ensure index 0 exists and is "Local Host"
+  // ROBUST DEFAULT: Ensure index 0 exists and is "localhost"
   if (allSystems.length === 0) {
     allSystems.push({
-      name: "Local Host",
+      name: "localhost",
       ip: "127.0.0.1",
       serverLauncherPort: "8080",
       deviceServerPort: "8081",
@@ -2479,9 +2481,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Force index 0 to be "Local Host"
-  if (allSystems[0].name !== "Local Host") {
-    allSystems[0].name = "Local Host";
+  // Force index 0 to be "localhost"
+  if (allSystems[0].name !== "localhost") {
+    allSystems[0].name = "localhost";
   }
 
   // Update interface first to populate the dropdown and cards
