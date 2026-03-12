@@ -171,7 +171,7 @@ function getCompositingServerEndpoint(system) {
 }
 
 // Shows a modal form with configurable fields for user input
-function showFormModal({ title, submitLabel = "Save", fields, colorClass = "", onSubmit }) {
+function showFormModal({ title, submitLabel = "Save", fields, colorClass = "", unreachable = false, onSubmit }) {
   const existing = document.getElementById("formModal");
   if (existing) existing.remove();
 
@@ -181,6 +181,7 @@ function showFormModal({ title, submitLabel = "Save", fields, colorClass = "", o
 
   const card = document.createElement("div");
   card.className = "form-modal-card";
+  if (unreachable) card.classList.add("unreachable");
   if (colorClass) card.dataset.colorClass = colorClass;
 
   const h = document.createElement("h3");
@@ -605,6 +606,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   const isOffline = !knownSystem.launcherAlive;
 
   logEntry.classList.add("log-entry", colorClass);
+  if (isOffline) logEntry.classList.add("unreachable");
 
   // Apply severity tag if needed
   if (severity === "success") {
@@ -619,18 +621,20 @@ function autoUpdateConsole(system, command, message, severity = "") {
     logEntry.classList.add("log-critical");
   }
 
-  // Label + (offline) badge
+  // Label + (unreachable) badge
   const systemName = `<span class="label">${system.name}</span>`;
   const offlineNote = isOffline
-    ? ` <span class="offline">(offline)</span>`
+    ? ` <span class="offline">(unreachable)</span>`
     : "";
 
   logEntry.innerHTML = `${systemName}${offlineNote} - ${command}<br>${message}`;
 
-  // Apply system color to label
+  // Apply system color to label (red when unreachable)
   const labelEl = logEntry.querySelector(".label");
   if (labelEl) {
-    labelEl.style.color = getSystemColor(knownSystem);
+    labelEl.style.color = isOffline
+      ? getComputedStyle(document.documentElement).getPropertyValue('--unreachable').trim()
+      : getSystemColor(knownSystem);
   }
 
   // Append and re-filter
@@ -1574,6 +1578,7 @@ function renameSystem(system) {
     title: "Rename System",
     submitLabel: "Rename",
     colorClass: system.colorClass || "",
+    unreachable: !system.launcherAlive,
     fields: [
       { key: "name", label: "Name", default: system.name, placeholder: "System name" }
     ],
@@ -1615,6 +1620,7 @@ function showEditConnectionModal(system) {
     title: "Edit Connection",
     submitLabel: "Save",
     colorClass: system.colorClass || "",
+    unreachable: !system.launcherAlive,
     fields,
     onSubmit: ({ ip, port }) => {
       if (!isLocalHost && ip) system.ip = ip;
