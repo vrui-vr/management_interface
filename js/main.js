@@ -998,8 +998,8 @@ function renderSystems(systems) {
     }
 
     // ---------- SERVERS ----------
-    // Only show server status when at least one server is running
-	if (isAlive && system.servers?.length && system.servers.some(s => s.isRunning)) {
+    // Only show server status when at least one server is running and not in startup loading
+	if (!isPoweringOn && isAlive && system.servers?.length && system.servers.some(s => s.isRunning)) {
 	  if (needsServersRebuild || card._needsFullRebuild) {
 		const section = document.createElement("div");
 		section.className = "server-section";
@@ -1047,8 +1047,8 @@ function renderSystems(systems) {
 	  delete card._sections.servers;
 	}
 
-	// ---------- DEVICES ---------- 
-	if (isConnected) {
+	// ---------- DEVICES ----------
+	if (!isPoweringOn && isConnected) {
 	  if (needsDevicesRebuild || card._needsFullRebuild) {
 		const section = document.createElement("div");
 		section.className = "device-section";
@@ -2141,21 +2141,17 @@ function startAndCheckServers(system) {
             autoUpdateConsole(system, "startServers", "Waiting for compositor...");
             setTimeout(() => {
               getLauncherStatus(system);
-              // Resume regular pings after a delay
-              setTimeout(() => {
-                system.startupPhase = null;
-                system.isConnecting = false;
-                updateSystemUI(system);
-              }, pingResumeDelayAfterConnect);
+              // isConnecting cleared by pingServerStatus when device server responds
+              setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
             }, 1500);
           } else if (attempts < maxAttempts) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
             autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
             system.startupPhase = null;
+            system.isConnecting = false;
             updateSystemUI(system);
             getLauncherStatus(system);
-            setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
           }
         })
         .catch(() => {
@@ -2164,9 +2160,9 @@ function startAndCheckServers(system) {
           } else {
             autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
             system.startupPhase = null;
+            system.isConnecting = false;
             updateSystemUI(system);
             getLauncherStatus(system);
-            setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
           }
         });
     };
@@ -2229,6 +2225,12 @@ function pingServerStatus(system, serverIndex, endpoint) {
           // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
 
+          // Startup complete: reveal everything now that we have full data
+          if (system.startupPhase && system.startupPhase !== 'powering-off') {
+            system.startupPhase = null;
+            system.isConnecting = false;
+          }
+
           // Update the UI to show the new device states
           updateSystemUI(system);
         }
@@ -2237,6 +2239,11 @@ function pingServerStatus(system, serverIndex, endpoint) {
         if (system.servers[serverIndex].lastStatus !== 'error') {
           autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} responded with error`, "error");
           system.servers[serverIndex].lastStatus = 'error';
+        }
+        // If startup and device server failed to report success, reveal anyway
+        if (serverIndex === 0 && system.startupPhase && system.startupPhase !== 'powering-off') {
+          system.startupPhase = null;
+          system.isConnecting = false;
         }
       }
       updateSystemUI(system);
@@ -2247,8 +2254,14 @@ function pingServerStatus(system, serverIndex, endpoint) {
         return;
       }
 
-      // Servers were intentionally stopped — network errors are expected, don't log them
-      if (system.intentionallyShutdown) return;
+      // Servers were intentionally stopped or are shutting down — network errors are expected
+      if (system.intentionallyShutdown || system.startupPhase === 'powering-off') return;
+
+      // If startup and device server is unreachable, reveal the error state
+      if (serverIndex === 0 && system.startupPhase) {
+        system.startupPhase = null;
+        system.isConnecting = false;
+      }
 
       console.error(`❌ ${serverName} failed:`, err.name, err.message);
 
@@ -2595,6 +2608,7 @@ setInterval(() => {
   allSystems.forEach((system) => {
     if (!system.launcherAlive) return;
     if (system.intentionallyShutdown) return; // servers stopped intentionally — wait for power button
+    if (system.startupPhase === 'powering-off') return; // shutdown in progress — don't fire new pings
     if (system.isConnecting) return; // skip pings while connecting to servers
 
     const hasServers = system.servers && system.servers.length > 0;
