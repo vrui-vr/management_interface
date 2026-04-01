@@ -2763,6 +2763,60 @@ h6 {
 }
 
 /* ========================================
+   POWER STATE LOADING ANIMATIONS
+   ======================================== */
+
+@keyframes powerSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.power-loading-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+.power-spinner {
+  width: 40px;
+  height: 40px;
+  animation: powerSpin 1.2s linear infinite;
+}
+
+.power-status-text {
+  font-size: 0.73rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  opacity: 0.5;
+  text-align: center;
+  pointer-events: none;
+}
+
+.shutdown-container.loading {
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.shutdown-spinner {
+  width: 18px;
+  height: 18px;
+  animation: powerSpin 1.2s linear infinite;
+}
+
+.shutdown-status-text {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  opacity: 0.5;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ========================================
    ACTION MENU
    ======================================== */
 

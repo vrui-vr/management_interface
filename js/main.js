@@ -353,6 +353,8 @@ function shutdownSystem(system) {
   const confirmed = window.confirm(`Are you sure you want to shut down ${system.name}?`);
   if (!confirmed) return;
 
+  system.startupPhase = 'powering-off';
+  updateSystemUI(system);
   autoUpdateConsole(system, "shutdown", "Sending shutdown command to launcher...");
 
   const endpoint = getServerLauncherEndpoint(system);
@@ -368,6 +370,7 @@ function shutdownSystem(system) {
         autoUpdateConsole(system, "shutdown", "✓ Servers stopped successfully");
 
         // Reset system state — launcher stays alive, only compositing/device servers stopped
+        system.startupPhase = null;
         system.connected = false;
         system.serversRunning = false;
         system.intentionallyShutdown = true;
@@ -379,12 +382,16 @@ function shutdownSystem(system) {
 
         // Update UI
         updateSystemUI(system);
-        
+
       } else {
+        system.startupPhase = null;
+        updateSystemUI(system);
         autoUpdateConsole(system, "shutdown", `⚠️ ${data?.message || "Shutdown failed"}`, "error");
       }
     })
     .catch((err) => {
+      system.startupPhase = null;
+      updateSystemUI(system);
       if (err.name === "AbortError") {
         autoUpdateConsole(system, "shutdown", "Timed out sending shutdown command", "error");
       } else {
@@ -416,6 +423,16 @@ function confirmAndShutdown(system) {
   updateSystemUI(system);
 
   autoUpdateConsole(system, "shutdown", "🛑 Shutdown command sent. Marked as disconnected.");
+}
+
+function getStartupPhaseText(phase) {
+  switch (phase) {
+    case 'powering-on':  return 'Powering on...';
+    case 'tracking':     return 'Starting tracking server...';
+    case 'compositing':  return 'Starting compositing server...';
+    case 'powering-off': return 'Powering off...';
+    default: return '';
+  }
 }
 
 // Gets color of the system theme from css
@@ -680,6 +697,8 @@ function renderSystems(systems) {
     let card = existingCards.get(system.name);
     const isAlive = system.launcherAlive;
     const isConnected = system.connected;
+    const isPoweringOff = system.startupPhase === 'powering-off';
+    const isPoweringOn = !!(system.startupPhase && !isPoweringOff);
 
     // =============================== 
     // CREATE CARD ONCE
@@ -749,10 +768,11 @@ function renderSystems(systems) {
           d.hasBattery !== device.hasBattery;
       });
 
-    const needsShutdownRebuild = 
+    const needsShutdownRebuild =
       prev.isAlive !== isAlive ||
       prev.isConnected !== isConnected ||
-      prev.colorClass !== system.colorClass;
+      prev.colorClass !== system.colorClass ||
+      prev.startupPhase !== system.startupPhase;
 
     // Check for battery-only changes (can be updated without rebuild)
     const batteryOnlyChange = 
@@ -789,6 +809,7 @@ function renderSystems(systems) {
         isConnected,
         currentSystem,
         colorClass: system.colorClass,
+        startupPhase: system.startupPhase,
         servers: system.servers?.map(s => ({
           name: s.name,
           isRunning: s.isRunning,
@@ -920,24 +941,39 @@ function renderSystems(systems) {
     const isLocalHost = system.name === "localhost";
     const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
 
-    if (isLocalHost && (system.intentionallyShutdown || (isAlive && serversAllStopped))) {
-      if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== 'start') {
+    const connectZoneMode = isPoweringOn ? 'loading' : 'start';
+    const showConnectZone = isLocalHost && (system.intentionallyShutdown || (isAlive && serversAllStopped) || isPoweringOn);
+
+    if (showConnectZone) {
+      if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== connectZoneMode) {
         const zone = document.createElement("div");
         zone.className = "connect-zone";
-        zone.innerHTML = `
-          <div class="connect-btn-wrap">
-            <svg class="connect-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
-              <line x1="12" y1="2" x2="12" y2="12"/>
-            </svg>
-          </div>
-        `;
 
-        zone.querySelector(".connect-btn-wrap").onclick = e => {
-          e.stopPropagation();
-          startAndCheckServers(system);
-        };
+        if (isPoweringOn) {
+          zone.innerHTML = `
+            <div class="power-loading-wrap">
+              <svg class="power-spinner" viewBox="0 0 40 40">
+                <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-dasharray="80 27" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="power-status-text">${getStartupPhaseText(system.startupPhase)}</span>
+          `;
+        } else {
+          zone.innerHTML = `
+            <div class="connect-btn-wrap">
+              <svg class="connect-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                <line x1="12" y1="2" x2="12" y2="12"/>
+              </svg>
+            </div>
+          `;
+          zone.querySelector(".connect-btn-wrap").onclick = e => {
+            e.stopPropagation();
+            startAndCheckServers(system);
+          };
+        }
 
         if (card._sections.connectZone) {
           card.replaceChild(zone, card._sections.connectZone);
@@ -947,7 +983,12 @@ function renderSystems(systems) {
         }
 
         card._sections.connectZone = zone;
-        card._connectZoneMode = 'start';
+        card._connectZoneMode = connectZoneMode;
+
+      } else if (isPoweringOn) {
+        // Update status text in-place as phase progresses
+        const textEl = card._sections.connectZone.querySelector('.power-status-text');
+        if (textEl) textEl.textContent = getStartupPhaseText(system.startupPhase);
       }
 
     } else if (card._sections.connectZone) {
@@ -1098,32 +1139,36 @@ function renderSystems(systems) {
 
     // ---------- SHUTDOWN ----------
     // Only localhost can shut down servers; remote systems are monitor-only
-    if (isLocalHost && isAlive && isConnected) {
+    // Show powering-off spinner while shutdown is in progress; hide during power-on startup
+    if (isLocalHost && ((isAlive && isConnected && !isPoweringOn) || isPoweringOff)) {
       if (needsShutdownRebuild || card._needsFullRebuild) {
         const wrap = document.createElement("div");
         wrap.className = "shutdown-container";
 
-        const btn = document.createElement("button");
-        btn.className = `shutdown-icon rig-${system.colorClass.at(-1)}-muted`;
-
-        if (!isConnected) {
-          btn.classList.add("disabled");
-          btn.title = "Device server not connected";
+        if (isPoweringOff) {
+          wrap.classList.add("loading");
+          wrap.innerHTML = `
+            <svg class="shutdown-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9" stroke-width="2" stroke-dasharray="42 14"/>
+            </svg>
+            <span class="shutdown-status-text">Powering off...</span>
+          `;
         } else {
+          const btn = document.createElement("button");
+          btn.className = `shutdown-icon rig-${system.colorClass.at(-1)}-muted`;
           btn.title = "Shut down system";
           btn.onclick = e => {
             e.stopPropagation();
             shutdownSystem(system);
           };
+          btn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+              <line x1="12" y1="2" x2="12" y2="12"></line>
+            </svg>
+          `;
+          wrap.appendChild(btn);
         }
-
-        btn.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-            <line x1="12" y1="2" x2="12" y2="12"></line>
-          </svg>
-        `;
-        wrap.appendChild(btn);
 
         if (card._sections.shutdown) {
           card.replaceChild(wrap, card._sections.shutdown);
@@ -1137,9 +1182,9 @@ function renderSystems(systems) {
       delete card._sections.shutdown;
     }
 
-    // =============================== 
+    // ===============================
     // SAVE STATE
-    // =============================== 
+    // ===============================
     card._prevState = {
       name: system.name,
       ip: system.ip,
@@ -1148,6 +1193,7 @@ function renderSystems(systems) {
       isConnected,
       currentSystem,
       colorClass: system.colorClass,
+      startupPhase: system.startupPhase,
       servers: system.servers?.map(s => ({
         name: s.name,
         isRunning: s.isRunning,
@@ -2056,10 +2102,14 @@ function startAndCheckServers(system) {
 
   // Suppress regular status pings while connecting
   system.isConnecting = true;
+  system.startupPhase = 'powering-on';
+  updateSystemUI(system);
 
   autoUpdateConsole(system, "startServers", "Starting servers...");
 
   startLauncherServers(system).then(() => {
+    system.startupPhase = 'tracking';
+    updateSystemUI(system);
     autoUpdateConsole(system, "startServers", "Waiting for tracking driver...");
 
     // Poll for the device server (index 0) to come online first
@@ -2082,20 +2132,28 @@ function startAndCheckServers(system) {
           if (data?.status === "Success") {
             autoUpdateConsole(system, "startServers", "Tracking driver is online ✓");
             system.connected = true;
+            system.startupPhase = 'compositing';
             activeSystems.add(system.name);
             updateSystemWithJsonData(system, data);
+            updateSystemUI(system);
 
             // Now wait a moment then check full launcher status (including compositor)
             autoUpdateConsole(system, "startServers", "Waiting for compositor...");
             setTimeout(() => {
               getLauncherStatus(system);
               // Resume regular pings after a delay
-              setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
+              setTimeout(() => {
+                system.startupPhase = null;
+                system.isConnecting = false;
+                updateSystemUI(system);
+              }, pingResumeDelayAfterConnect);
             }, 1500);
           } else if (attempts < maxAttempts) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
             autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
+            system.startupPhase = null;
+            updateSystemUI(system);
             getLauncherStatus(system);
             setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
           }
@@ -2105,6 +2163,8 @@ function startAndCheckServers(system) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
             autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
+            system.startupPhase = null;
+            updateSystemUI(system);
             getLauncherStatus(system);
             setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
           }
@@ -2182,13 +2242,16 @@ function pingServerStatus(system, serverIndex, endpoint) {
       updateSystemUI(system);
     })
     .catch((err) => {
-      console.error(`❌ ${serverName} failed:`, err.name, err.message);
-      
       // Re-check that server still exists
       if (!system.servers || !system.servers[serverIndex]) {
         return;
       }
-      
+
+      // Servers were intentionally stopped — network errors are expected, don't log them
+      if (system.intentionallyShutdown) return;
+
+      console.error(`❌ ${serverName} failed:`, err.name, err.message);
+
       system.servers[serverIndex].status = 'offline';
       if (system.servers[serverIndex].lastStatus !== 'offline') {
         if (err.name === "AbortError") {
