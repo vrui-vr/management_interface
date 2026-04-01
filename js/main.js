@@ -2521,6 +2521,10 @@ function updateInterface() {
 
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
+  // Clear console on every page load
+  const consoleOutput = document.getElementById("consoleOutput");
+  if (consoleOutput) consoleOutput.innerHTML = "";
+
   // Hide logo if showLogo is false
   if (!showLogo) {
     const logoLink = document.getElementById("Vrui-logo-link");
