@@ -601,6 +601,15 @@ function updateSystemUI(updatedSystem) {
 // Tracks the live DOM element for each (system, command) pair so messages update in-place
 const consoleEntries = new Map();
 
+function clearConsoleEntry(system, command) {
+  const key = `${system.name}:${command}`;
+  const el = consoleEntries.get(key);
+  if (!el) return;
+  const consoleBox = document.getElementById("consoleOutput");
+  if (consoleBox && consoleBox.contains(el)) consoleBox.removeChild(el);
+  consoleEntries.delete(key);
+}
+
 // Updates console with new message — same (system, command) pair updates its existing entry
 function autoUpdateConsole(system, command, message, severity = "") {
   const consoleBox = document.getElementById("consoleOutput");
@@ -1107,7 +1116,7 @@ function renderSystems(systems) {
 		  } else {
 			const statusText = document.createElement("span");
 			statusText.className = "device-status-text";
-			statusText.textContent = device?.connected ? "Connected" : "Not Connected";
+			statusText.textContent = device?.connected && device?.tracked ? "Tracking" : device?.connected ? "Connected" : "Not Connected";
 			info.appendChild(statusText);
 		  }
 
@@ -2146,7 +2155,7 @@ function startAndCheckServers(system) {
           } else if (attempts < maxAttempts) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
-            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
+            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "error");
             system.startupPhase = null;
             system.isConnecting = false;
             updateSystemUI(system);
@@ -2157,7 +2166,7 @@ function startAndCheckServers(system) {
           if (attempts < maxAttempts) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
-            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "warning");
+            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "error");
             system.startupPhase = null;
             system.isConnecting = false;
             updateSystemUI(system);
@@ -2228,6 +2237,8 @@ function pingServerStatus(system, serverIndex, endpoint) {
           if (system.startupPhase && system.startupPhase !== 'powering-off') {
             system.startupPhase = null;
             system.isConnecting = false;
+            clearConsoleEntry(system, "startServers");
+            clearConsoleEntry(system, "autoStart");
           }
 
           // Update the UI to show the new device states
