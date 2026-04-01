@@ -291,7 +291,7 @@ function addSystem() {
         deviceServerPort: "",
         compositingServerPort: "",
         connected: false,
-        launcherAlive: false,
+        launcherAlive: null,
         servers: [],
         colorClass: newColorClass,
         devices: {},
@@ -458,8 +458,8 @@ function changeSystem(name) {
     sidebar.dataset.colorClass = system.colorClass;
     
     // Three sidebar states: unreachable (gray), offline (muted rig), or online (full rig)
-    const sidebarUnreachable = !system.launcherAlive;
-    const sidebarOffline = system.launcherAlive && !system.connected;
+    const sidebarUnreachable = system.launcherAlive === false;
+    const sidebarOffline = system.launcherAlive === true && !system.connected;
     sidebar.classList.toggle('unreachable', sidebarUnreachable);
     sidebar.classList.toggle('offline', sidebarOffline);
     
@@ -695,7 +695,8 @@ function renderSystems(systems) {
 
   systems.forEach(system => {
     let card = existingCards.get(system.name);
-    const isAlive = system.launcherAlive;
+    const isAlive = system.launcherAlive === true;
+    const isPending = system.launcherAlive === null;
     const isConnected = system.connected;
     const isPoweringOff = system.startupPhase === 'powering-off';
     const isPoweringOn = !!(system.startupPhase && !isPoweringOff);
@@ -723,7 +724,7 @@ function renderSystems(systems) {
     const launcherOnly = isAlive && !serversUp;
     card.classList.toggle("connected", serversUp);
     card.classList.toggle("disconnected", launcherOnly);
-    card.classList.toggle("unreachable", !isAlive);
+    card.classList.toggle("unreachable", !isAlive && !isPending);
     card.classList.toggle("selected", system.name === currentSystem);
     
     // Update color class
@@ -853,7 +854,7 @@ function renderSystems(systems) {
         labelSpan.classList.add("inactive-field");
       }
 
-      if (!isAlive) {
+      if (!isAlive && !isPending) {
         const offline = document.createElement("span");
         offline.textContent = " (unreachable)";
         offline.className = "offline-badge";
@@ -897,7 +898,7 @@ function renderSystems(systems) {
     // ---------- UNREACHABLE MESSAGE ----------
     // Show error message when launcher is not reachable (no power button)
     // Skip if the user intentionally shut it down — show connect button instead
-    if (!isAlive && !system.intentionallyShutdown) {
+    if (!isAlive && !isPending && !system.intentionallyShutdown) {
       if (!card._sections.unreachableMsg || card._needsFullRebuild) {
         const msg = document.createElement("div");
         msg.className = "unreachable-message";
@@ -2537,7 +2538,7 @@ document.addEventListener("DOMContentLoaded", () => {
       deviceServerPort: d.deviceServerPort,
       compositingServerPort: d.compositingServerPort,
       connected: false,
-      launcherAlive: false,
+      launcherAlive: null,
       servers: [],
       headset: 0,
       left: 0,
@@ -2557,7 +2558,7 @@ document.addEventListener("DOMContentLoaded", () => {
       deviceServerPort: "8081",
       compositingServerPort: "8082",
       connected: false,
-      launcherAlive: false,
+      launcherAlive: null,
       servers: [],
       devices: {},
       colorClass: "rig-0",
@@ -2573,7 +2574,7 @@ document.addEventListener("DOMContentLoaded", () => {
       deviceServerPort: "8081",
       compositingServerPort: "8082",
       connected: false,
-      launcherAlive: false,
+      launcherAlive: null,
       servers: [],
       devices: {},
       colorClass: "rig-0",
