@@ -3248,6 +3248,11 @@ h6 {
   color: var(--rig-5);
 }
 
+.log-entry.log-pending {
+  opacity: 0.45;
+  font-style: italic;
+}
+
 .log-entry.log-warning {
   background-color: var(--log-warning-bg);
   border-left-color: var(--log-warning);

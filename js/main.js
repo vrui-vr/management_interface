@@ -367,7 +367,7 @@ function shutdownSystem(system) {
     .then((r) => r.json())
     .then((data) => {
       if (data?.status === "Success") {
-        autoUpdateConsole(system, "shutdown", "✓ Servers stopped successfully");
+        autoUpdateConsole(system, "shutdown", "Servers stopped successfully");
 
         // Reset system state — launcher stays alive, only compositing/device servers stopped
         system.startupPhase = null;
@@ -386,7 +386,7 @@ function shutdownSystem(system) {
       } else {
         system.startupPhase = null;
         updateSystemUI(system);
-        autoUpdateConsole(system, "shutdown", `⚠️ ${data?.message || "Shutdown failed"}`, "error");
+        autoUpdateConsole(system, "shutdown", data?.message || "Shutdown failed", "error");
       }
     })
     .catch((err) => {
@@ -422,7 +422,7 @@ function confirmAndShutdown(system) {
   activeSystems.delete(system.name);
   updateSystemUI(system);
 
-  autoUpdateConsole(system, "shutdown", "🛑 Shutdown command sent. Marked as disconnected.");
+  autoUpdateConsole(system, "shutdown", "Shutdown command sent.");
 }
 
 function getStartupPhaseText(phase) {
@@ -598,72 +598,62 @@ function updateSystemUI(updatedSystem) {
   }
 }
 
-// Updates console with new message
-// Update autoUpdateConsole to reject unknown systems
+// Tracks the live DOM element for each (system, command) pair so messages update in-place
+const consoleEntries = new Map();
+
+// Updates console with new message — same (system, command) pair updates its existing entry
 function autoUpdateConsole(system, command, message, severity = "") {
   const consoleBox = document.getElementById("consoleOutput");
 
   // REJECT unknown systems - don't log them at all
-  // Check by reference first (handles renamed systems), then fall back to name lookup
   const knownSystem = allSystems.includes(system) ? system : allSystems.find((d) => d.name === system.name);
-  if (!knownSystem) {
-    console.warn(`[REJECTED] Message from unknown system: ${system.name}`);
-    return; // Exit early - don't log anything
-  }
+  if (!knownSystem) return;
+
+  const entryKey = `${system.name}:${command}`;
+  let logEntry = consoleEntries.get(entryKey);
+  const isNewEntry = !logEntry || !consoleBox.contains(logEntry);
 
   const isAtBottom =
-    Math.abs(
-      consoleBox.scrollHeight - consoleBox.scrollTop - consoleBox.clientHeight
-    ) < 5;
-
-  const logEntry = document.createElement("div");
+    Math.abs(consoleBox.scrollHeight - consoleBox.scrollTop - consoleBox.clientHeight) < 5;
 
   const colorClass = knownSystem.colorClass;
   const isOffline = knownSystem.launcherAlive === false;
+  const isPending = message.endsWith("...");
 
-  logEntry.classList.add("log-entry", colorClass);
-  if (isOffline) logEntry.classList.add("unreachable");
-
-  // Apply severity tag if needed
-  if (severity === "success") {
-    logEntry.classList.add("log-success");
-  } else if (severity === "info") {
-    logEntry.classList.add("log-info");
-  } else if (severity === "warning") {
-    logEntry.classList.add("log-warning");
-  } else if (severity === "error") {
-    logEntry.classList.add("log-error");
-  } else if (severity === "critical") {
-    logEntry.classList.add("log-critical");
+  if (isNewEntry) {
+    logEntry = document.createElement("div");
+    consoleEntries.set(entryKey, logEntry);
   }
 
-  // Label + (unreachable) badge
-  const systemName = `<span class="label">${system.name}</span>`;
-  const offlineNote = isOffline
-    ? ` <span class="offline">(unreachable)</span>`
-    : "";
+  // Reset and reapply classes on every update
+  logEntry.className = "";
+  logEntry.classList.add("log-entry", colorClass);
+  if (isOffline) logEntry.classList.add("unreachable");
+  if (isPending) logEntry.classList.add("log-pending");
+  if (severity === "success")  logEntry.classList.add("log-success");
+  else if (severity === "info")     logEntry.classList.add("log-info");
+  else if (severity === "warning")  logEntry.classList.add("log-warning");
+  else if (severity === "error")    logEntry.classList.add("log-error");
+  else if (severity === "critical") logEntry.classList.add("log-critical");
 
-  logEntry.innerHTML = `${systemName}${offlineNote} - ${command}<br>${message}`;
+  const offlineNote = isOffline ? ` <span class="offline">(unreachable)</span>` : "";
+  logEntry.innerHTML = `<span class="label">${system.name}</span>${offlineNote} - ${command}<br>${message}`;
 
-  // Apply system color to label (red when unreachable)
   const labelEl = logEntry.querySelector(".label");
   if (labelEl) {
     labelEl.style.color = isOffline
-      ? getComputedStyle(document.documentElement).getPropertyValue('--unreachable').trim()
+      ? getComputedStyle(document.documentElement).getPropertyValue("--unreachable").trim()
       : getSystemColor(knownSystem);
   }
 
-  // Append and re-filter
-  consoleBox.appendChild(logEntry);
-  applyConsoleFilter();
-
-  if (isAtBottom) {
-    setTimeout(() => {
-      consoleBox.scrollTop = consoleBox.scrollHeight;
-    }, 100);
+  if (isNewEntry) {
+    consoleBox.appendChild(logEntry);
+    applyConsoleFilter();
+    if (isAtBottom) {
+      setTimeout(() => { consoleBox.scrollTop = consoleBox.scrollHeight; }, 100);
+    }
+    updateInterface();
   }
-
-  updateInterface();
 }
 
 // Changes color of system
@@ -1477,7 +1467,7 @@ function handleServerResponse(system, command, data) {
 	  autoUpdateConsole(system, command, data.message || "Success.");
 	} else {
 	  const errorMsg = data?.message || "Error / Unknown failure.";
-	  autoUpdateConsole(system, command, `⚠️ ${errorMsg}`, "error"); // ADD "error" HERE
+	  autoUpdateConsole(system, command, errorMsg, "error");
 	}
 }
 
@@ -1503,7 +1493,7 @@ function checkLauncherAlive(system) {
         system.intentionallyShutdown = false;
         system.lastSeen = Date.now();
 
-        autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
+        autoUpdateConsole(system, "isAlive", "Launcher is alive");
 
         // Fetch environments on first connect
         getEnvironments(system);
@@ -2053,7 +2043,7 @@ function getLauncherStatus(system, autoStart = false) {
         data.servers.forEach((srv, index) => {
           // Only log if this is a state change
           if (system.servers[index]?.lastStatus !== 'stopped') {
-            autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+            autoUpdateConsole(system, `server-${index}`, `${srv.name}: stopped`, "warning");
             if (system.servers[index]) system.servers[index].lastStatus = 'stopped';
           }
         });
@@ -2073,7 +2063,7 @@ function getLauncherStatus(system, autoStart = false) {
         if (!srv.isRunning) {
           // Only log stopped as warning if it's a state change
           if (system.servers[index]?.lastStatus !== 'stopped') {
-            autoUpdateConsole(system, "launcherStatus", `${srv.name}: stopped`, "warning");
+            autoUpdateConsole(system, `server-${index}`, `${srv.name}: stopped`, "warning");
             if (system.servers[index]) system.servers[index].lastStatus = 'stopped';
           }
         }
@@ -2139,7 +2129,7 @@ function startAndCheckServers(system) {
         .then(r => r.json())
         .then(data => {
           if (data?.status === "Success") {
-            autoUpdateConsole(system, "startServers", "Tracking driver is online ✓");
+            autoUpdateConsole(system, "startServers", "Tracking driver is online");
             system.connected = true;
             system.startupPhase = 'compositing';
             activeSystems.add(system.name);
@@ -2217,7 +2207,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
 
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
-          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} is online ✓`);
+          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} is online`);
           system.servers[serverIndex].lastStatus = 'online';
         }
 
@@ -2246,7 +2236,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
       } else {
         system.servers[serverIndex].status = 'error';
         if (system.servers[serverIndex].lastStatus !== 'error') {
-          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} responded with error`, "error");
+          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} responded with error`, "error");
           system.servers[serverIndex].lastStatus = 'error';
         }
         // If startup and device server failed to report success, reveal anyway
@@ -2277,9 +2267,9 @@ function pingServerStatus(system, serverIndex, endpoint) {
       system.servers[serverIndex].status = 'offline';
       if (system.servers[serverIndex].lastStatus !== 'offline') {
         if (err.name === "AbortError") {
-          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} timed out (no response after 3s)`, "error");
+          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} timed out (no response after 3s)`, "error");
         } else {
-          autoUpdateConsole(system, "serverStatus", `${system.servers[serverIndex].name} failed: ${err.message}`, "error");
+          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} failed: ${err.message}`, "error");
         }
         system.servers[serverIndex].lastStatus = 'offline';
       }
@@ -2532,6 +2522,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Clear console on every page load
   const consoleOutput = document.getElementById("consoleOutput");
   if (consoleOutput) consoleOutput.innerHTML = "";
+  consoleEntries.clear();
 
   // Hide logo if showLogo is false
   if (!showLogo) {
