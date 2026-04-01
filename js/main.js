@@ -2051,6 +2051,9 @@ function startAndCheckServers(system) {
   if (!system) return;
   if (system.name !== "localhost") return; // remote systems are monitor-only
 
+  // Clear intentional shutdown flag so polling resumes and UI updates correctly
+  system.intentionallyShutdown = false;
+
   // Suppress regular status pings while connecting
   system.isConnecting = true;
 
