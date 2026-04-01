@@ -366,16 +366,17 @@ function shutdownSystem(system) {
     .then((data) => {
       if (data?.status === "Success") {
         autoUpdateConsole(system, "shutdown", "✓ Servers stopped successfully");
-        
-        // Reset system state
+
+        // Reset system state — launcher stays alive, only compositing/device servers stopped
         system.connected = false;
-        system.launcherAlive = false;
+        system.serversRunning = false;
+        system.intentionallyShutdown = true;
         system.devices = {};
         system.servers = [];
-        
+
         // Remove from active systems
         activeSystems.delete(system.name);
-        
+
         // Update UI
         updateSystemUI(system);
         
@@ -874,7 +875,8 @@ function renderSystems(systems) {
 
     // ---------- UNREACHABLE MESSAGE ----------
     // Show error message when launcher is not reachable (no power button)
-    if (!isAlive) {
+    // Skip if the user intentionally shut it down — show connect button instead
+    if (!isAlive && !system.intentionallyShutdown) {
       if (!card._sections.unreachableMsg || card._needsFullRebuild) {
         const msg = document.createElement("div");
         msg.className = "unreachable-message";
@@ -918,7 +920,7 @@ function renderSystems(systems) {
     const isLocalHost = system.name === "localhost";
     const serversAllStopped = isAlive && system.servers?.length > 0 && system.servers.every(s => !s.isRunning);
 
-    if (isLocalHost && isAlive && serversAllStopped) {
+    if (isLocalHost && (system.intentionallyShutdown || (isAlive && serversAllStopped))) {
       if (!card._sections.connectZone || card._needsFullRebuild || card._connectZoneMode !== 'start') {
         const zone = document.createElement("div");
         zone.className = "connect-zone";
@@ -1450,6 +1452,7 @@ function checkLauncherAlive(system) {
     .then((data) => {
       if (data?.isRunning === true) {
         system.launcherAlive = true;
+        system.intentionallyShutdown = false;
         system.lastSeen = Date.now();
 
         autoUpdateConsole(system, "isAlive", "Launcher is alive ✓");
@@ -2525,6 +2528,7 @@ setInterval(() => {
 
   allSystems.forEach((system) => {
     if (!system.launcherAlive) return;
+    if (system.intentionallyShutdown) return; // servers stopped intentionally — wait for power button
     if (system.isConnecting) return; // skip pings while connecting to servers
 
     const hasServers = system.servers && system.servers.length > 0;
