@@ -1499,6 +1499,7 @@ function checkLauncherAlive(system) {
     .then((data) => {
       if (data?.isRunning === true) {
         system.launcherAlive = true;
+        system.initialCheckRetried = false;
         system.intentionallyShutdown = false;
         system.lastSeen = Date.now();
 
@@ -1518,6 +1519,13 @@ function checkLauncherAlive(system) {
       updateSystemUI(system);
     })
     .catch((err) => {
+      // On the very first failure, silently retry once before showing unreachable
+      if (system.launcherAlive === null && !system.initialCheckRetried) {
+        system.initialCheckRetried = true;
+        setTimeout(() => checkLauncherAlive(system), 2000);
+        return;
+      }
+
       system.launcherAlive = false;
 
       if (err.name === "AbortError") {
