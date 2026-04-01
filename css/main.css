@@ -2786,7 +2786,7 @@ h6 {
   font-size: 0.73rem;
   font-weight: 500;
   letter-spacing: 0.03em;
-  opacity: 0.5;
+  opacity: 0.75;
   text-align: center;
   pointer-events: none;
 }
@@ -2808,7 +2808,7 @@ h6 {
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.03em;
-  opacity: 0.5;
+  opacity: 0.75;
   text-align: center;
   pointer-events: none;
 }

@@ -1000,7 +1000,7 @@ function renderSystems(systems) {
     // ---------- SERVERS ----------
     // Only show server status when at least one server is running and not in startup loading
 	if (!isPoweringOn && isAlive && system.servers?.length && system.servers.some(s => s.isRunning)) {
-	  if (needsServersRebuild || card._needsFullRebuild) {
+	  if (needsServersRebuild || card._needsFullRebuild || !card._sections.servers) {
 		const section = document.createElement("div");
 		section.className = "server-section";
 
@@ -1049,7 +1049,7 @@ function renderSystems(systems) {
 
 	// ---------- DEVICES ----------
 	if (!isPoweringOn && isConnected) {
-	  if (needsDevicesRebuild || card._needsFullRebuild) {
+	  if (needsDevicesRebuild || card._needsFullRebuild || !card._sections.devices) {
 		const section = document.createElement("div");
 		section.className = "device-section";
 
