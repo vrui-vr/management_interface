@@ -619,7 +619,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   const logEntry = document.createElement("div");
 
   const colorClass = knownSystem.colorClass;
-  const isOffline = !knownSystem.launcherAlive;
+  const isOffline = knownSystem.launcherAlive === false;
 
   logEntry.classList.add("log-entry", colorClass);
   if (isOffline) logEntry.classList.add("unreachable");
