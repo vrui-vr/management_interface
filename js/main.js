@@ -427,7 +427,6 @@ function getSystemColor(system, muted = false) {
 }
 
 // Changes which system we are talking to
-// Possibly wanna rename to change system
 function changeSystem(name) {
   currentSystem = name;
   updateInterface();
@@ -535,7 +534,6 @@ function updateDropdown() {
 }
 
 // Updates button logic based on the state
-// Subject to heavy logic change as buttons change
 function updateButtonStates() {
   const btn1 = document.getElementById("btn-1");
   if (btn1) {
@@ -742,6 +740,7 @@ function renderSystems(systems) {
           d.key !== key ||
           d.name !== device.name ||
           d.connected !== device.connected ||
+          d.tracked !== device.tracked ||
           d.hasBattery !== device.hasBattery;
       });
 
@@ -1029,9 +1028,14 @@ function renderSystems(systems) {
 		  });
 
 		  const dot = document.createElement("span");
-		  dot.className = device?.connected 
-			? "status-dot device-connected" 
-			: "status-dot device-disconnected";
+		  if (device.connected) {
+			  dot.className = device?.tracked 
+        ? "status-dot device-tracked" 
+        : "status-dot device-connected";
+		  }
+		  else {
+        dot.className = "status-dot device-disconnected";
+		  }
 
 		  const name = document.createElement("span");
 		  name.className = "device-name";
@@ -1266,13 +1270,13 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
       row.appendChild(container);
     }
 
-    // Tracking dot for all connected devices
-    const trackedDot = document.createElement("span");
-    trackedDot.className = isTracked ? "tracked-dot tracked" : "tracked-dot";
-    trackedDot.title = isTracked
-      ? "Device tracked"
-      : "Device connected (not tracked)";
-    row.appendChild(trackedDot);
+    //~ // Tracking dot for all connected devices
+    //~ const trackedDot = document.createElement("span");
+    //~ trackedDot.className = isTracked ? "tracked-dot tracked" : "tracked-dot";
+    //~ trackedDot.title = isTracked
+      //~ ? "Device tracked"
+      //~ : "Device connected (not tracked)";
+    //~ row.appendChild(trackedDot);
   }
 
   return row;

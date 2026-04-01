@@ -1765,6 +1765,42 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid transparent;
 }
 
+.system-card.connected.rig-0 .status-dot.status-online {
+  background-color: var(--rig-0);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
+.system-card.connected.rig-1 .status-dot.status-online {
+  background-color: var(--rig-1);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
+.system-card.connected.rig-2 .status-dot.status-online {
+  background-color: var(--rig-2);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
+.system-card.connected.rig-3 .status-dot.status-online {
+  background-color: var(--rig-3);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
+.system-card.connected.rig-4 .status-dot.status-online {
+  background-color: var(--rig-4);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
+.system-card.connected.rig-5 .status-dot.status-online {
+  background-color: var(--rig-5);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
 .status-dot.status-stopped {
   background-color: transparent;
   border: 1px solid var(--status-stopped);
@@ -1890,6 +1926,12 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
 }
 
+.device-item .status-dot.device-tracked {
+  background-color: var(--rig-0);
+  box-shadow: 0 0 4px var(--status-online);
+  border: 1px solid transparent;
+}
+
 .device-item .status-dot.device-connected {
   background-color: var(--rig-2);
   box-shadow: 0 0 4px var(--status-online);
@@ -1997,6 +2039,32 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .system-card.connected.rig-5 .device-item .status-dot.device-connected ~ .device-name {
+  color: var(--rig-5);
+}
+
+/* If device tracked */
+
+.system-card.connected.rig-0 .device-item .status-dot.device-tracked ~ .device-name {
+  color: var(--rig-0);
+}
+
+.system-card.connected.rig-1 .device-item .status-dot.device-tracked ~ .device-name {
+  color: var(--rig-1);
+}
+
+.system-card.connected.rig-2 .device-item .status-dot.device-tracked ~ .device-name {
+  color: var(--rig-2);
+}
+
+.system-card.connected.rig-3 .device-item .status-dot.device-tracked ~ .device-name {
+  color: var(--rig-3);
+}
+
+.system-card.connected.rig-4 .device-item .status-dot.device-tracked ~ .device-name {
+  color: var(--rig-4);
+}
+
+.system-card.connected.rig-5 .device-item .status-dot.device-tracked ~ .device-name {
   color: var(--rig-5);
 }
 
