@@ -2309,13 +2309,13 @@ h6 {
 }
 
 .device-item .status-dot.device-tracked {
-  background-color: var(--rig-0);
+  background-color: var(--rig-2);
   box-shadow: 0 0 4px var(--status-online);
   border: 1px solid transparent;
 }
 
 .device-item .status-dot.device-connected {
-  background-color: var(--rig-2);
+  background-color: var(--rig-0);
   box-shadow: 0 0 4px var(--status-online);
   border: 1px solid transparent;
 }
