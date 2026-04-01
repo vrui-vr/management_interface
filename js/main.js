@@ -618,9 +618,14 @@ function autoUpdateConsole(system, command, message, severity = "") {
   const knownSystem = allSystems.includes(system) ? system : allSystems.find((d) => d.name === system.name);
   if (!knownSystem) return;
 
+  // Polling commands update in place; everything else creates a new entry once the previous one resolves
+  const POLLING_COMMANDS = new Set(["isAlive", "tracking", "compositing", "getLauncherStatus", "getServerStatus", "getCompositingStatus"]);
+
   const entryKey = `${system.name}:${command}`;
   let logEntry = consoleEntries.get(entryKey);
-  const isNewEntry = !logEntry || !consoleBox.contains(logEntry);
+  const existingIsPending = logEntry?.classList.contains("log-pending");
+  const isPolling = POLLING_COMMANDS.has(command);
+  const isNewEntry = !logEntry || !consoleBox.contains(logEntry) || (!isPolling && !existingIsPending);
 
   const isAtBottom =
     Math.abs(consoleBox.scrollHeight - consoleBox.scrollTop - consoleBox.clientHeight) < 5;
