@@ -2043,7 +2043,7 @@ function getLauncherStatus(system, autoStart = false) {
         data.servers.forEach((srv, index) => {
           // Only log if this is a state change
           if (system.servers[index]?.lastStatus !== 'stopped') {
-            autoUpdateConsole(system, `server-${index}`, `${srv.name}: stopped`, "warning");
+            autoUpdateConsole(system, index === 0 ? "tracking" : "compositing", `${srv.name}: stopped`, "warning");
             if (system.servers[index]) system.servers[index].lastStatus = 'stopped';
           }
         });
@@ -2063,7 +2063,7 @@ function getLauncherStatus(system, autoStart = false) {
         if (!srv.isRunning) {
           // Only log stopped as warning if it's a state change
           if (system.servers[index]?.lastStatus !== 'stopped') {
-            autoUpdateConsole(system, `server-${index}`, `${srv.name}: stopped`, "warning");
+            autoUpdateConsole(system, index === 0 ? "tracking" : "compositing", `${srv.name}: stopped`, "warning");
             if (system.servers[index]) system.servers[index].lastStatus = 'stopped';
           }
         }
@@ -2207,7 +2207,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
 
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
-          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} is online`);
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} is online`);
           system.servers[serverIndex].lastStatus = 'online';
         }
 
@@ -2236,7 +2236,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
       } else {
         system.servers[serverIndex].status = 'error';
         if (system.servers[serverIndex].lastStatus !== 'error') {
-          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} responded with error`, "error");
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} responded with error`, "error");
           system.servers[serverIndex].lastStatus = 'error';
         }
         // If startup and device server failed to report success, reveal anyway
@@ -2267,9 +2267,9 @@ function pingServerStatus(system, serverIndex, endpoint) {
       system.servers[serverIndex].status = 'offline';
       if (system.servers[serverIndex].lastStatus !== 'offline') {
         if (err.name === "AbortError") {
-          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} timed out (no response after 3s)`, "error");
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} timed out (no response after 3s)`, "error");
         } else {
-          autoUpdateConsole(system, `server-${serverIndex}`, `${system.servers[serverIndex].name} failed: ${err.message}`, "error");
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} failed: ${err.message}`, "error");
         }
         system.servers[serverIndex].lastStatus = 'offline';
       }
