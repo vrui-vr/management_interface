@@ -2074,15 +2074,15 @@ h6 {
   background-size: 300% 100%;
 }
 
-/* Battery fill: universal green — warning levels (warn/danger/critical) override below */
+/* Battery fill: universal green — charging/warning levels override below */
 
 .battery-fill.charging {
-  background: linear-gradient(90deg, #16a34a, #22c55e, #16a34a) !important;
+  background: linear-gradient(90deg, #ca8a04, #eab308, #ca8a04) !important;
   background-size: 300% 100% !important;
 }
 
-.battery-fill.warn {
-  background: linear-gradient(90deg, #b45309, #f59e0b, #b45309) !important;
+.battery-fill.low {
+  background: linear-gradient(90deg, #dc2626, #f87171, #dc2626) !important;
   background-size: 300% 100% !important;
 }
 
@@ -2096,32 +2096,14 @@ h6 {
   background-size: 300% 100% !important;
 }
 
-.battery-percent.warn     { color: #d97706 !important; }
+.battery-percent.low      { color: #f87171 !important; }
 .battery-percent.danger   { color: #dc2626 !important; }
 .battery-percent.critical { color: #991b1b !important; }
 
-.charging-bolt {
-  display: none; /* replaced by CSS bolt inside the bar */
-}
-
-/* Remove overflow:hidden only when charging so the ::after bolt renders */
-.battery-bar.charging {
-  overflow: visible;
-}
-
-.battery-bar.charging::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 5px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  clip-path: polygon(68% 0%, 100% 0%, 36% 46%, 68% 46%, 0% 100%, 40% 54%, 4% 54%);
-  pointer-events: none;
-  z-index: 2;
-  filter: drop-shadow(0 0 1px rgba(255,255,255,0.6));
+.charging-icon {
+  flex-shrink: 0;
+  color: #eab308;
+  opacity: 0.9;
 }
 
 .battery-percent {

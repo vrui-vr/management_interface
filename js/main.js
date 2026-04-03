@@ -29,7 +29,7 @@ function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
     // Toggle the global variable
     getStatusUpdates = !getStatusUpdates;
-    console.log(`🔄 getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`);
+    console.log(`getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`);
 	
     // Optional: Update button label to reflect state
     const btn = document.getElementById(`btn-1`);
@@ -100,7 +100,7 @@ fileInput?.addEventListener("change", () => {
 });
 
 function handleFile(file) {
-  console.log("📄 File received:", file.name, file);
+  console.log("File received:", file.name, file);
 
   // Example: log to console area
   autoUpdateConsole(
@@ -623,10 +623,23 @@ function updateButtonStates() {
   if (btn3) btn3.disabled = true;
 }
 
+function makeBoltSvg() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "charging-icon");
+  svg.setAttribute("width", "8");
+  svg.setAttribute("height", "11");
+  svg.setAttribute("viewBox", "0 0 10 14");
+  svg.setAttribute("fill", "currentColor");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M6 0H2L0 7h3.5L2 14 10 5.5H6.5L6 0z");
+  svg.appendChild(path);
+  return svg;
+}
+
 function batteryLevelClass(pct) {
   if (pct <= 5)  return 'critical';
   if (pct <= 10) return 'danger';
-  if (pct <= 20) return 'warn';
+  if (pct <= 20) return 'low';
   return '';
 }
 
@@ -868,31 +881,29 @@ function renderSystems(systems) {
               fill.style.width = `${device.battery}%`;
               percent.textContent = `${device.battery}%`;
               fill.classList.toggle('charging', !!device.isCharging);
-              fill.classList.toggle('warn',     lvlClass === 'warn');
+              fill.classList.toggle('low',      lvlClass === 'low');
               fill.classList.toggle('danger',   lvlClass === 'danger');
               fill.classList.toggle('critical', lvlClass === 'critical');
               const bar = fill.parentElement;
               if (bar) {
                 bar.dataset.tooltip = barTitle;
                 bar.classList.toggle('charging', !!device.isCharging);
-                bar.classList.toggle('warn',     lvlClass === 'warn');
+                bar.classList.toggle('low',      lvlClass === 'low');
                 bar.classList.toggle('danger',   lvlClass === 'danger');
                 bar.classList.toggle('critical', lvlClass === 'critical');
-              }
-              percent.className = ['battery-percent', lvlClass].filter(Boolean).join(' ');
-              // Sync bolt: add if charging and missing, remove if not charging
-              const deviceItem = bar?.closest('.device-item');
-              if (deviceItem) {
-                let bolt = deviceItem.querySelector('.charging-bolt');
-                if (device.isCharging && !bolt) {
-                  bolt = document.createElement('span');
-                  bolt.className = 'charging-bolt';
-                  bolt.textContent = '⚡';
-                  percent.after(bolt);
-                } else if (!device.isCharging && bolt) {
-                  bolt.remove();
+                // Sync charging SVG bolt to the right of the bar
+                const info = bar.parentElement;
+                if (info) {
+                  let boltEl = info.querySelector('.charging-icon');
+                  if (device.isCharging && !boltEl) {
+                    boltEl = makeBoltSvg();
+                    info.appendChild(boltEl);
+                  } else if (!device.isCharging && boltEl) {
+                    boltEl.remove();
+                  }
                 }
               }
+              percent.className = ['battery-percent', lvlClass].filter(Boolean).join(' ');
             }
           }
         }
@@ -965,7 +976,7 @@ function renderSystems(systems) {
 
       // Info button in the card header — shows Vrui/protocol version on hover
       const cardInfoTooltip = [
-        system.vruiVersion ? `Vrui: ${system.vruiVersion}` : null,
+        system.vruiVersion ? `Vrui Version: ${system.vruiVersion}` : null,
         system.launcherProtocolVersion != null ? `Protocol: v${system.launcherProtocolVersion}` : null,
       ].filter(Boolean).join('\n');
 
@@ -1248,10 +1259,7 @@ function renderSystems(systems) {
 			});
 
 			if (device.isCharging) {
-			  const bolt = document.createElement("span");
-			  bolt.className = "charging-bolt";
-			  bolt.textContent = "⚡";
-			  info.append(bar, pct, bolt);
+			  info.append(bar, pct, makeBoltSvg());
 			} else {
 			  info.append(bar, pct);
 			}
@@ -1399,7 +1407,7 @@ function createBattery(system, label, percent, isConnected, _isTracked, hasBatte
   labelSpan.onclick = (e) => {
     e.stopPropagation();
 
-    // 🚀 Just use the label (which is the device key!)
+    // Just use the label (which is the device key!)
     const field = label;
 
     // console.log(`[DEBUG] label click → label='${label}', field='${field}'`);
@@ -2056,6 +2064,10 @@ function subscribeToLauncherEvents(system) {
   const es = new EventSource(url);
   system.launcherEventSource = es;
 
+  es.onopen = () => {
+    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events connected — real-time push active`);
+  };
+
   const handler = (e) => {
     try {
       const data = JSON.parse(e.data);
@@ -2076,6 +2088,7 @@ function subscribeToLauncherEvents(system) {
   es.addEventListener('serverStatusChanged', handler);
 
   es.onerror = () => {
+    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events disconnected — falling back to polling`);
     es.close();
     system.launcherEventSource = null;
   };
@@ -2090,6 +2103,10 @@ function subscribeToDeviceEvents(system) {
   const url = getDeviceServerEndpoint(system, true);
   const es = new EventSource(url);
   system.deviceEventSource = es;
+
+  es.onopen = () => {
+    autoUpdateConsole(system, "tracking", `[SSE] Device events connected — real-time push active`);
+  };
 
   es.addEventListener('deviceStateChanged', (e) => {
     try {
@@ -2111,6 +2128,7 @@ function subscribeToDeviceEvents(system) {
   });
 
   es.onerror = () => {
+    autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected — falling back to polling`);
     es.close();
     system.deviceEventSource = null;
     if (system.servers?.[0]) {
@@ -2253,7 +2271,8 @@ function getLauncherStatus(system, autoStart = false) {
       system.launcherProtocolVersion = data.protocolVersion ?? 0;
       if (data.vruiVersion !== undefined && system.vruiVersion !== data.vruiVersion) {
         system.vruiVersion = data.vruiVersion;
-        autoUpdateConsole(system, "getServerStatus", `Vrui ${data.vruiVersion} (launcher protocol v${system.launcherProtocolVersion})`);
+        const launcherMode = system.launcherProtocolVersion >= 1 ? 'SSE' : 'polling';
+        autoUpdateConsole(system, "getServerStatus", `Vrui ${data.vruiVersion} — launcher protocol v${system.launcherProtocolVersion} (${launcherMode})`);
       }
 
       if (!wasAlive) {
@@ -2447,7 +2466,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
   }
 
   const serverName = system.servers[serverIndex].name;
-  console.log(`🔔 Pinging ${serverName} at ${endpoint} with command=getServerStatus`);
+  console.log(`Pinging ${serverName} at ${endpoint} with command=getServerStatus`);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -2455,11 +2474,11 @@ function pingServerStatus(system, serverIndex, endpoint) {
     body: new URLSearchParams({ command: "getServerStatus" }),
   }, 3000)
     .then((r) => {
-      console.log(`✅ ${serverName} responded with status ${r.status}`);
+      console.log(`${serverName} responded with status ${r.status}`);
       return r.json();
     })
     .then((data) => {
-      console.log(`📦 ${serverName} data:`, data);
+      console.log(`${serverName} data:`, data);
       
       // Re-check that server still exists (array might have changed)
       if (!system.servers || !system.servers[serverIndex]) {
@@ -2477,7 +2496,10 @@ function pingServerStatus(system, serverIndex, endpoint) {
 
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
-          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} is online`);
+          const sseNote = serverIndex === 0
+            ? (serverProto >= 1 ? ' (SSE)' : ' (polling)')
+            : ' (polling)';
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} is online${sseNote}`);
           system.servers[serverIndex].lastStatus = 'online';
         }
 
@@ -2539,7 +2561,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
         system.isConnecting = false;
       }
 
-      console.error(`❌ ${serverName} failed:`, err.name, err.message);
+      console.error(`${serverName} failed:`, err.name, err.message);
 
       system.servers[serverIndex].status = 'offline';
       if (system.servers[serverIndex].lastStatus !== 'offline') {
