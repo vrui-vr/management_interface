@@ -2385,8 +2385,7 @@ function startAndCheckServers(system) {
 
     const waitForDeviceServer = () => {
       attempts++;
-      const devicePort = system.deviceServerPort;
-      const deviceEndpoint = `http://${system.ip}:${devicePort}/${deviceServerUrl}`;
+      const deviceEndpoint = getDeviceServerEndpoint(system);
 
       fetchWithTimeout(deviceEndpoint, {
         method: "POST",
