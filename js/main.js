@@ -932,10 +932,8 @@ function renderSystems(systems) {
         labelSpan.appendChild(offline);
       }
 
-      // Info button in the card header — shows system metadata on hover
+      // Info button in the card header — shows Vrui/protocol version on hover
       const cardInfoTooltip = [
-        system.ip ? `IP: ${system.ip}` : null,
-        system.serverLauncherPort ? `Launcher port: ${system.serverLauncherPort}` : null,
         system.vruiVersion ? `Vrui: ${system.vruiVersion}` : null,
         system.launcherProtocolVersion != null ? `Protocol: v${system.launcherProtocolVersion}` : null,
       ].filter(Boolean).join('\n');
@@ -944,7 +942,7 @@ function renderSystems(systems) {
 
       if (cardInfoTooltip) {
         const cardInfoBtn = document.createElement("button");
-        cardInfoBtn.className = "card-info-btn sys-tooltip tooltip-right";
+        cardInfoBtn.className = "card-info-btn sys-tooltip tooltip-down tooltip-right";
         cardInfoBtn.textContent = "ⓘ";
         cardInfoBtn.dataset.tooltip = cardInfoTooltip;
         titleSection.appendChild(cardInfoBtn);
@@ -1122,11 +1120,9 @@ function renderSystems(systems) {
 		  const infoBtn = document.createElement("button");
 		  infoBtn.className = "server-info-btn sys-tooltip";
 		  infoBtn.textContent = "ⓘ";
-		  infoBtn.dataset.tooltip = [
-		    system.vruiVersion ? `Vrui: ${system.vruiVersion}` : null,
-		    system.launcherProtocolVersion != null ? `Launcher: v${system.launcherProtocolVersion}` : null,
-		    server.protocolVersion != null ? `Server: v${server.protocolVersion}` : null,
-		  ].filter(Boolean).join('\n') || "No version info";
+		  infoBtn.dataset.tooltip = server.protocolVersion != null
+		    ? `Protocol: v${server.protocolVersion}`
+		    : "No version info";
 
 		  item.append(dot, name, infoBtn);
 		  section.appendChild(item);

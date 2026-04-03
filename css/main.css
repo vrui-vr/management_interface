@@ -1680,7 +1680,7 @@ h6 {
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.025em;
-  color: var(--sys-color);
+  color: var(--sys-color-muted);
 }
 
 .system-title:not(.is-localhost) {
@@ -1833,12 +1833,12 @@ h6 {
 }
 
 .status-dot.status-online {
-  background-color: var(--status-online);
-  box-shadow: 0 0 4px var(--status-online);
+  background-color: var(--rig-0);
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.7);
   border: 1px solid transparent;
 }
 
-/* Server online dot: universal green regardless of rig */
+/* Server online dot: blue — green reserved for device tracking */
 
 .status-dot.status-stopped {
   background-color: transparent;
@@ -1973,19 +1973,41 @@ h6 {
   transform: translateX(-50%) translateY(0);
 }
 
-/* Tooltip anchored to the right edge (for header buttons) */
-.sys-tooltip.tooltip-right[data-tooltip]::after {
+/* Tooltip pointing downward (for elements near top of viewport) */
+.sys-tooltip.tooltip-down[data-tooltip]::after {
+  top: calc(100% + 7px);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-4px);
+}
+.sys-tooltip.tooltip-down[data-tooltip]::before {
+  top: calc(100% + 3px);
+  bottom: auto;
+  border-top-color: transparent;
+  border-bottom-color: #111;
+  transform: translateX(-50%) translateY(-4px);
+}
+.sys-tooltip.tooltip-down[data-tooltip]:hover::after,
+.sys-tooltip.tooltip-down[data-tooltip]:hover::before {
+  transform: translateX(-50%) translateY(0);
+}
+[data-theme="dark"] .sys-tooltip.tooltip-down[data-tooltip]::before {
+  border-bottom-color: #2a2a2a;
+  border-top-color: transparent;
+}
+
+/* Tooltip pointing down + anchored to the right edge */
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]::after {
   left: auto;
   right: 0;
-  transform: translateY(4px);
+  transform: translateY(-4px);
 }
-.sys-tooltip.tooltip-right[data-tooltip]::before {
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]::before {
   left: auto;
   right: 10px;
-  transform: translateY(4px);
+  transform: translateY(-4px);
 }
-.sys-tooltip.tooltip-right[data-tooltip]:hover::after,
-.sys-tooltip.tooltip-right[data-tooltip]:hover::before {
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]:hover::after,
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]:hover::before {
   transform: translateY(0);
 }
 
@@ -2022,8 +2044,8 @@ h6 {
 }
 
 .device-item .status-dot.device-tracked {
-  background-color: var(--rig-2);
-  box-shadow: 0 0 4px var(--status-online);
+  background-color: var(--status-online);
+  box-shadow: 0 0 6px 2px rgba(34, 197, 94, 0.55);
   border: 1px solid transparent;
 }
 
@@ -2139,11 +2161,27 @@ h6 {
 .battery-percent.critical { color: #991b1b !important; }
 
 .charging-bolt {
-  font-size: 0.65rem;
-  line-height: 1;
-  color: #22c55e;
-  flex-shrink: 0;
-  user-select: none;
+  display: none; /* replaced by CSS bolt inside the bar */
+}
+
+/* Remove overflow:hidden only when charging so the ::after bolt renders */
+.battery-bar.charging {
+  overflow: visible;
+}
+
+.battery-bar.charging::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 5px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  clip-path: polygon(68% 0%, 100% 0%, 36% 46%, 68% 46%, 0% 100%, 40% 54%, 4% 54%);
+  pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 0 1px rgba(255,255,255,0.6));
 }
 
 .battery-percent {
