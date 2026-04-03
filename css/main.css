@@ -1386,6 +1386,15 @@ h6 {
   position: relative;
   display: flex;
   flex-direction: column;
+
+  /* Per-card accent color — set by JS via card.style.setProperty('--sys-color', ...) */
+  --sys-color: #3b82f6;
+  --sys-color-light:       color-mix(in srgb, var(--sys-color), white 25%);
+  --sys-color-dark:        color-mix(in srgb, var(--sys-color), black 30%);
+  --sys-color-mid:         color-mix(in srgb, var(--sys-color), black 15%);
+  --sys-color-muted:       color-mix(in srgb, var(--sys-color), white 55%);
+  --sys-color-shadow:      color-mix(in srgb, var(--sys-color) 30%, transparent);
+  --sys-color-shadow-soft: color-mix(in srgb, var(--sys-color) 20%, transparent);
 }
 
 [data-theme="dark"] .system-card {
@@ -1435,88 +1444,17 @@ h6 {
   opacity: 1;
 }
 
-.system-card.connected.rig-0::before {
+.system-card.connected::before {
   background: conic-gradient(
     from var(--angle, 0deg),
-    var(--rig-0),
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0),
-    var(--rig-0-dark),
-    var(--rig-0)
+    var(--sys-color),
+    var(--sys-color-light),
+    var(--sys-color),
+    var(--sys-color-mid),
+    var(--sys-color),
+    var(--sys-color-dark),
+    var(--sys-color)
   );
-
-}
-
-.system-card.connected.rig-1::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-1),
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1),
-    var(--rig-1-dark),
-    var(--rig-1)
-  );
-
-}
-
-.system-card.connected.rig-2::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-2),
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2),
-    var(--rig-2-dark),
-    var(--rig-2)
-  );
-
-}
-
-.system-card.connected.rig-3::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-3),
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3),
-    var(--rig-3-dark),
-    var(--rig-3)
-  );
-
-}
-
-.system-card.connected.rig-4::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-4),
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4),
-    var(--rig-4-dark),
-    var(--rig-4)
-  );
-
-}
-
-.system-card.connected.rig-5::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-5),
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5),
-    var(--rig-5-dark),
-    var(--rig-5)
-  );
-
 }
 
 .system-card.selected {
@@ -1536,105 +1474,22 @@ h6 {
   padding: 3px;
 }
 
-.system-card.selected.connected.rig-0 {
+.system-card.selected.connected {
   box-shadow:
     0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-0-shadow);
-}
-
-.system-card.selected.connected.rig-1 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-1-shadow);
-}
-
-.system-card.selected.connected.rig-2 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-2-shadow);
-}
-
-.system-card.selected.connected.rig-3 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-3-shadow);
-}
-
-.system-card.selected.connected.rig-4 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-4-shadow);
-}
-
-.system-card.selected.connected.rig-5 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-5-shadow);
+    0 0 20px var(--sys-color-shadow);
 }
 
 .system-card.selected.disconnected::before {
   inset: -3px;
   padding: 3px;
+  background: var(--sys-color-muted);
 }
 
-.system-card.selected.disconnected.rig-0::before {
-  background: var(--rig-0-muted);
-}
-
-.system-card.selected.disconnected.rig-0 {
+.system-card.selected.disconnected {
   box-shadow:
     0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-0-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-1::before {
-  background: var(--rig-1-muted);
-}
-
-.system-card.selected.disconnected.rig-1 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-1-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-2::before {
-  background: var(--rig-2-muted);
-}
-
-.system-card.selected.disconnected.rig-2 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-2-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-3::before {
-  background: var(--rig-3-muted);
-}
-
-.system-card.selected.disconnected.rig-3 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-3-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-4::before {
-  background: var(--rig-4-muted);
-}
-
-.system-card.selected.disconnected.rig-4 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-4-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-5::before {
-  background: var(--rig-5-muted);
-}
-
-.system-card.selected.disconnected.rig-5 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-5-shadow-soft);
+    0 0 16px var(--sys-color-shadow-soft);
 }
 
 /* Unreachable — red border, error state */
@@ -1714,66 +1569,12 @@ h6 {
 
 .system-card.disconnected::before {
   padding: 2px;
-}
-
-.system-card.disconnected.rig-0::before {
   background: linear-gradient(
     135deg,
-    var(--rig-0-muted),
-    var(--rig-0),
-    var(--rig-0-muted)
+    var(--sys-color-muted),
+    var(--sys-color),
+    var(--sys-color-muted)
   );
-
-}
-
-.system-card.disconnected.rig-1::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-1-muted),
-    var(--rig-1),
-    var(--rig-1-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-2::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-2-muted),
-    var(--rig-2),
-    var(--rig-2-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-3::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-3-muted),
-    var(--rig-3),
-    var(--rig-3-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-4::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-4-muted),
-    var(--rig-4),
-    var(--rig-4-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-5::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-5-muted),
-    var(--rig-5),
-    var(--rig-5-muted)
-  );
-
 }
 
 .system-card.disconnected .battery-label,
@@ -1877,6 +1678,11 @@ h6 {
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.02em;
+  color: var(--text-dark);
+}
+
+[data-theme="dark"] .system-title {
+  color: var(--text-white);
 }
 
 .system-title:not(.is-localhost) {
@@ -1900,113 +1706,7 @@ h6 {
   letter-spacing: -0.015em;
 }
 
-.system-card.disconnected.rig-0 .system-title {
-  color: var(--rig-0-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-1 .system-title {
-  color: var(--rig-1-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-2 .system-title {
-  color: var(--rig-2-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-3 .system-title {
-  color: var(--rig-3-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-4 .system-title {
-  color: var(--rig-4-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-5 .system-title {
-  color: var(--rig-5-muted);
-  opacity: 0.9;
-}
-
-.system-card.connected.rig-0 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-1 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-2 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-3 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-4 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-5 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+/* System title uses neutral text — rig color lives on the card border accent only */
 
 .offline-badge {
   font-size: 0.75rem;
@@ -2135,46 +1835,12 @@ h6 {
 }
 
 .status-dot.status-online {
-  background-color: var(--rig-2);
+  background-color: var(--status-online);
   box-shadow: 0 0 4px var(--status-online);
   border: 1px solid transparent;
 }
 
-.system-card.connected.rig-0 .status-dot.status-online {
-  background-color: var(--rig-0);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-1 .status-dot.status-online {
-  background-color: var(--rig-1);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-2 .status-dot.status-online {
-  background-color: var(--rig-2);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-3 .status-dot.status-online {
-  background-color: var(--rig-3);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-4 .status-dot.status-online {
-  background-color: var(--rig-4);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-5 .status-dot.status-online {
-  background-color: var(--rig-5);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
+/* Server online dot: universal green regardless of rig */
 
 .status-dot.status-stopped {
   background-color: transparent;
@@ -2192,41 +1858,7 @@ h6 {
   border: 1px solid transparent;
 }
 
-.system-card.connected.rig-0 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-0);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-1 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-1);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-2 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-2);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-3 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-3);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-4 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-4);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-5 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-5);
-  opacity: 0.4;
-}
+/* Server stopped dot: universal gray border regardless of rig */
 
 .server-name {
   font-weight: 500;
@@ -2250,33 +1882,29 @@ h6 {
   margin-left: auto;
 }
 
+.server-info-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: default;
+  line-height: 1;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.server-info-btn:hover {
+  opacity: 1;
+}
+
 [data-theme="dark"] .server-name {
   color: var(--text-gray);
 }
 
-.system-card.connected.rig-0 .status-dot.status-online ~ .server-name {
-  color: var(--rig-0);
-}
-
-.system-card.connected.rig-1 .status-dot.status-online ~ .server-name {
-  color: var(--rig-1);
-}
-
-.system-card.connected.rig-2 .status-dot.status-online ~ .server-name {
-  color: var(--rig-2);
-}
-
-.system-card.connected.rig-3 .status-dot.status-online ~ .server-name {
-  color: var(--rig-3);
-}
-
-.system-card.connected.rig-4 .status-dot.status-online ~ .server-name {
-  color: var(--rig-4);
-}
-
-.system-card.connected.rig-5 .status-dot.status-online ~ .server-name {
-  color: var(--rig-5);
-}
+/* Server names use neutral text — no per-rig coloring */
 
 /* ========================================
    DEVICE SECTION
@@ -2318,41 +1946,7 @@ h6 {
   border: 1px solid var(--status-stopped);
 }
 
-.system-card.connected.rig-0 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-0);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-1 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-1);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-2 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-2);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-3 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-3);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-4 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-4);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-5 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-5);
-  opacity: 0.4;
-}
+/* Device disconnected dot: universal gray regardless of rig */
 
 .device-name {
   font-weight: 500;
@@ -2402,73 +1996,7 @@ h6 {
   color: var(--text-gray);
 }
 
-.system-card.connected.rig-0
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-0);
-}
-
-.system-card.connected.rig-1
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-1);
-}
-
-.system-card.connected.rig-2
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-2);
-}
-
-.system-card.connected.rig-3
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-3);
-}
-
-.system-card.connected.rig-4
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-4);
-}
-
-.system-card.connected.rig-5
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-5);
-}
-
-/* If device tracked */
-
-.system-card.connected.rig-0 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-0);
-}
-
-.system-card.connected.rig-1 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-1);
-}
-
-.system-card.connected.rig-2 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-2);
-}
-
-.system-card.connected.rig-3 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-3);
-}
-
-.system-card.connected.rig-4 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-4);
-}
-
-.system-card.connected.rig-5 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-5);
-}
+/* Device names use neutral text — status communicated by dot color only */
 
 .battery-bar {
   width: 50px;
@@ -2488,84 +2016,50 @@ h6 {
   transition: width 0.3s ease;
   position: relative;
   border-radius: 4px;
+  background: linear-gradient(90deg, #16a34a, #22c55e, #16a34a);
+  background-size: 300% 100%;
 }
 
-.system-card.connected.rig-0 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-0),
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0)
-  );
-  background-size: 300% 100%;
+/* Battery fill: universal green — warning levels (warn/danger/critical) override below */
 
+.battery-fill.charging {
+  background: linear-gradient(90deg, #16a34a, #22c55e, #16a34a) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-1 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-1),
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1)
-  );
-  background-size: 300% 100%;
-
+.battery-fill.warn {
+  background: linear-gradient(90deg, #b45309, #f59e0b, #b45309) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-2 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-2),
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2)
-  );
-  background-size: 300% 100%;
-
+.battery-fill.danger {
+  background: linear-gradient(90deg, #b91c1c, #ef4444, #b91c1c) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-3 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-3),
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3)
-  );
-  background-size: 300% 100%;
-
+.battery-fill.critical {
+  background: linear-gradient(90deg, #7f1d1d, #dc2626, #7f1d1d) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-4 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-4),
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4)
-  );
-  background-size: 300% 100%;
+.battery-percent.warn     { color: #d97706 !important; }
+.battery-percent.danger   { color: #dc2626 !important; }
+.battery-percent.critical { color: #991b1b !important; }
 
+.battery-bar.charging {
+  position: relative;
 }
 
-.system-card.connected.rig-5 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-5),
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5)
-  );
-  background-size: 300% 100%;
-
+.battery-bar.charging::after {
+  content: "⚡";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.55rem;
+  line-height: 1;
+  pointer-events: none;
+  filter: brightness(0) invert(1);
 }
 
 .battery-percent {
@@ -2657,25 +2151,13 @@ h6 {
   pointer-events: none;
 }
 
-/* Per-rig icon colors */
-.system-card.disconnected.rig-0 .connect-zone {
-  color: var(--rig-0-muted);
-}
-.system-card.disconnected.rig-1 .connect-zone {
-  color: var(--rig-1-muted);
-}
-.system-card.disconnected.rig-2 .connect-zone {
-  color: var(--rig-2-muted);
-}
-.system-card.disconnected.rig-3 .connect-zone {
-  color: var(--rig-3-muted);
-}
-.system-card.disconnected.rig-4 .connect-zone {
-  color: var(--rig-4-muted);
-}
-.system-card.disconnected.rig-5 .connect-zone {
-  color: var(--rig-5-muted);
-}
+/* Connect zone (loading spinner + connect icon) retains rig color — it's a pre-session loading state */
+.system-card.rig-0 .connect-zone { color: var(--rig-0-muted); }
+.system-card.rig-1 .connect-zone { color: var(--rig-1-muted); }
+.system-card.rig-2 .connect-zone { color: var(--rig-2-muted); }
+.system-card.rig-3 .connect-zone { color: var(--rig-3-muted); }
+.system-card.rig-4 .connect-zone { color: var(--rig-4-muted); }
+.system-card.rig-5 .connect-zone { color: var(--rig-5-muted); }
 
 .shutdown-container {
   display: flex;
@@ -3641,6 +3123,13 @@ h6 {
 .form-modal-row input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--rig-0-bg);
+}
+
+.form-modal-row input[type="color"] {
+  padding: 3px 5px;
+  height: 36px;
+  cursor: pointer;
+  width: 100%;
 }
 
 .form-modal-buttons {

@@ -14,12 +14,15 @@ deviceServerUrl = "VRDeviceServer";
 compositingServerUrl = "VRCompositingServer";
 eventsExtension = "Events"
 
+const RIG_DEFAULT_COLORS = ['#3b82f6', '#f97316', '#22c55e', '#facc15', '#8b5cf6', '#ec4899'];
+
 const getServerStatusInterval = 3000;
 const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before resuming regular pings
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
 let showLogo = false; // show the sidebar logo (set to true when a real logo is available)
+const TEST_BATTERY = false; // drain all device batteries 5%/sec to preview battery UI
 
 // Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 function sendButton(buttonNumber) {
@@ -135,6 +138,7 @@ function normalizeSystems(rawSystems) {
       connected: !!normalizedDevices?.hmd?.connected, // fallback to headset connected if available
       ip: d.ip || "N/A",
       colorClass: `rig-${index % 6}`,
+      customColor: d.customColor || null,
       devices: normalizedDevices,
       environments: [],
       serversRunning: false,
@@ -150,7 +154,8 @@ function saveSystemsToLocalStorage() {
     ip: d.ip,
     serverLauncherPort: d.serverLauncherPort,
     deviceServerPort: d.deviceServerPort,
-    compositingServerPort: d.compositingServerPort
+    compositingServerPort: d.compositingServerPort,
+    customColor: d.customColor || null,
   }));
   localStorage.setItem("savedSystems", JSON.stringify(toSave));
 }
@@ -277,6 +282,8 @@ function addSystem() {
     defaultName = `Rig ${String.fromCharCode(65 + nameIndex)}`;
   }
 
+  const defaultColor = RIG_DEFAULT_COLORS[availableIndex !== undefined ? availableIndex : allSystems.length % 6];
+
   showFormModal({
     title: "Add System",
     submitLabel: "Add",
@@ -285,8 +292,9 @@ function addSystem() {
       { key: "name", label: "Name", default: defaultName, placeholder: defaultName },
       { key: "ip", label: "IP Address", default: "192.168.1.15", placeholder: "192.168.1.15" },
       { key: "port", label: "Launcher Port", default: "8080", placeholder: "8080" },
+      { key: "color", label: "Color", type: "color", default: defaultColor },
     ],
-    onSubmit: ({ name, ip, port }) => {
+    onSubmit: ({ name, ip, port, color }) => {
       const newName = name || defaultName;
       if (
         newName.toLowerCase() === "local host" ||
@@ -305,13 +313,14 @@ function addSystem() {
         launcherAlive: null,
         servers: [],
         colorClass: newColorClass,
+        customColor: color || null,
         devices: {},
       };
       allSystems.push(newSystem);
       updateInterface();
       autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
       saveSystemsToLocalStorage();
-      checkLauncherAlive(newSystem);
+      getLauncherStatus(newSystem);
     },
   });
 }
@@ -446,8 +455,16 @@ function getStartupPhaseText(phase) {
   }
 }
 
-// Gets color of the system theme from css
+// Returns the base hex color for a system (custom override or rig default)
+function getSysColor(system) {
+  if (system.customColor) return system.customColor;
+  const rigIndex = parseInt(system.colorClass?.replace('rig-', '') ?? '0', 10);
+  return RIG_DEFAULT_COLORS[rigIndex % RIG_DEFAULT_COLORS.length];
+}
+
+// Gets color of the system theme from css (used by mini-monitor and sidebar)
 function getSystemColor(system, muted = false) {
+  if (system.customColor && !muted) return system.customColor;
   const varName = `--${system.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
   return (
     getComputedStyle(document.documentElement)
@@ -581,6 +598,13 @@ function updateButtonStates() {
   if (btn3) btn3.disabled = true;
 }
 
+function batteryLevelClass(pct) {
+  if (pct <= 5)  return 'critical';
+  if (pct <= 10) return 'danger';
+  if (pct <= 20) return 'warn';
+  return '';
+}
+
 // Updates the UI for the system widgets
 function updateSystemUI(updatedSystem) {
   // Force a complete re-render by calling renderSystems
@@ -682,7 +706,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
 }
 
 // Changes color of system
-function changeTargetColor(systemName) {
+function changeTargetColor(_systemName) {
   // This function is no longer needed with the new UI
   // The device selector doesn't use color coding
   // Keeping it as a no-op for backwards compatibility
@@ -747,6 +771,7 @@ function renderSystems(systems) {
       if (c.startsWith("rig-")) card.classList.remove(c);
     });
     card.classList.add(system.colorClass);
+    card.style.setProperty('--sys-color', getSysColor(system));
 
     card.onclick = () => changeSystem(system.name);
 
@@ -761,14 +786,15 @@ function renderSystems(systems) {
       prev.isAlive !== isAlive ||
       prev.currentSystem !== currentSystem;
 
-    const needsServersRebuild = 
+    const needsServersRebuild =
       !prev.servers ||
       prev.servers.length !== (system.servers?.length || 0) ||
-      prev.servers.some((s, i) => 
+      prev.servers.some((s, i) =>
         !system.servers?.[i] ||
         s.name !== system.servers[i].name ||
         s.isRunning !== system.servers[i].isRunning ||
-        s.status !== system.servers[i].status
+        s.status !== system.servers[i].status ||
+        s.protocolVersion !== system.servers[i].protocolVersion
       );
 
     const needsDevicesRebuild = 
@@ -791,26 +817,42 @@ function renderSystems(systems) {
       prev.startupPhase !== system.startupPhase;
 
     // Check for battery-only changes (can be updated without rebuild)
-    const batteryOnlyChange = 
+    const batteryOnlyChange =
       !needsDevicesRebuild &&
       prev.devices?.some((d, i) => {
         const device = Object.values(system.devices || {})[i];
-        return device && d.battery !== device.battery;
+        return device && (d.battery !== device.battery || d.isCharging !== device.isCharging);
       });
 
     // =============================== 
     // FAST PATH: Update battery only
     // =============================== 
     if (batteryOnlyChange && card._sections.devices && !card._needsFullRebuild) {
-      Object.entries(system.devices || {}).forEach(([key, device], i) => {
+      Object.entries(system.devices || {}).forEach(([, device], i) => {
         if (device?.connected && device.hasBattery && device.battery >= 0) {
           const deviceItem = card._sections.devices.querySelectorAll('.device-item')[i];
           if (deviceItem) {
             const fill = deviceItem.querySelector('.battery-fill');
             const percent = deviceItem.querySelector('.battery-percent');
             if (fill && percent) {
+              const lvlClass = batteryLevelClass(device.battery);
+              const barTitle = device.isCharging ? `${device.battery}% — charging` : `${device.battery}% battery`;
               fill.style.width = `${device.battery}%`;
               percent.textContent = `${device.battery}%`;
+              percent.title = barTitle;
+              fill.classList.toggle('charging', !!device.isCharging);
+              fill.classList.toggle('warn',     lvlClass === 'warn');
+              fill.classList.toggle('danger',   lvlClass === 'danger');
+              fill.classList.toggle('critical', lvlClass === 'critical');
+              const bar = fill.parentElement;
+              if (bar) {
+                bar.title = barTitle;
+                bar.classList.toggle('charging', !!device.isCharging);
+                bar.classList.toggle('warn',     lvlClass === 'warn');
+                bar.classList.toggle('danger',   lvlClass === 'danger');
+                bar.classList.toggle('critical', lvlClass === 'critical');
+              }
+              percent.className = ['battery-percent', lvlClass].filter(Boolean).join(' ');
             }
           }
         }
@@ -835,8 +877,10 @@ function renderSystems(systems) {
           key: k,
           name: d?.name,
           connected: d?.connected,
+          tracked: d?.tracked,
           battery: d?.battery,
-          hasBattery: d?.hasBattery
+          hasBattery: d?.hasBattery,
+          isCharging: d?.isCharging,
         }))
       };
       return;
@@ -923,8 +967,8 @@ function renderSystems(systems) {
         `;
         msg.onclick = e => {
           e.stopPropagation();
-          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-          checkLauncherAlive(system);
+          autoUpdateConsole(system, "getServerStatus", "Attempting to contact launcher...");
+          getLauncherStatus(system);
         };
         msg.style.cursor = "pointer";
         msg.title = "Click to retry connection";
@@ -1041,12 +1085,22 @@ function renderSystems(systems) {
 		  // Create elements like devices
 		  const dot = document.createElement("span");
 		  dot.className = `status-dot ${statusClass}`;
+		  dot.title = !server.isRunning ? "Stopped" : server.status === "online" ? "Online" : "Error";
 
 		  const name = document.createElement("span");
 		  name.className = "server-name";
 		  name.textContent = server.name;
 
-		  item.append(dot, name);
+		  const infoBtn = document.createElement("button");
+		  infoBtn.className = "server-info-btn";
+		  infoBtn.textContent = "ⓘ";
+		  infoBtn.title = [
+		    system.vruiVersion ? `Vrui: ${system.vruiVersion}` : null,
+		    system.launcherProtocolVersion != null ? `Launcher protocol: v${system.launcherProtocolVersion}` : null,
+		    server.protocolVersion != null ? `Server protocol: v${server.protocolVersion}` : null,
+		  ].filter(Boolean).join('\n') || "No version info";
+
+		  item.append(dot, name, infoBtn);
 		  section.appendChild(item);
 		});
 
@@ -1092,12 +1146,14 @@ function renderSystems(systems) {
 
 		  const dot = document.createElement("span");
 		  if (device.connected) {
-			  dot.className = device?.tracked 
-        ? "status-dot device-tracked" 
+			  dot.className = device?.tracked
+        ? "status-dot device-tracked"
         : "status-dot device-connected";
+        dot.title = device?.tracked ? "Tracked" : "Connected (not tracked)";
 		  }
 		  else {
         dot.className = "status-dot device-disconnected";
+        dot.title = "Not connected";
 		  }
 
 		  const name = document.createElement("span");
@@ -1118,17 +1174,24 @@ function renderSystems(systems) {
 		  info.className = "device-info";
 
 		  if (device?.connected && device.hasBattery && device.battery >= 0) {
+			const lvlClass = batteryLevelClass(device.battery);
+			const barTitle = device.isCharging
+			  ? `${device.battery}% — charging`
+			  : `${device.battery}% battery`;
 			const bar = document.createElement("div");
-			bar.className = "battery-bar";
+			bar.className = ["battery-bar", device.isCharging ? "charging" : "", lvlClass].filter(Boolean).join(" ");
+			bar.title = barTitle;
 			const fill = document.createElement("div");
-			fill.className = "battery-fill";
+			fill.className = ["battery-fill", device.isCharging ? "charging" : "", lvlClass].filter(Boolean).join(" ");
 			fill.style.width = `${device.battery}%`;
 			bar.appendChild(fill);
 
-			info.append(bar, Object.assign(document.createElement("span"), {
+			const pct = Object.assign(document.createElement("span"), {
 			  textContent: `${device.battery}%`,
-			  className: "battery-percent"
-			}));
+			  className: "battery-percent" + (lvlClass ? ` ${lvlClass}` : ""),
+			  title: barTitle,
+			});
+			info.append(bar, pct);
 		  } else {
 			const statusText = document.createElement("span");
 			statusText.className = "device-status-text";
@@ -1213,14 +1276,17 @@ function renderSystems(systems) {
       servers: system.servers?.map(s => ({
         name: s.name,
         isRunning: s.isRunning,
-        status: s.status
+        status: s.status,
+        protocolVersion: s.protocolVersion,
       })) || [],
       devices: Object.entries(system.devices || {}).map(([k, d]) => ({
         key: k,
         name: d?.name,
         connected: d?.connected,
+        tracked: d?.tracked,
         battery: d?.battery,
-        hasBattery: d?.hasBattery
+        hasBattery: d?.hasBattery,
+        isCharging: d?.isCharging,
       }))
     };
     card._needsFullRebuild = false;
@@ -1253,7 +1319,7 @@ function renderSystems(systems) {
 }
 
 // Creates battery widgets a system
-function createBattery(system, label, percent, isConnected, isTracked, hasBattery) {
+function createBattery(system, label, percent, isConnected, _isTracked, hasBattery) {
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -1380,6 +1446,7 @@ function showEditMenu(e, system, field, popupWin = null) {
   if (field === "name" && !isLocal) {
 	// console.log("[DEBUG] Adding action: Rename");
 	available.push("Rename");
+	available.push("Change Color");
   } else if (field === "ipport") {
     available.push("Edit Connection");
   } else {
@@ -1432,6 +1499,9 @@ function showEditMenu(e, system, field, popupWin = null) {
         switch (action) {
           case "Rename":
             renameSystem(system);
+            break;
+          case "Change Color":
+            recolorSystem(system);
             break;
           case "Edit Connection":
             showEditConnectionModal(system);
@@ -1496,64 +1566,6 @@ function handleServerResponse(system, command, data) {
 	}
 }
 
-// Check if the VRServerLauncher daemon is reachable
-// Does NOT start any servers — just confirms the launcher is alive, then queries status
-function getLauncherStatus(system) {
-  if (!system) return;
-
-  const endpoint = getServerLauncherEndpoint(system);
-
-  autoUpdateConsole(system, "getServerStatus", `Checking launcher at ${endpoint}...`);
-
-  fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "isAlive" }),
-  }, 8000)
-    .then((r) => r.json())
-    .then((data) => {
-      if (data?.isRunning === true) {
-        system.launcherAlive = true;
-        system.initialCheckRetried = false;
-        system.intentionallyShutdown = false;
-        system.lastSeen = Date.now();
-
-        autoUpdateConsole(system, "isAlive", "Launcher is alive");
-
-        // Fetch environments on first connect
-        getEnvironments(system);
-
-        // Check server states — only auto-start on localhost
-        const isLocal = system.name === "localhost";
-        getLauncherStatus(system, isLocal);
-      } else {
-        system.launcherAlive = false;
-        autoUpdateConsole(system, "isAlive", `Launcher responded but isRunning=${data?.isRunning}`, "error");
-      }
-
-      updateSystemUI(system);
-    })
-    .catch((err) => {
-      // On the very first failure, silently retry once before showing unreachable
-      if (system.launcherAlive === null && !system.initialCheckRetried) {
-        system.initialCheckRetried = true;
-        setTimeout(() => getLauncherStatus(system), 2000);
-        return;
-      }
-
-      system.launcherAlive = false;
-
-      if (err.name === "AbortError") {
-        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher (8s)", "error");
-      } else if (err.name === "TypeError" && err.message.includes("Failed to fetch")) {
-        autoUpdateConsole(system, "isAlive", "Network error - check if launcher is running and CORS is configured", "error");
-      } else {
-        autoUpdateConsole(system, "isAlive", `Failed to contact launcher: ${err.message}`, "error");
-      }
-
-      updateSystemUI(system);
-    });
-}
 
 // Sends a haptic tick command to the system
 function sendHapticTick(system, deviceName, featureIndex) {
@@ -1684,6 +1696,24 @@ function renameSystem(system) {
   });
 }
 
+function recolorSystem(system) {
+  showFormModal({
+    title: `Color — ${system.name}`,
+    submitLabel: "Apply",
+    colorClass: system.colorClass || "",
+    fields: [
+      { key: "color", label: "Color", type: "color", default: getSysColor(system) },
+    ],
+    onSubmit: ({ color }) => {
+      if (color) {
+        system.customColor = color;
+        saveSystemsToLocalStorage();
+        updateInterface();
+      }
+    },
+  });
+}
+
 // Edit a system's connection details (IP and Launcher Port) in a single modal
 function showEditConnectionModal(system) {
   const isLocalHost = system.name === "localhost";
@@ -1743,6 +1773,7 @@ function updateSystemWithJsonData(system, jsonData) {
 		orientation: device.trackerState?.rotation || [],
 		position: device.trackerState?.translation || [],
 		battery: device.batteryLevel != null ? device.batteryLevel : -1,
+		isCharging: !!device.isCharging,
 	  };
 
 	  // Save device by its name
@@ -1838,8 +1869,23 @@ function startLauncherServers(system) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "startServers" }),
   }, 5000)
-    .then(() => {
+    .then((r) => r.json())
+    .then((data) => {
       autoUpdateConsole(system, "startServers", "Start command sent to launcher.");
+      if (Array.isArray(data.servers)) {
+        system.servers = data.servers.map((srv, i) => ({
+          ...srv,
+          status: srv.isRunning ? 'checking...' : 'stopped',
+          lastStatus: system.servers?.[i]?.lastStatus ?? null,
+        }));
+        data.servers.forEach((srv, index) => {
+          if (srv.httpPort) {
+            if (index === 0) system.deviceServerPort = String(srv.httpPort);
+            else if (index === 1) system.compositingServerPort = String(srv.httpPort);
+          }
+        });
+        updateSystemUI(system);
+      }
     })
     .catch((err) => {
       if (err.name === "AbortError") {
@@ -1862,8 +1908,19 @@ function stopLauncherServers(system) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "stopServers" }),
   }, 3000)
-    .then(() => {
+    .then((r) => r.json())
+    .then((data) => {
       autoUpdateConsole(system, "stopServers", "Stop command sent to launcher.");
+      if (Array.isArray(data.servers)) {
+        system.servers = data.servers.map((srv, i) => ({
+          ...srv,
+          status: 'stopped',
+          lastStatus: system.servers?.[i]?.lastStatus ?? null,
+        }));
+        system.connected = false;
+        system.serversRunning = false;
+        updateSystemUI(system);
+      }
     })
     .catch((err) => {
       if (err.name === "AbortError") {
@@ -1920,6 +1977,83 @@ function getEnvironments(system) {
         autoUpdateConsole(system, "getEnvironments", "Failed to fetch environments", "error");
       }
     });
+}
+
+// Subscribe to server-sent events from VRServerLauncher for real-time status updates.
+// The C++ server pushes "serverStatusUpdated" (on start / child crash) and
+// "serverStatusChanged" (on stop). On any event we do a full getLauncherStatus refresh.
+function subscribeToLauncherEvents(system) {
+  if (system.launcherEventSource) return; // already subscribed
+  if ((system.launcherProtocolVersion ?? 0) < 1) return; // old server — use polling
+
+  const url = getServerLauncherEndpoint(system, true);
+  const es = new EventSource(url);
+  system.launcherEventSource = es;
+
+  const handler = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (Array.isArray(data.servers)) {
+        system.servers = data.servers.map((srv, i) => ({
+          ...srv,
+          status: srv.isRunning ? 'checking...' : 'stopped',
+          lastStatus: system.servers?.[i]?.lastStatus ?? null,
+        }));
+        system.serversRunning = system.servers.every(s => s.isRunning);
+        updateSystemUI(system);
+      }
+    } catch (_) {}
+    getLauncherStatus(system);
+  };
+
+  es.addEventListener('serverStatusUpdated', handler);
+  es.addEventListener('serverStatusChanged', handler);
+
+  es.onerror = () => {
+    es.close();
+    system.launcherEventSource = null;
+  };
+}
+
+// Subscribe to server-sent events from VRDeviceServer for real-time device state changes.
+// Only used when the device server's protocolVersion >= 1.
+// When active, replaces periodic pingServerStatus calls for the device server (index 0).
+function subscribeToDeviceEvents(system) {
+  if (system.deviceEventSource) return;
+
+  const url = getDeviceServerEndpoint(system, true);
+  const es = new EventSource(url);
+  system.deviceEventSource = es;
+
+  es.addEventListener('deviceStateChanged', (e) => {
+    try {
+      const device = JSON.parse(e.data);
+      if (!device?.name) return;
+      const key = device.name.trim().toLowerCase();
+      if (!system.devices?.[key]) return;
+
+      const d = system.devices[key];
+      d.connected = !!device.isConnected;
+      d.tracked = !!device.isTracked;
+      d.hasBattery = !!device.hasBattery;
+      if (device.hasBattery) {
+        if (device.batteryLevel != null) d.battery = device.batteryLevel;
+        d.isCharging = !!device.isCharging;
+      }
+      updateSystemUI(system);
+    } catch (_) {}
+  });
+
+  es.onerror = () => {
+    es.close();
+    system.deviceEventSource = null;
+    if (system.servers?.[0]) {
+      system.servers[0].status = 'error';
+      system.servers[0].lastStatus = 'error';
+    }
+    system.connected = false;
+    updateSystemUI(system);
+  };
 }
 
 // Updates the environment dropdown UI based on the system's stored environments
@@ -2033,12 +2167,32 @@ function getLauncherStatus(system, autoStart = false) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 5000)
+  }, 8000)
     .then((r) => r.json())
     .then((data) => {
       if (!Array.isArray(data.servers)) {
+        system.launcherAlive = false;
         updateSystemUI(system);
         return;
+      }
+
+      // Mark launcher as reachable; fetch environments on first connect
+      const wasAlive = system.launcherAlive;
+      system.launcherAlive = true;
+      system.initialCheckRetried = false;
+      system.intentionallyShutdown = system.intentionallyShutdown && wasAlive === true;
+      system.lastSeen = Date.now();
+
+      // Store launcher metadata; default protocolVersion to 0 if absent (old server)
+      system.launcherProtocolVersion = data.protocolVersion ?? 0;
+      if (data.vruiVersion !== undefined && system.vruiVersion !== data.vruiVersion) {
+        system.vruiVersion = data.vruiVersion;
+        autoUpdateConsole(system, "getServerStatus", `Vrui ${data.vruiVersion} (launcher protocol v${system.launcherProtocolVersion})`);
+      }
+
+      if (!wasAlive) {
+        getEnvironments(system);
+        subscribeToLauncherEvents(system);
       }
 
       // Store server info, preserving lastStatus to reduce log spam
@@ -2050,9 +2204,9 @@ function getLauncherStatus(system, autoStart = false) {
 
       // Update device/compositing ports from launcher response
       data.servers.forEach((srv, index) => {
-        if (srv.port) {
-          if (index === 0) system.deviceServerPort = String(srv.port);
-          else if (index === 1) system.compositingServerPort = String(srv.port);
+        if (srv.httpPort) {
+          if (index === 0) system.deviceServerPort = String(srv.httpPort);
+          else if (index === 1) system.compositingServerPort = String(srv.httpPort);
         }
       });
 
@@ -2094,7 +2248,7 @@ function getLauncherStatus(system, autoStart = false) {
         }
 
         if (srv.isRunning) {
-          const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
+          const port = srv.httpPort || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
           const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
           const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
           pingServerStatus(system, index, serverEndpoint);
@@ -2108,11 +2262,33 @@ function getLauncherStatus(system, autoStart = false) {
       updateSystemUI(system);
     })
     .catch((err) => {
-      if (err.name === "AbortError") {
-        autoUpdateConsole(system, "getLauncherStatus", "Timed out contacting launcher", "error");
-      } else {
-        autoUpdateConsole(system, "getLauncherStatus", "Failed to contact launcher — connection error", "error");
+      // On the very first failure, silently retry once before showing unreachable
+      if (system.launcherAlive === null && !system.initialCheckRetried) {
+        system.initialCheckRetried = true;
+        setTimeout(() => getLauncherStatus(system), 2000);
+        return;
       }
+
+      system.launcherAlive = false;
+
+      if (system.launcherEventSource) {
+        system.launcherEventSource.close();
+        system.launcherEventSource = null;
+      }
+      if (system.deviceEventSource) {
+        system.deviceEventSource.close();
+        system.deviceEventSource = null;
+      }
+
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "getServerStatus", "Timed out contacting launcher (8s)", "error");
+      } else if (err.name === "TypeError" && err.message.includes("Failed to fetch")) {
+        autoUpdateConsole(system, "getServerStatus", "Network error - check if launcher is running and CORS is configured", "error");
+      } else {
+        autoUpdateConsole(system, "getServerStatus", `Failed to contact launcher: ${err.message}`, "error");
+      }
+
+      updateSystemUI(system);
     });
 }
 
@@ -2230,6 +2406,10 @@ function pingServerStatus(system, serverIndex, endpoint) {
         system.servers[serverIndex].status = 'online';
         system.servers[serverIndex].isRunning = true;
 
+        // Store the server's own protocol version (default 0 if absent)
+        const serverProto = data.protocolVersion ?? 0;
+        system.servers[serverIndex].protocolVersion = serverProto;
+
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
           autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} is online`);
@@ -2245,6 +2425,11 @@ function pingServerStatus(system, serverIndex, endpoint) {
         if (serverIndex === 0) {
           system.connected = true;
           activeSystems.add(system.name);
+
+          // Subscribe to device SSE if protocol supports it and we're not already subscribed
+          if (serverProto >= 1 && !system.deviceEventSource) {
+            subscribeToDeviceEvents(system);
+          }
 
           // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
@@ -2627,7 +2812,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize dark mode toggle
   initDarkModeToggle();
   
-  // Check if launcher is alive for all systems on page load
+  // Fetch server status for all systems on page load
   allSystems.forEach((system) => {
     getLauncherStatus(system);
   });
@@ -2648,7 +2833,8 @@ setInterval(() => {
     // If launcher is alive but no servers are running, or some servers are still
     // reported as stopped, re-check launcher status so stale isRunning flags get refreshed
     if (hasServers && (!anyRunning || !system.serversRunning)) {
-      getLauncherStatus(system);
+      // Skip if launcher SSE is active — it will push status changes to us
+      if (!system.launcherEventSource) getLauncherStatus(system);
       return;
     }
 
@@ -2656,16 +2842,30 @@ setInterval(() => {
     if (hasServers) {
       system.servers.forEach((srv, index) => {
         if (srv.isRunning) {
-          const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
+          // Skip device server ping if SSE is providing real-time device state updates
+          if (index === 0 && system.deviceEventSource) return;
+          const port = srv.httpPort || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
           const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
           const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-
           pingServerStatus(system, index, serverEndpoint);
         }
       });
     }
   });
 }, getServerStatusInterval); // every certain amount of seconds
+
+if (TEST_BATTERY) {
+  setInterval(() => {
+    allSystems.forEach(system => {
+      if (!system.devices) return;
+      Object.values(system.devices).forEach(d => {
+        if (d.battery == null) return;
+        d.battery = Math.max(0, d.battery - 5);
+      });
+      updateSystemUI(system);
+    });
+  }, 1000);
+}
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -2823,9 +3023,9 @@ function openMiniMonitor() {
   const currentTheme =
     document.documentElement.getAttribute("data-theme") || "light";
 
-  miniMonitorPopup.document.write(`
-    <!DOCTYPE html>
-    <html lang="en" data-theme="${currentTheme}">
+  miniMonitorPopup.document.documentElement.lang = "en";
+  miniMonitorPopup.document.documentElement.setAttribute("data-theme", currentTheme);
+  miniMonitorPopup.document.documentElement.innerHTML = `
     <head>
       <meta charset="UTF-8">
       <title>Vrui Monitor</title>
@@ -2913,9 +3113,7 @@ function openMiniMonitor() {
         window._miniMonitorReady = true;
       </script>
     </body>
-    </html>
-  `);
-  miniMonitorPopup.document.close();
+  `;
 
   // Wait for popup DOM to be ready, then start syncing
   const waitForReady = setInterval(() => {
