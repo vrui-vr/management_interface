@@ -630,7 +630,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   if (!knownSystem) return;
 
   // Polling commands update in place; everything else creates a new entry once the previous one resolves
-  const POLLING_COMMANDS = new Set(["isAlive", "tracking", "compositing", "getLauncherStatus", "getServerStatus", "getCompositingStatus"]);
+  const POLLING_COMMANDS = new Set(["tracking", "compositing", "getLauncherStatus", "getServerStatus", "getCompositingStatus"]);
 
   const entryKey = `${system.name}:${command}`;
   let logEntry = consoleEntries.get(entryKey);
@@ -1498,12 +1498,12 @@ function handleServerResponse(system, command, data) {
 
 // Check if the VRServerLauncher daemon is reachable
 // Does NOT start any servers — just confirms the launcher is alive, then queries status
-function checkLauncherAlive(system) {
+function getLauncherStatus(system) {
   if (!system) return;
 
   const endpoint = getServerLauncherEndpoint(system);
 
-  autoUpdateConsole(system, "isAlive", `Checking launcher at ${endpoint}...`);
+  autoUpdateConsole(system, "getServerStatus", `Checking launcher at ${endpoint}...`);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -1537,7 +1537,7 @@ function checkLauncherAlive(system) {
       // On the very first failure, silently retry once before showing unreachable
       if (system.launcherAlive === null && !system.initialCheckRetried) {
         system.initialCheckRetried = true;
-        setTimeout(() => checkLauncherAlive(system), 2000);
+        setTimeout(() => getLauncherStatus(system), 2000);
         return;
       }
 
@@ -2629,7 +2629,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Check if launcher is alive for all systems on page load
   allSystems.forEach((system) => {
-    checkLauncherAlive(system);
+    getLauncherStatus(system);
   });
 });
 
@@ -3010,8 +3010,8 @@ function rebindMiniMonitorHandlers(container) {
       e.stopPropagation();
       const system = allSystems.find((s) => s.name === systemName);
       if (system) {
-        autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-        checkLauncherAlive(system, true);
+        autoUpdateConsole(system, "getServerStatus", "Attempting to contact launcher...");
+        getLauncherStatus(system, true);
       }
     };
     const connectIcon = card.querySelector(".connect-btn-wrap");
