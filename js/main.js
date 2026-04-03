@@ -779,12 +779,15 @@ function renderSystems(systems) {
     // DETECT WHAT CHANGED
     // =============================== 
     const prev = card._prevState || {};
-    const needsHeaderRebuild = 
+    const needsHeaderRebuild =
       !prev.name || prev.name !== system.name ||
       prev.ip !== system.ip ||
       prev.ports !== `${system.serverLauncherPort}-${system.deviceServerPort}-${system.compositingServerPort}` ||
       prev.isAlive !== isAlive ||
-      prev.currentSystem !== currentSystem;
+      prev.currentSystem !== currentSystem ||
+      prev.vruiVersion !== system.vruiVersion ||
+      prev.launcherProtocolVersion !== system.launcherProtocolVersion ||
+      prev.customColor !== system.customColor;
 
     const needsServersRebuild =
       !prev.servers ||
@@ -879,6 +882,9 @@ function renderSystems(systems) {
         isConnected,
         currentSystem,
         colorClass: system.colorClass,
+        customColor: system.customColor,
+        vruiVersion: system.vruiVersion,
+        launcherProtocolVersion: system.launcherProtocolVersion,
         startupPhase: system.startupPhase,
         servers: system.servers?.map(s => ({
           name: s.name,
@@ -939,6 +945,25 @@ function renderSystems(systems) {
       ].filter(Boolean).join('\n');
 
       titleSection.append(labelSpan);
+
+      // Palette button — quick access to change the system accent color
+      if (system.name !== "localhost") {
+        const paletteBtn = document.createElement("button");
+        paletteBtn.className = "card-palette-btn sys-tooltip tooltip-down tooltip-right";
+        paletteBtn.dataset.tooltip = "Change color";
+        paletteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+          <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+          <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+          <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+        </svg>`;
+        paletteBtn.onclick = e => {
+          e.stopPropagation();
+          recolorSystem(system);
+        };
+        titleSection.appendChild(paletteBtn);
+      }
 
       if (cardInfoTooltip) {
         const cardInfoBtn = document.createElement("button");
@@ -1304,6 +1329,9 @@ function renderSystems(systems) {
       isConnected,
       currentSystem,
       colorClass: system.colorClass,
+      customColor: system.customColor,
+      vruiVersion: system.vruiVersion,
+      launcherProtocolVersion: system.launcherProtocolVersion,
       startupPhase: system.startupPhase,
       servers: system.servers?.map(s => ({
         name: s.name,
@@ -3141,9 +3169,6 @@ function openMiniMonitor() {
     <body>
       <div id="popupActionMenu" class="action-menu hidden"></div>
       <div class="mini-monitor-container" id="miniContainer"></div>
-      <script>
-        window._miniMonitorReady = true;
-      </script>
     </body>
   `;
 
@@ -3153,7 +3178,7 @@ function openMiniMonitor() {
       clearInterval(waitForReady);
       return;
     }
-    if (miniMonitorPopup._miniMonitorReady) {
+    if (miniMonitorPopup.document.getElementById("miniContainer")) {
       clearInterval(waitForReady);
       syncMiniMonitor();
       miniMonitorSyncId = setInterval(syncMiniMonitor, 400);

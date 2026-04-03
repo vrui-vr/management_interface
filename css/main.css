@@ -809,79 +809,6 @@ h6 {
   cursor: pointer;
 }
 
-/* Connected rig gradient — matches system card title exactly */
-.sidebar[data-color-class="rig-0"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-1"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-2"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-3"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-4"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-5"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
 
 /* Offline — muted color, matches disconnected system card title */
 .sidebar.offline[data-color-class="rig-0"] .sidebar-target-name {
@@ -1764,7 +1691,7 @@ h6 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-gray);
+  color: var(--sys-color-muted);
   margin-bottom: 0.5rem;
 }
 
@@ -1860,7 +1787,7 @@ h6 {
 
 .server-name {
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--sys-color-muted);
   font-size: 0.8rem;
   letter-spacing: -0.01em;
   flex: 1;
@@ -1903,7 +1830,7 @@ h6 {
   border: none;
   padding: 0 2px;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--sys-color-muted);
   opacity: 0.5;
   cursor: default;
   line-height: 1;
@@ -1915,9 +1842,25 @@ h6 {
   opacity: 1;
 }
 
-[data-theme="dark"] .server-name {
-  color: var(--text-gray);
+.card-palette-btn {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  color: var(--sys-color-muted);
+  opacity: 0.5;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
 }
+
+.card-palette-btn:hover {
+  opacity: 1;
+}
+
+/* server-name uses --sys-color-muted, inherits per-card color */
 
 /* Server names use neutral text — no per-rig coloring */
 
@@ -2064,7 +2007,7 @@ h6 {
 
 .device-name {
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--sys-color-muted);
   font-size: 0.8rem;
   letter-spacing: -0.01em;
   transition: all 0.2s ease;
@@ -2090,7 +2033,7 @@ h6 {
 
 .device-status-text {
   font-size: 0.7rem;
-  color: var(--text-gray);
+  color: var(--sys-color-muted);
 }
 
 .device-item
@@ -2186,7 +2129,7 @@ h6 {
 
 .battery-percent {
   font-size: 0.7rem;
-  color: var(--text-gray-dark);
+  color: var(--sys-color-muted);
   font-weight: 500;
   font-family: "Courier New", monospace;
   min-width: 32px;
