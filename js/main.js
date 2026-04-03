@@ -839,20 +839,32 @@ function renderSystems(systems) {
               const barTitle = device.isCharging ? `${device.battery}% — charging` : `${device.battery}% battery`;
               fill.style.width = `${device.battery}%`;
               percent.textContent = `${device.battery}%`;
-              percent.title = barTitle;
               fill.classList.toggle('charging', !!device.isCharging);
               fill.classList.toggle('warn',     lvlClass === 'warn');
               fill.classList.toggle('danger',   lvlClass === 'danger');
               fill.classList.toggle('critical', lvlClass === 'critical');
               const bar = fill.parentElement;
               if (bar) {
-                bar.title = barTitle;
+                bar.dataset.tooltip = barTitle;
                 bar.classList.toggle('charging', !!device.isCharging);
                 bar.classList.toggle('warn',     lvlClass === 'warn');
                 bar.classList.toggle('danger',   lvlClass === 'danger');
                 bar.classList.toggle('critical', lvlClass === 'critical');
               }
               percent.className = ['battery-percent', lvlClass].filter(Boolean).join(' ');
+              // Sync bolt: add if charging and missing, remove if not charging
+              const deviceItem = bar?.closest('.device-item');
+              if (deviceItem) {
+                let bolt = deviceItem.querySelector('.charging-bolt');
+                if (device.isCharging && !bolt) {
+                  bolt = document.createElement('span');
+                  bolt.className = 'charging-bolt';
+                  bolt.textContent = '⚡';
+                  percent.after(bolt);
+                } else if (!device.isCharging && bolt) {
+                  bolt.remove();
+                }
+              }
             }
           }
         }
@@ -920,7 +932,23 @@ function renderSystems(systems) {
         labelSpan.appendChild(offline);
       }
 
+      // Info button in the card header — shows system metadata on hover
+      const cardInfoTooltip = [
+        system.ip ? `IP: ${system.ip}` : null,
+        system.serverLauncherPort ? `Launcher port: ${system.serverLauncherPort}` : null,
+        system.vruiVersion ? `Vrui: ${system.vruiVersion}` : null,
+        system.launcherProtocolVersion != null ? `Protocol: v${system.launcherProtocolVersion}` : null,
+      ].filter(Boolean).join('\n');
+
       titleSection.append(labelSpan);
+
+      if (cardInfoTooltip) {
+        const cardInfoBtn = document.createElement("button");
+        cardInfoBtn.className = "card-info-btn sys-tooltip tooltip-right";
+        cardInfoBtn.textContent = "ⓘ";
+        cardInfoBtn.dataset.tooltip = cardInfoTooltip;
+        titleSection.appendChild(cardInfoBtn);
+      }
       header.appendChild(titleSection);
 
       if (system.name !== "localhost") {
@@ -1084,20 +1112,20 @@ function renderSystems(systems) {
 
 		  // Create elements like devices
 		  const dot = document.createElement("span");
-		  dot.className = `status-dot ${statusClass}`;
-		  dot.title = !server.isRunning ? "Stopped" : server.status === "online" ? "Online" : "Error";
+		  dot.className = `status-dot ${statusClass} sys-tooltip`;
+		  dot.dataset.tooltip = !server.isRunning ? "Stopped" : server.status === "online" ? "Online" : "Error";
 
 		  const name = document.createElement("span");
 		  name.className = "server-name";
 		  name.textContent = server.name;
 
 		  const infoBtn = document.createElement("button");
-		  infoBtn.className = "server-info-btn";
+		  infoBtn.className = "server-info-btn sys-tooltip";
 		  infoBtn.textContent = "ⓘ";
-		  infoBtn.title = [
+		  infoBtn.dataset.tooltip = [
 		    system.vruiVersion ? `Vrui: ${system.vruiVersion}` : null,
-		    system.launcherProtocolVersion != null ? `Launcher protocol: v${system.launcherProtocolVersion}` : null,
-		    server.protocolVersion != null ? `Server protocol: v${server.protocolVersion}` : null,
+		    system.launcherProtocolVersion != null ? `Launcher: v${system.launcherProtocolVersion}` : null,
+		    server.protocolVersion != null ? `Server: v${server.protocolVersion}` : null,
 		  ].filter(Boolean).join('\n') || "No version info";
 
 		  item.append(dot, name, infoBtn);
@@ -1147,13 +1175,13 @@ function renderSystems(systems) {
 		  const dot = document.createElement("span");
 		  if (device.connected) {
 			  dot.className = device?.tracked
-        ? "status-dot device-tracked"
-        : "status-dot device-connected";
-        dot.title = device?.tracked ? "Tracked" : "Connected (not tracked)";
+        ? "status-dot device-tracked sys-tooltip"
+        : "status-dot device-connected sys-tooltip";
+        dot.dataset.tooltip = device?.tracked ? "Tracked" : "Connected\n(not tracked)";
 		  }
 		  else {
-        dot.className = "status-dot device-disconnected";
-        dot.title = "Not connected";
+        dot.className = "status-dot device-disconnected sys-tooltip";
+        dot.dataset.tooltip = "Not connected";
 		  }
 
 		  const name = document.createElement("span");
@@ -1180,7 +1208,8 @@ function renderSystems(systems) {
 			  : `${device.battery}% battery`;
 			const bar = document.createElement("div");
 			bar.className = ["battery-bar", device.isCharging ? "charging" : "", lvlClass].filter(Boolean).join(" ");
-			bar.title = barTitle;
+			bar.dataset.tooltip = barTitle;
+			bar.classList.add("sys-tooltip");
 			const fill = document.createElement("div");
 			fill.className = ["battery-fill", device.isCharging ? "charging" : "", lvlClass].filter(Boolean).join(" ");
 			fill.style.width = `${device.battery}%`;
@@ -1189,9 +1218,16 @@ function renderSystems(systems) {
 			const pct = Object.assign(document.createElement("span"), {
 			  textContent: `${device.battery}%`,
 			  className: "battery-percent" + (lvlClass ? ` ${lvlClass}` : ""),
-			  title: barTitle,
 			});
-			info.append(bar, pct);
+
+			if (device.isCharging) {
+			  const bolt = document.createElement("span");
+			  bolt.className = "charging-bolt";
+			  bolt.textContent = "⚡";
+			  info.append(bar, pct, bolt);
+			} else {
+			  info.append(bar, pct);
+			}
 		  } else {
 			const statusText = document.createElement("span");
 			statusText.className = "device-status-text";
@@ -3055,8 +3091,8 @@ function openMiniMonitor() {
           flex-wrap: nowrap;
           gap: 16px;
           padding: 12px 16px 12px 12px;
-          overflow-x: hidden;
-          overflow-y: hidden;
+          overflow-x: auto;
+          overflow-y: visible;
           align-items: stretch;
           min-height: 0;
           scrollbar-width: thin;
@@ -3177,6 +3213,9 @@ function syncMiniMonitor() {
         existing.innerHTML = srcCard.innerHTML;
       }
       existing.className = srcCard.className;
+      // Sync inline CSS custom properties (e.g. --sys-color set by renderSystems)
+      const sysColor = srcCard.style.getPropertyValue('--sys-color');
+      if (sysColor) existing.style.setProperty('--sys-color', sysColor);
     } else {
       const clone = srcCard.cloneNode(true);
       target.appendChild(clone);

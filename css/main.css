@@ -1668,21 +1668,19 @@ h6 {
 
 .title-section {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
   flex: 1;
+  min-width: 0;
 }
 
 .system-title {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   line-height: 1.3;
-  letter-spacing: -0.02em;
-  color: var(--text-dark);
-}
-
-[data-theme="dark"] .system-title {
-  color: var(--text-white);
+  letter-spacing: -0.025em;
+  color: var(--sys-color);
 }
 
 .system-title:not(.is-localhost) {
@@ -1889,7 +1887,7 @@ h6 {
   padding: 0 2px;
   font-size: 0.75rem;
   color: var(--text-muted);
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: default;
   line-height: 1;
   transition: opacity 0.15s ease;
@@ -1900,11 +1898,105 @@ h6 {
   opacity: 1;
 }
 
+.card-info-btn {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: default;
+  line-height: 1;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.card-info-btn:hover {
+  opacity: 1;
+}
+
 [data-theme="dark"] .server-name {
   color: var(--text-gray);
 }
 
 /* Server names use neutral text — no per-rig coloring */
+
+/* ========================================
+   CUSTOM TOOLTIPS  (.sys-tooltip + data-tooltip)
+   ======================================== */
+
+.sys-tooltip {
+  position: relative;
+}
+
+.sys-tooltip[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #111;
+  color: #f0f0f0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: pre-line;
+  min-width: max-content;
+  max-width: 220px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  letter-spacing: 0.01em;
+}
+
+.sys-tooltip[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border: 5px solid transparent;
+  border-top-color: #111;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+}
+
+.sys-tooltip[data-tooltip]:hover::after,
+.sys-tooltip[data-tooltip]:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Tooltip anchored to the right edge (for header buttons) */
+.sys-tooltip.tooltip-right[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+.sys-tooltip.tooltip-right[data-tooltip]::before {
+  left: auto;
+  right: 10px;
+  transform: translateY(4px);
+}
+.sys-tooltip.tooltip-right[data-tooltip]:hover::after,
+.sys-tooltip.tooltip-right[data-tooltip]:hover::before {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .sys-tooltip[data-tooltip]::after {
+  background: #2a2a2a;
+  color: #f5f5f5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+[data-theme="dark"] .sys-tooltip[data-tooltip]::before {
+  border-top-color: #2a2a2a;
+}
 
 /* ========================================
    DEVICE SECTION
@@ -2046,20 +2138,12 @@ h6 {
 .battery-percent.danger   { color: #dc2626 !important; }
 .battery-percent.critical { color: #991b1b !important; }
 
-.battery-bar.charging {
-  position: relative;
-}
-
-.battery-bar.charging::after {
-  content: "⚡";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 0.55rem;
+.charging-bolt {
+  font-size: 0.65rem;
   line-height: 1;
-  pointer-events: none;
-  filter: brightness(0) invert(1);
+  color: #22c55e;
+  flex-shrink: 0;
+  user-select: none;
 }
 
 .battery-percent {
