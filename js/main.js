@@ -9,9 +9,10 @@ const lowBatteryWarnings = new Set();
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
 
-serverLauncherUrl = "VRServerLauncher.cgi"
-deviceServerUrl = "VRDeviceServer.cgi";
-compositingServerUrl = "VRCompositingServer.cgi";
+serverLauncherUrl = "VRServerLauncher"
+deviceServerUrl = "VRDeviceServer";
+compositingServerUrl = "VRCompositingServer";
+eventsExtension = "Events"
 
 const getServerStatusInterval = 3000;
 const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before resuming regular pings
@@ -19,8 +20,8 @@ const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
 let showLogo = false; // show the sidebar logo (set to true when a real logo is available)
-// Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 
+// Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
     // Toggle the global variable
@@ -156,18 +157,28 @@ function saveSystemsToLocalStorage() {
 
 // Gets the address of a system's server launcher
 // ex): http://192.0.0.1:8080/ServerLauncher.cgi
-function getServerLauncherEndpoint(system) {
-  return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}`;
+function getServerLauncherEndpoint(system, events = false) {
+  if (events) {
+    return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}/${eventsExtension}.cgi`
+  }
+
+  return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}.cgi`;
 }
 // Gets the address of a system using the global url combined with the local data of the system
 // ex): http://192.0.0.1:8081/VRDeviceServer.cgi
-function getDeviceServerEndpoint(system) {
-  return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}`;
+function getDeviceServerEndpoint(system, events = false) {
+  if (events) {
+    return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}/${eventsExtension}.cgi`
+  }
+  return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}.cgi`;
 }
 
 // Gets adress of the VR compositingServer
-function getCompositingServerEndpoint(system) {
-  return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}`;
+function getCompositingServerEndpoint(system, events = false) {
+  if (events) {
+    return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}/${eventsExtension}.cgi`
+  }
+  return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}.cgi`;
 }
 
 // Shows a modal form with configurable fields for user input
