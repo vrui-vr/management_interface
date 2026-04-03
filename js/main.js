@@ -2248,9 +2248,9 @@ function getLauncherStatus(system, autoStart = false) {
         }
 
         if (srv.isRunning) {
-          const port = srv.httpPort || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
-          const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-          const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+          const serverEndpoint = index === 0
+            ? getDeviceServerEndpoint(system)
+            : getCompositingServerEndpoint(system);
           pingServerStatus(system, index, serverEndpoint);
         } else {
           if (system.servers[index]) {
@@ -2844,9 +2844,9 @@ setInterval(() => {
         if (srv.isRunning) {
           // Skip device server ping if SSE is providing real-time device state updates
           if (index === 0 && system.deviceEventSource) return;
-          const port = srv.httpPort || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
-          const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-          const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+          const serverEndpoint = index === 0
+            ? getDeviceServerEndpoint(system)
+            : getCompositingServerEndpoint(system);
           pingServerStatus(system, index, serverEndpoint);
         }
       });
