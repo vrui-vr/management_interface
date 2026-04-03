@@ -363,6 +363,14 @@ h6 {
   box-shadow: var(--shadow);
   position: relative;
   transition: box-shadow 0.3s ease;
+
+  /* Per-sidebar accent color — set by JS via sidebar.style.setProperty('--sys-color', ...) */
+  --sys-color: #3b82f6;
+  --sys-color-muted: color-mix(in srgb, var(--sys-color), white 20%);
+}
+
+[data-theme="dark"] .sidebar {
+  --sys-color-muted: color-mix(in srgb, var(--sys-color), white 50%);
 }
 
 .sidebar::before {
@@ -763,8 +771,17 @@ h6 {
 .sidebar-target {
   margin-bottom: 20px;
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-target-text {
+  display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .sidebar-target-name {
@@ -772,7 +789,7 @@ h6 {
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.3;
-  color: var(--text-dark);
+  color: var(--sys-color-muted);
   width: fit-content;
   border-radius: 6px;
   transition:
@@ -1319,13 +1336,14 @@ h6 {
   --sys-color-light:       color-mix(in srgb, var(--sys-color), white 25%);
   --sys-color-dark:        color-mix(in srgb, var(--sys-color), black 30%);
   --sys-color-mid:         color-mix(in srgb, var(--sys-color), black 15%);
-  --sys-color-muted:       color-mix(in srgb, var(--sys-color), white 55%);
+  --sys-color-muted:       color-mix(in srgb, var(--sys-color), white 20%);
   --sys-color-shadow:      color-mix(in srgb, var(--sys-color) 30%, transparent);
   --sys-color-shadow-soft: color-mix(in srgb, var(--sys-color) 20%, transparent);
 }
 
 [data-theme="dark"] .system-card {
   background-color: var(--card-bg);
+  --sys-color-muted: color-mix(in srgb, var(--sys-color), white 50%);
 }
 
 /* Unreachable — can't contact launcher at all, red error state */
@@ -1842,24 +1860,6 @@ h6 {
   opacity: 1;
 }
 
-.card-palette-btn {
-  background: none;
-  border: none;
-  padding: 0 2px;
-  color: var(--sys-color-muted);
-  opacity: 0.5;
-  cursor: pointer;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  transition: opacity 0.15s ease;
-  flex-shrink: 0;
-}
-
-.card-palette-btn:hover {
-  opacity: 1;
-}
-
 /* server-name uses --sys-color-muted, inherits per-card color */
 
 /* Server names use neutral text — no per-rig coloring */
@@ -2013,9 +2013,6 @@ h6 {
   transition: all 0.2s ease;
 }
 
-[data-theme="dark"] .device-name {
-  color: var(--text-gray);
-}
 
 .device-name:hover:not(.inactive-field) {
   background-color: var(--overlay-hover-faint);
@@ -2418,6 +2415,79 @@ h6 {
 .inactive-field {
   opacity: 0.9;
   pointer-events: none;
+}
+
+/* ========================================
+   SIDEBAR PALETTE BUTTON
+   ======================================== */
+
+.sidebar-palette-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-white);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.sidebar-palette-btn:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.sidebar-palette-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-palette-btn svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-palette-btn:hover svg {
+  opacity: 1;
+}
+
+.sidebar-palette-btn.hidden {
+  display: none;
+}
+
+/* Tooltip */
+.sidebar-palette-btn::after {
+  content: "Change color";
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--text-dark);
+  color: var(--bg-white);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 5px 9px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.sidebar-palette-btn:hover::after {
+  opacity: 1;
 }
 
 /* ========================================
