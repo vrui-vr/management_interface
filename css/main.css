@@ -1352,7 +1352,7 @@ h6 {
   display: flex;
   flex-wrap: nowrap;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
   overflow-x: auto;
   overflow-y: visible;
   padding: 12px;
@@ -2710,7 +2710,7 @@ h6 {
 }
 
 .log-pane-actions {
-  top: 48px;
+  top: 25px;
 }
 
 .console-filter {
@@ -2764,8 +2764,8 @@ h6 {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
-  font-size: 10.5px;
+  padding: 6px 10px;
+  font-size: 12px;
   font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
   color: var(--text-muted);
   background: var(--bg-subtle);
