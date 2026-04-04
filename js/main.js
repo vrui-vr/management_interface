@@ -161,28 +161,23 @@ function saveSystemsToLocalStorage() {
 }
 
 // Gets the address of a system's server launcher
-// ex): http://192.0.0.1:8080/ServerLauncher.cgi
-function getServerLauncherEndpoint(system, events = false) {
-  if (events) {
-    return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}/${eventsExtension}.cgi`
-  }
+// ex): http://192.0.0.1:8080/Events.cgi
+function getEventsEndpoint(ip, port) {
+  return `http://${ip}:${port}/${eventsExtension}.cgi`;
+}
 
+// ex): http://192.0.0.1:8080/VRServerLauncher.cgi
+function getServerLauncherEndpoint(system) {
   return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}.cgi`;
 }
-// Gets the address of a system using the global url combined with the local data of the system
+
 // ex): http://192.0.0.1:8081/VRDeviceServer.cgi
-function getDeviceServerEndpoint(system, events = false) {
-  if (events) {
-    return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}/${eventsExtension}.cgi`
-  }
+function getDeviceServerEndpoint(system) {
   return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}.cgi`;
 }
 
-// Gets adress of the VR compositingServer
-function getCompositingServerEndpoint(system, events = false) {
-  if (events) {
-    return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}/${eventsExtension}.cgi`
-  }
+// ex): http://192.0.0.1:8082/VRCompositingServer.cgi
+function getCompositingServerEndpoint(system) {
   return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}.cgi`;
 }
 
@@ -2082,7 +2077,7 @@ function subscribeToLauncherEvents(system) {
   if (system.launcherEventSource) return; // already subscribed
   if ((system.launcherProtocolVersion ?? 0) < 1) return; // old server — use polling
 
-  const url = getServerLauncherEndpoint(system, true);
+  const url = getEventsEndpoint(system.ip, system.serverLauncherPort);
   const es = new EventSource(url);
   system.launcherEventSource = es;
 
@@ -2122,7 +2117,7 @@ function subscribeToLauncherEvents(system) {
 function subscribeToDeviceEvents(system) {
   if (system.deviceEventSource) return;
 
-  const url = getDeviceServerEndpoint(system, true);
+  const url = getEventsEndpoint(system.ip, system.deviceServerPort);
   const es = new EventSource(url);
   system.deviceEventSource = es;
 
