@@ -2852,10 +2852,7 @@ function initConsoleTabs() {
     _filterEntries("#consoleOutput .log-entry", e.target.value);
   });
 
-  // Log file search
-  document.getElementById("logSearchToggle")?.addEventListener("click", () => {
-    _toggleSearchBar("logSearchBar", "logSearchInput");
-  });
+  // Log file search — always-visible bottom bar, wire input directly
   document.getElementById("logSearchInput")?.addEventListener("input", (e) => {
     _filterEntries("#logFileOutput .log-line", e.target.value);
   });
@@ -2890,7 +2887,6 @@ function clearConsoleSearch() {
 function clearLogSearch() {
   document.getElementById("logSearchInput").value = "";
   _filterEntries("#logFileOutput .log-line", "");
-  document.getElementById("logSearchBar").style.display = "none";
 }
 
 function switchConsoleTab(pane) {
