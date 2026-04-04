@@ -1870,40 +1870,6 @@ h6 {
   margin-left: auto;
 }
 
-.server-info-btn {
-  margin-left: auto;
-  background: none;
-  border: none;
-  padding: 0 2px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  opacity: 0.5;
-  cursor: default;
-  line-height: 1;
-  transition: opacity 0.15s ease;
-  flex-shrink: 0;
-}
-
-.server-info-btn:hover {
-  opacity: 1;
-}
-
-.card-info-btn {
-  background: none;
-  border: none;
-  padding: 0 2px;
-  font-size: 0.75rem;
-  color: var(--sys-color-muted);
-  opacity: 0.5;
-  cursor: default;
-  line-height: 1;
-  transition: opacity 0.15s ease;
-  flex-shrink: 0;
-}
-
-.card-info-btn:hover {
-  opacity: 1;
-}
 
 /* server-name uses --sys-color-muted, inherits per-card color */
 
@@ -2099,11 +2065,15 @@ h6 {
 
 .battery-bar {
   width: 50px;
-  height: 8px;
+  height: 10px;
   background-color: var(--overlay-hover);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
+}
+
+.battery-bar.charging {
+  overflow: visible;
 }
 
 [data-theme="dark"] .battery-bar {
@@ -2113,10 +2083,28 @@ h6 {
 .battery-fill {
   height: 100%;
   transition: width 0.3s ease;
-  position: relative;
   border-radius: 4px;
   background: linear-gradient(90deg, #16a34a, #22c55e, #16a34a);
   background-size: 300% 100%;
+}
+
+/* Bolt is on ::after of fill (no position:relative on fill, so ::after escapes to bar as containing block) */
+.battery-fill.charging::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 9px;
+  background-color: rgba(0, 0, 0, 0.75);
+  clip-path: polygon(65% 0%, 100% 0%, 38% 48%, 65% 48%, 0% 100%, 42% 52%, 6% 52%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+[data-theme="dark"] .battery-fill.charging::after {
+  background-color: rgba(255, 255, 255, 0.85);
 }
 
 /* Battery fill: universal green — charging/warning levels override below */
@@ -2145,11 +2133,6 @@ h6 {
 .battery-percent.danger   { color: #dc2626 !important; }
 .battery-percent.critical { color: #991b1b !important; }
 
-.charging-icon {
-  flex-shrink: 0;
-  color: #eab308;
-  opacity: 0.9;
-}
 
 .battery-percent {
   font-size: 0.7rem;

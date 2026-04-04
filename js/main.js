@@ -617,8 +617,12 @@ function updateDropdown() {
   const versionBlock = document.getElementById("sidebarVersionInfo");
   const vruiRow = document.getElementById("sidebarVruiVersion");
   const protoRow = document.getElementById("sidebarLauncherProtocol");
+  const trackingProtoRow = document.getElementById("sidebarTrackingProtocol");
+  const compositingProtoRow = document.getElementById("sidebarCompositingProtocol");
   if (versionBlock && vruiRow && protoRow) {
-    const hasVersion = system && (system.vruiVersion || system.launcherProtocolVersion != null);
+    const trackingProto = system?.servers?.[0]?.protocolVersion;
+    const compositingProto = system?.servers?.[1]?.protocolVersion;
+    const hasVersion = system && (system.vruiVersion || system.launcherProtocolVersion != null || trackingProto != null || compositingProto != null);
     versionBlock.style.display = hasVersion ? "" : "none";
     if (hasVersion) {
       vruiRow.innerHTML = system.vruiVersion
@@ -629,6 +633,18 @@ function updateDropdown() {
         ? `<span class="sidebar-version-label">Launcher Protocol</span><span class="sidebar-version-value">v${system.launcherProtocolVersion}</span>`
         : "";
       protoRow.style.display = system.launcherProtocolVersion != null ? "" : "none";
+      if (trackingProtoRow) {
+        trackingProtoRow.innerHTML = trackingProto != null
+          ? `<span class="sidebar-version-label">Tracking Protocol</span><span class="sidebar-version-value">v${trackingProto}</span>`
+          : "";
+        trackingProtoRow.style.display = trackingProto != null ? "" : "none";
+      }
+      if (compositingProtoRow) {
+        compositingProtoRow.innerHTML = compositingProto != null
+          ? `<span class="sidebar-version-label">Compositing Protocol</span><span class="sidebar-version-value">v${compositingProto}</span>`
+          : "";
+        compositingProtoRow.style.display = compositingProto != null ? "" : "none";
+      }
     }
   }
 }
@@ -651,18 +667,6 @@ function updateButtonStates() {
   if (btn3) btn3.disabled = true;
 }
 
-function makeBoltSvg() {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "charging-icon");
-  svg.setAttribute("width", "8");
-  svg.setAttribute("height", "11");
-  svg.setAttribute("viewBox", "0 0 10 14");
-  svg.setAttribute("fill", "currentColor");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", "M6 0H2L0 7h3.5L2 14 10 5.5H6.5L6 0z");
-  svg.appendChild(path);
-  return svg;
-}
 
 function batteryLevelClass(pct) {
   if (pct <= 5)  return 'critical';
@@ -919,17 +923,6 @@ function renderSystems(systems) {
                 bar.classList.toggle('low',      lvlClass === 'low');
                 bar.classList.toggle('danger',   lvlClass === 'danger');
                 bar.classList.toggle('critical', lvlClass === 'critical');
-                // Sync charging SVG bolt to the right of the bar
-                const info = bar.parentElement;
-                if (info) {
-                  let boltEl = info.querySelector('.charging-icon');
-                  if (device.isCharging && !boltEl) {
-                    boltEl = makeBoltSvg();
-                    info.appendChild(boltEl);
-                  } else if (!device.isCharging && boltEl) {
-                    boltEl.remove();
-                  }
-                }
               }
               percent.className = ['battery-percent', lvlClass].filter(Boolean).join(' ');
             }
@@ -991,21 +984,7 @@ function renderSystems(systems) {
         labelSpan.appendChild(offline);
       }
 
-      // Info button in the card header — shows Vrui/protocol version on hover
-      const cardInfoTooltip = [
-        system.vruiVersion ? `Vrui Version: ${system.vruiVersion}` : null,
-        system.launcherProtocolVersion != null ? `Protocol: v${system.launcherProtocolVersion}` : null,
-      ].filter(Boolean).join('\n');
-
       titleSection.append(labelSpan);
-
-      if (cardInfoTooltip) {
-        const cardInfoBtn = document.createElement("button");
-        cardInfoBtn.className = "card-info-btn sys-tooltip tooltip-down tooltip-right";
-        cardInfoBtn.textContent = "ⓘ";
-        cardInfoBtn.dataset.tooltip = cardInfoTooltip;
-        titleSection.appendChild(cardInfoBtn);
-      }
       header.appendChild(titleSection);
 
       if (system.name !== "localhost") {
@@ -1176,14 +1155,7 @@ function renderSystems(systems) {
 		  name.className = "server-name";
 		  name.textContent = server.name;
 
-		  const infoBtn = document.createElement("button");
-		  infoBtn.className = "server-info-btn sys-tooltip";
-		  infoBtn.textContent = "ⓘ";
-		  infoBtn.dataset.tooltip = server.protocolVersion != null
-		    ? `Protocol: v${server.protocolVersion}`
-		    : "No version info";
-
-		  item.append(dot, name, infoBtn);
+		  item.append(dot, name);
 		  section.appendChild(item);
 		});
 
