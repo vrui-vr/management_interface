@@ -588,7 +588,7 @@ function updateDropdown() {
   if (namePencil) {
     if (system && currentSystem !== "localhost") {
       namePencil.classList.remove("hidden");
-      namePencil.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "name"); };
+      namePencil.onclick = (e) => { e.stopPropagation(); renameSystem(system); };
     } else {
       namePencil.classList.add("hidden");
       namePencil.onclick = null;
@@ -609,13 +609,9 @@ function updateDropdown() {
 
   const infoPencil = document.getElementById("sidebarInfoPencil");
   if (infoPencil) {
-    if (system && currentSystem !== "localhost") {
+    if (system) {
       infoPencil.classList.remove("hidden");
-      infoPencil.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "ipport"); };
-    } else if (system) {
-      // localhost: show pencil for port only
-      infoPencil.classList.remove("hidden");
-      infoPencil.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "ipport"); };
+      infoPencil.onclick = (e) => { e.stopPropagation(); showEditConnectionModal(system); };
     } else {
       infoPencil.classList.add("hidden");
       infoPencil.onclick = null;
@@ -2135,11 +2131,19 @@ function subscribeToDeviceEvents(system) {
   };
 
   es.addEventListener('deviceStateChanged', (e) => {
+    console.log(`[SSE deviceStateChanged] raw:`, e.data);
     try {
       const device = JSON.parse(e.data);
-      if (!device?.name) return;
+      if (!device?.name) {
+        console.warn(`[SSE deviceStateChanged] event has no name field`, device);
+        return;
+      }
       const key = device.name.trim().toLowerCase();
-      if (!system.devices?.[key]) return;
+      console.log(`[SSE deviceStateChanged] key="${key}", known keys:`, Object.keys(system.devices ?? {}));
+      if (!system.devices?.[key]) {
+        console.warn(`[SSE deviceStateChanged] key "${key}" not found in system.devices`);
+        return;
+      }
 
       const d = system.devices[key];
       d.connected = !!device.isConnected;
@@ -2150,8 +2154,15 @@ function subscribeToDeviceEvents(system) {
         d.isCharging = !!device.isCharging;
       }
       updateSystemUI(system);
-    } catch (_) {}
+    } catch (err) {
+      console.error(`[SSE deviceStateChanged] error processing event:`, err, e.data);
+    }
   });
+
+  // Also catch any event type to see if the server is sending under a different name
+  es.onmessage = (e) => {
+    console.log(`[SSE onmessage] unnamed event:`, e.data);
+  };
 
   es.onerror = () => {
     autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected — falling back to polling`);
