@@ -291,35 +291,33 @@ body {
 }
 
 .topbar-theme-toggle {
-  position: static;
-  margin-left: auto;
-  width: 28px;
-  height: 28px;
+  margin-right: 80px;   /* controls distance from Documentation */
+  width: 21px;          /* smaller */
+  height: 21px;         /* smaller */
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-light);
-  border-radius: 7px;
-  background: var(--bg-subtle);
+  border: none !important;
+  background: transparent !important;
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
+  position: relative;   /* allow vertical movement */
+  top: -50px;            /* move 3px up */
 }
 
 .topbar-theme-toggle:hover {
-  background: var(--btn-hover-bg);
-  border-color: var(--border);
-  color: var(--text-secondary);
+  box-shadow: none !important;  /* remove hover shadow */
 }
 
 .topbar-theme-toggle svg {
-  opacity: 0.65;
+  opacity: 0.8;
   flex-shrink: 0;
 }
 
 .topbar-docs-link {
-  margin-left: 8px;
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -3201,11 +3199,12 @@ h6 {
   flex-shrink: 0;
 }
 
+
 #commandInput {
   flex: 1;
   padding: 5px 10px;
   font-size: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--border)), transparent 50%);
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
   color: var(--text-dark);
@@ -3214,12 +3213,8 @@ h6 {
   outline: none;
 }
 
-#commandInput:hover {
-  border-color: var(--text-secondary);
-}
-
 #commandInput:focus {
-  border-color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--border)), transparent 50%);
   background: var(--bg-white);
   box-shadow: 0 0 0 3px var(--rig-0-bg);
 }
