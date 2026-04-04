@@ -110,7 +110,7 @@
   --overlay-hover: rgba(0, 0, 0, 0.06);
   --overlay-hover-faint: rgba(0, 0, 0, 0.04);
   --overlay-hover-subtle: rgba(0, 0, 0, 0.01);
-  --section-bg: rgba(0, 0, 0, 0.02);
+  --section-bg: rgba(0, 0, 0, 0.06);
   --console-bg: rgba(0, 0, 0, 0.04);
   --divider-color: rgba(0, 0, 0, 0.15);
   --modal-backdrop: rgba(0, 0, 0, 0.45);
@@ -284,14 +284,42 @@ body {
 
 .topbar-title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--text-dark);
 }
 
-.topbar-docs-link {
+.topbar-theme-toggle {
+  position: static;
   margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.topbar-theme-toggle:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.topbar-theme-toggle svg {
+  opacity: 0.65;
+  flex-shrink: 0;
+}
+
+.topbar-docs-link {
+  margin-left: 8px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -421,7 +449,7 @@ h6 {
 
   /* Per-sidebar accent color — set by JS via sidebar.style.setProperty('--sys-color', ...) */
   --sys-color: #3b82f6;
-  --sys-color-muted: color-mix(in srgb, var(--sys-color), white 20%);
+  --sys-color-muted: var(--sys-color);
 }
 
 [data-theme="dark"] .sidebar {
@@ -1386,7 +1414,7 @@ h6 {
   --sys-color-light:       color-mix(in srgb, var(--sys-color), white 25%);
   --sys-color-dark:        color-mix(in srgb, var(--sys-color), black 30%);
   --sys-color-mid:         color-mix(in srgb, var(--sys-color), black 15%);
-  --sys-color-muted:       color-mix(in srgb, var(--sys-color), white 20%);
+  --sys-color-muted:       var(--sys-color);
   --sys-color-shadow:      color-mix(in srgb, var(--sys-color) 30%, transparent);
   --sys-color-shadow-soft: color-mix(in srgb, var(--sys-color) 20%, transparent);
 }
@@ -2574,7 +2602,7 @@ h6 {
 .console-section {
   flex: 1;
   background-color: var(--bg-white);
-  border: 1px solid var(--sys-color, var(--border));
+  border: 2px solid var(--sys-color, var(--border));
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-top: 10px;
