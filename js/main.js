@@ -2496,10 +2496,10 @@ function pingServerStatus(system, serverIndex, endpoint) {
 
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
-          const sseNote = serverIndex === 0
-            ? (serverProto >= 1 ? ' (SSE)' : ' (polling)')
-            : ' (polling)';
-          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} is online${sseNote}`);
+          const transport = serverIndex === 0
+            ? (serverProto >= 1 ? 'SSE' : 'polling')
+            : 'polling';
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} online — protocol v${serverProto} (${transport})`);
           system.servers[serverIndex].lastStatus = 'online';
         }
 
