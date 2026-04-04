@@ -769,7 +769,7 @@ h6 {
    ======================================== */
 
 .sidebar-target {
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -846,7 +846,7 @@ h6 {
   padding: 3px 4px;
   border-radius: 5px;
   color: var(--text-gray);
-  opacity: 0.5;
+  opacity: 0.65;
   cursor: pointer;
   transition: opacity 0.15s ease, color 0.15s ease;
   line-height: 0;
@@ -857,42 +857,54 @@ h6 {
   color: var(--text-secondary);
 }
 
+/* Name pencil inherits the system accent color */
+#sidebarNamePencil {
+  color: var(--sys-color-muted);
+}
+
+#sidebarNamePencil:hover {
+  color: var(--sys-color-muted);
+  opacity: 1;
+}
+
 .sidebar-edit-pencil.hidden {
   display: none;
 }
 
 .sidebar-section-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border-light) 20%, var(--border-light) 80%, transparent);
-  margin: 14px 0;
-  opacity: 0.7;
+  height: 0;
+  border-top: 1px solid var(--border-light);
+  margin: 10px 0;
 }
 
 .sidebar-version-info {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 0 2px;
+  gap: 6px;
+  padding: 2px 0;
 }
 
 .sidebar-version-row {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .sidebar-version-label {
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--sys-color-muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sidebar-version-value {
   font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   color: var(--text-muted);
+  text-align: right;
 }
 
 .title-row {

@@ -573,7 +573,16 @@ function updateDropdown() {
   }
 
   const nameEl = document.getElementById("currentSystemName");
-  if (nameEl) nameEl.textContent = currentSystem;
+  if (nameEl) {
+    nameEl.textContent = currentSystem;
+    if (system && currentSystem !== "localhost") {
+      nameEl.style.cursor = "pointer";
+      nameEl.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "name"); };
+    } else {
+      nameEl.style.cursor = "default";
+      nameEl.onclick = null;
+    }
+  }
 
   const namePencil = document.getElementById("sidebarNamePencil");
   if (namePencil) {
@@ -587,7 +596,16 @@ function updateDropdown() {
   }
 
   const infoEl = document.getElementById("currentSystemInfo");
-  if (infoEl) infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
+  if (infoEl) {
+    infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
+    if (system) {
+      infoEl.style.cursor = "pointer";
+      infoEl.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "ipport"); };
+    } else {
+      infoEl.style.cursor = "default";
+      infoEl.onclick = null;
+    }
+  }
 
   const infoPencil = document.getElementById("sidebarInfoPencil");
   if (infoPencil) {
@@ -613,11 +631,11 @@ function updateDropdown() {
     versionBlock.style.display = hasVersion ? "" : "none";
     if (hasVersion) {
       vruiRow.innerHTML = system.vruiVersion
-        ? `<span class="sidebar-version-label">Vrui</span><span class="sidebar-version-value">${system.vruiVersion}</span>`
+        ? `<span class="sidebar-version-label">Vrui Version</span><span class="sidebar-version-value">${system.vruiVersion}</span>`
         : "";
       vruiRow.style.display = system.vruiVersion ? "" : "none";
       protoRow.innerHTML = system.launcherProtocolVersion != null
-        ? `<span class="sidebar-version-label">Launcher protocol</span><span class="sidebar-version-value">v${system.launcherProtocolVersion}</span>`
+        ? `<span class="sidebar-version-label">Launcher Protocol</span><span class="sidebar-version-value">v${system.launcherProtocolVersion}</span>`
         : "";
       protoRow.style.display = system.launcherProtocolVersion != null ? "" : "none";
     }
