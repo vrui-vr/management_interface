@@ -2842,43 +2842,87 @@ function initConsoleTabs() {
     if (!tab) return;
     switchConsoleTab(tab.dataset.pane);
   });
+
+  // Console search
+  document.getElementById("consoleSearchToggle")?.addEventListener("click", () => {
+    _toggleSearchBar("consoleSearchBar", "consoleSearchInput");
+  });
+  document.getElementById("consoleSearchInput")?.addEventListener("input", (e) => {
+    _filterEntries("#consoleOutput .log-entry", e.target.value);
+  });
+
+  // Log file search
+  document.getElementById("logSearchToggle")?.addEventListener("click", () => {
+    _toggleSearchBar("logSearchBar", "logSearchInput");
+  });
+  document.getElementById("logSearchInput")?.addEventListener("input", (e) => {
+    _filterEntries("#logFileOutput .log-line", e.target.value);
+  });
+}
+
+function _toggleSearchBar(barId, inputId) {
+  const bar = document.getElementById(barId);
+  const input = document.getElementById(inputId);
+  const opening = bar.style.display === "none";
+  bar.style.display = opening ? "" : "none";
+  if (opening) {
+    input.focus();
+  } else {
+    input.value = "";
+    _filterEntries(barId === "consoleSearchBar" ? "#consoleOutput .log-entry" : "#logFileOutput .log-line", "");
+  }
+}
+
+function _filterEntries(selector, query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll(selector).forEach(el => {
+    el.style.display = !q || el.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+}
+
+function clearConsoleSearch() {
+  document.getElementById("consoleSearchInput").value = "";
+  _filterEntries("#consoleOutput .log-entry", "");
+  document.getElementById("consoleSearchBar").style.display = "none";
+}
+
+function clearLogSearch() {
+  document.getElementById("logSearchInput").value = "";
+  _filterEntries("#logFileOutput .log-line", "");
+  document.getElementById("logSearchBar").style.display = "none";
 }
 
 function switchConsoleTab(pane) {
   activeConsolePane = pane;
-
   document.querySelectorAll(".console-tab").forEach(t => {
     t.classList.toggle("active", t.dataset.pane === pane);
   });
-
-  const paneConsole  = document.getElementById("consolePaneConsole");
-  const paneLogfile  = document.getElementById("consolePaneLogfile");
-  const filterWrap   = document.getElementById("consoleFilterWrap");
-  const logToolbar   = document.getElementById("logFileToolbar");
-
-  paneConsole.style.display  = pane === "console"  ? "" : "none";
-  paneLogfile.style.display  = pane === "logfile"  ? "" : "none";
-  filterWrap.style.display   = pane === "console"  ? "" : "none";
-  logToolbar.style.display   = pane === "logfile"  ? "" : "none";
+  document.getElementById("consolePaneConsole").style.display = pane === "console" ? "" : "none";
+  document.getElementById("consolePaneLogfile").style.display = pane === "logfile" ? "" : "none";
 }
 
 // Load log content into the log file pane.
 // Call this when a server log becomes available:
 //   loadLogFile("VRDeviceServer", "2024-03-01T12:00:00", rawText)
+// Load log content into the log file pane.
+// Call this when a server log becomes available:
+//   loadLogFile("VRDeviceServer", "2024-03-01T12:00:00", rawText)
 function loadLogFile(serverName, timestamp, rawText) {
-  const source = document.getElementById("logFileSource");
   const output = document.getElementById("logFileOutput");
-  if (source) source.textContent = `${serverName} — ${timestamp}`;
-  if (output) {
-    output.innerHTML = "";
-    rawText.trim().split("\n").forEach(line => {
-      const el = document.createElement("div");
-      el.className = "log-line " + _logLineClass(line);
-      el.textContent = line;
-      output.appendChild(el);
-    });
-    output.scrollTop = output.scrollHeight;
-  }
+  if (!output) return;
+  const source = document.getElementById("logFileSource");
+  if (source) source.textContent = `${serverName}  —  ${timestamp}`;
+  output.innerHTML = "";
+  rawText.trim().split("\n").forEach(line => {
+    const el = document.createElement("div");
+    el.className = "log-line " + _logLineClass(line);
+    el.textContent = line;
+    output.appendChild(el);
+  });
+  output.scrollTop = output.scrollHeight;
+  // Re-apply active search if any
+  const q = document.getElementById("logSearchInput")?.value ?? "";
+  if (q) _filterEntries("#logFileOutput .log-line", q);
 }
 
 function refreshLogFile() {
