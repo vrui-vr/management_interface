@@ -543,14 +543,15 @@ function updateFileDropState(system) {
 function updateDropdown() {
   const system = allSystems.find((d) => d.name === currentSystem);
 
-  // Set sidebar accent color from current system
+  // Set sidebar + command prompt accent color from current system
   const sidebar = document.querySelector('.sidebar');
-  if (sidebar) {
-    if (system) {
-      sidebar.style.setProperty('--sys-color', getSysColor(system));
-    } else {
-      sidebar.style.removeProperty('--sys-color');
-    }
+  const prompt = document.getElementById('commandPrompt');
+  if (system) {
+    sidebar?.style.setProperty('--sys-color', getSysColor(system));
+    prompt?.style.setProperty('--sys-color', getSysColor(system));
+  } else {
+    sidebar?.style.removeProperty('--sys-color');
+    prompt?.style.removeProperty('--sys-color');
   }
 
   // Show/hide palette button and wire click
@@ -2910,7 +2911,7 @@ function switchConsoleTab(pane) {
 function loadLogFile(serverName, timestamp, rawText) {
   const output = document.getElementById("logFileOutput");
   if (!output) return;
-  const source = document.getElementById("logFileSource");
+  const source = document.getElementById("logFileSourceLabel");
   if (source) source.textContent = `${serverName}  —  ${timestamp}`;
   output.innerHTML = "";
   rawText.trim().split("\n").forEach(line => {
