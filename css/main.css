@@ -2595,7 +2595,6 @@ h6 {
   flex: 1;
   background-color: var(--bg-white);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--sys-color, var(--border));
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-top: 10px;
@@ -2603,7 +2602,23 @@ h6 {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  transition: border-left-color 0.3s ease;
+  position: relative;
+}
+
+.console-section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 220px;
+  background: linear-gradient(to right, var(--sys-color, transparent), transparent);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+[data-theme="dark"] .console-section::before {
+  opacity: 0.13;
 }
 
 /* Tab bar replaces old console-header */
