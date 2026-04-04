@@ -35,8 +35,24 @@
       <!-- Active system display -->
       <div class="sidebar-target">
         <div class="sidebar-target-text">
-          <div class="sidebar-target-name" id="currentSystemName">localhost</div>
-          <div class="sidebar-target-info" id="currentSystemInfo">—</div>
+          <div class="sidebar-edit-row">
+            <div class="sidebar-target-name" id="currentSystemName">localhost</div>
+            <button id="sidebarNamePencil" class="sidebar-edit-pencil hidden" aria-label="Edit name">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="sidebar-edit-row">
+            <div class="sidebar-target-info" id="currentSystemInfo">—</div>
+            <button id="sidebarInfoPencil" class="sidebar-edit-pencil hidden" aria-label="Edit connection">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <button id="sidebarPaletteBtn" class="sidebar-palette-btn hidden" aria-label="Change system color">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,6 +64,14 @@
           </svg>
         </button>
       </div>
+
+      <!-- Version info (shown when launcher is connected) -->
+      <div class="sidebar-section-divider"></div>
+      <div id="sidebarVersionInfo" class="sidebar-version-info" style="display:none;">
+        <div class="sidebar-version-row" id="sidebarVruiVersion"></div>
+        <div class="sidebar-version-row" id="sidebarLauncherProtocol"></div>
+      </div>
+      <div class="sidebar-section-divider"></div>
 
       <!-- Environment selector (hidden when no environments available) -->
       <div class="environment-selector" id="environmentSelector" style="display: none;">

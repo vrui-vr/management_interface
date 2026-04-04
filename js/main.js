@@ -573,34 +573,53 @@ function updateDropdown() {
   }
 
   const nameEl = document.getElementById("currentSystemName");
-  if (nameEl) {
-    nameEl.textContent = currentSystem;
+  if (nameEl) nameEl.textContent = currentSystem;
+
+  const namePencil = document.getElementById("sidebarNamePencil");
+  if (namePencil) {
     if (system && currentSystem !== "localhost") {
-      nameEl.style.cursor = "pointer";
-      nameEl.title = "Edit name";
-      nameEl.onclick = (e) => {
-        e.stopPropagation();
-        showEditMenu(e, system, "name");
-      };
+      namePencil.classList.remove("hidden");
+      namePencil.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "name"); };
     } else {
-      nameEl.style.cursor = "default";
-      nameEl.title = "";
-      nameEl.onclick = null;
+      namePencil.classList.add("hidden");
+      namePencil.onclick = null;
     }
   }
 
   const infoEl = document.getElementById("currentSystemInfo");
-  if (infoEl) {
-    infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
-    if (system) {
-      infoEl.style.cursor = "pointer";
-      infoEl.title = "Edit IP / Ports";
-      infoEl.onclick = (e) => {
-        e.stopPropagation();
-        showEditMenu(e, system, "ipport");
-      };
+  if (infoEl) infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
+
+  const infoPencil = document.getElementById("sidebarInfoPencil");
+  if (infoPencil) {
+    if (system && currentSystem !== "localhost") {
+      infoPencil.classList.remove("hidden");
+      infoPencil.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "ipport"); };
+    } else if (system) {
+      // localhost: show pencil for port only
+      infoPencil.classList.remove("hidden");
+      infoPencil.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "ipport"); };
     } else {
-      infoEl.onclick = null;
+      infoPencil.classList.add("hidden");
+      infoPencil.onclick = null;
+    }
+  }
+
+  // Version info block
+  const versionBlock = document.getElementById("sidebarVersionInfo");
+  const vruiRow = document.getElementById("sidebarVruiVersion");
+  const protoRow = document.getElementById("sidebarLauncherProtocol");
+  if (versionBlock && vruiRow && protoRow) {
+    const hasVersion = system && (system.vruiVersion || system.launcherProtocolVersion != null);
+    versionBlock.style.display = hasVersion ? "" : "none";
+    if (hasVersion) {
+      vruiRow.innerHTML = system.vruiVersion
+        ? `<span class="sidebar-version-label">Vrui</span><span class="sidebar-version-value">${system.vruiVersion}</span>`
+        : "";
+      vruiRow.style.display = system.vruiVersion ? "" : "none";
+      protoRow.innerHTML = system.launcherProtocolVersion != null
+        ? `<span class="sidebar-version-label">Launcher protocol</span><span class="sidebar-version-value">v${system.launcherProtocolVersion}</span>`
+        : "";
+      protoRow.style.display = system.launcherProtocolVersion != null ? "" : "none";
     }
   }
 }
@@ -953,19 +972,8 @@ function renderSystems(systems) {
       titleSection.className = "title-section";
 
       const labelSpan = document.createElement("span");
-      labelSpan.className = "system-title";
+      labelSpan.className = "system-title inactive-field";
       labelSpan.textContent = system.name;
-
-      if (system.name !== "localhost" && system.name === currentSystem) {
-        labelSpan.style.cursor = "pointer";
-        labelSpan.title = "Edit name";
-        labelSpan.onclick = e => {
-          e.stopPropagation();
-          showEditMenu(e, system, "name");
-        };
-      } else {
-        labelSpan.classList.add("inactive-field");
-      }
 
       if (!isAlive && !isPending) {
         const offline = document.createElement("span");
