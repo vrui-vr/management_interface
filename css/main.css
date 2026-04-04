@@ -1853,7 +1853,6 @@ h6 {
   color: var(--sys-color-muted);
   font-size: 0.8rem;
   letter-spacing: -0.01em;
-  flex: 1;
   transition: all 0.2s ease;
 }
 
@@ -2095,22 +2094,22 @@ h6 {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 6px;
-  height: 9px;
-  background-color: rgba(0, 0, 0, 0.75);
-  clip-path: polygon(65% 0%, 100% 0%, 38% 48%, 65% 48%, 0% 100%, 42% 52%, 6% 52%);
+  width: 8px;
+  height: 12px;
+  background-color: rgba(0, 0, 0, 0.85);
+  clip-path: polygon(68% 0%, 100% 0%, 36% 46%, 68% 46%, 0% 100%, 32% 54%, 4% 54%);
   pointer-events: none;
   z-index: 2;
 }
 
 [data-theme="dark"] .battery-fill.charging::after {
-  background-color: rgba(255, 255, 255, 0.85);
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 /* Battery fill: universal green — charging/warning levels override below */
 
 .battery-fill.charging {
-  background: linear-gradient(90deg, #ca8a04, #eab308, #ca8a04) !important;
+  background: linear-gradient(90deg, #f59e0b, #fde047, #f59e0b) !important;
   background-size: 300% 100% !important;
 }
 
