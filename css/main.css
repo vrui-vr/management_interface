@@ -1770,11 +1770,12 @@ h6 {
 }
 
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
   box-sizing: border-box;
+  cursor: default;
 }
 
 .status-dot.status-online {
@@ -1963,6 +1964,19 @@ h6 {
   border-top-color: #2a2a2a;
 }
 
+/* Status dots: sit above siblings so pointer hits them before parent row elements */
+.status-dot.sys-tooltip {
+  position: relative;
+  z-index: 1;
+  cursor: default;
+}
+
+/* Suppress parent tooltip when a nested tooltip (e.g. a dot) is being hovered */
+.sys-tooltip:has(> .sys-tooltip:hover)[data-tooltip]::after,
+.sys-tooltip:has(> .sys-tooltip:hover)[data-tooltip]::before {
+  opacity: 0 !important;
+}
+
 /* ========================================
    DEVICE SECTION
    ======================================== */
@@ -2030,23 +2044,10 @@ h6 {
 
 .device-status-text {
   font-size: 0.7rem;
-  color: var(--sys-color-muted);
-}
-
-.device-item
-  .status-dot.device-disconnected
-  ~ .device-name
-  ~ .device-info
-  .device-status-text {
   color: var(--text-secondary);
 }
 
-[data-theme="dark"]
-  .device-item
-  .status-dot.device-disconnected
-  ~ .device-name
-  ~ .device-info
-  .device-status-text {
+[data-theme="dark"] .device-status-text {
   color: var(--text-gray);
 }
 
@@ -2108,7 +2109,7 @@ h6 {
 
 .battery-percent {
   font-size: 0.7rem;
-  color: var(--sys-color-muted);
+  color: var(--text-secondary);
   font-weight: 500;
   font-family: "Courier New", monospace;
   min-width: 32px;
