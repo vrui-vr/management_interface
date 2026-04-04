@@ -2608,17 +2608,13 @@ h6 {
 .console-section::before {
   content: "";
   position: absolute;
-  left: 0;
   top: 0;
-  bottom: 0;
-  width: 220px;
-  background: linear-gradient(to right, var(--sys-color, transparent), transparent);
-  opacity: 0.08;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(to right, var(--sys-color, transparent) 0%, transparent 60%);
   pointer-events: none;
-}
-
-[data-theme="dark"] .console-section::before {
-  opacity: 0.13;
+  z-index: 1;
 }
 
 /* Tab bar replaces old console-header */
