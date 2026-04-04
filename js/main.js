@@ -23,6 +23,7 @@ let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
 let showLogo = false; // show the sidebar logo (set to true when a real logo is available)
 const TEST_BATTERY = false; // drain all device batteries 5%/sec to preview battery UI
+const CONSOLE_TABS_LEFT = true; // true = tabs on left, false = tabs on right
 
 // Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 function sendButton(buttonNumber) {
@@ -2820,12 +2821,113 @@ function updateInterface() {
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
+// ============================================================
+//   CONSOLE TABS
+// ============================================================
+
+let activeConsolePane = "console"; // "console" | "logfile"
+
+function initConsoleTabs() {
+  const tabBar = document.getElementById("consoleTabBar");
+  if (!tabBar) return;
+
+  // Apply left/right positioning
+  tabBar.classList.toggle("tabs-right", !CONSOLE_TABS_LEFT);
+
+  // Seed example log content
+  _seedExampleLog();
+
+  document.getElementById("consoleTabs").addEventListener("click", (e) => {
+    const tab = e.target.closest(".console-tab");
+    if (!tab) return;
+    switchConsoleTab(tab.dataset.pane);
+  });
+}
+
+function switchConsoleTab(pane) {
+  activeConsolePane = pane;
+
+  document.querySelectorAll(".console-tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.pane === pane);
+  });
+
+  const paneConsole  = document.getElementById("consolePaneConsole");
+  const paneLogfile  = document.getElementById("consolePaneLogfile");
+  const filterWrap   = document.getElementById("consoleFilterWrap");
+  const logToolbar   = document.getElementById("logFileToolbar");
+
+  paneConsole.style.display  = pane === "console"  ? "" : "none";
+  paneLogfile.style.display  = pane === "logfile"  ? "" : "none";
+  filterWrap.style.display   = pane === "console"  ? "" : "none";
+  logToolbar.style.display   = pane === "logfile"  ? "" : "none";
+}
+
+// Load log content into the log file pane.
+// Call this when a server log becomes available:
+//   loadLogFile("VRDeviceServer", "2024-03-01T12:00:00", rawText)
+function loadLogFile(serverName, timestamp, rawText) {
+  const source = document.getElementById("logFileSource");
+  const output = document.getElementById("logFileOutput");
+  if (source) source.textContent = `${serverName} — ${timestamp}`;
+  if (output) {
+    output.innerHTML = "";
+    rawText.trim().split("\n").forEach(line => {
+      const el = document.createElement("div");
+      el.className = "log-line " + _logLineClass(line);
+      el.textContent = line;
+      output.appendChild(el);
+    });
+    output.scrollTop = output.scrollHeight;
+  }
+}
+
+function refreshLogFile() {
+  // TODO: fetch current log from active server
+  // loadLogFile(serverName, new Date().toISOString(), fetchedText);
+}
+
+function _logLineClass(line) {
+  const l = line.toLowerCase();
+  if (l.includes("error") || l.includes("fatal")) return "log-error";
+  if (l.includes("warn"))  return "log-warn";
+  if (l.includes("debug")) return "log-debug";
+  return "";
+}
+
+function _seedExampleLog() {
+  const lines = [
+    "[2025-03-14 09:00:01.042] INFO  VRDeviceServer starting up",
+    "[2025-03-14 09:00:01.103] INFO  Loading configuration from /etc/vrui/VRDeviceServer.cfg",
+    "[2025-03-14 09:00:01.187] INFO  Protocol version: 1",
+    "[2025-03-14 09:00:01.210] INFO  Listening on port 8080",
+    "[2025-03-14 09:00:01.312] INFO  Registered device: HMD (Vive Pro 2)",
+    "[2025-03-14 09:00:01.318] INFO  Registered device: Controller_L",
+    "[2025-03-14 09:00:01.321] INFO  Registered device: Controller_R",
+    "[2025-03-14 09:00:02.001] INFO  Client connected from 192.168.1.10:54321",
+    "[2025-03-14 09:00:02.015] DEBUG Sending initial device state snapshot (3 devices)",
+    "[2025-03-14 09:00:04.500] WARN  Controller_L battery low: 18%",
+    "[2025-03-14 09:00:04.612] INFO  deviceStateChanged: Controller_L battery=18 charging=false",
+    "[2025-03-14 09:00:09.003] DEBUG Heartbeat OK",
+    "[2025-03-14 09:00:12.771] INFO  deviceStateChanged: HMD battery=92 charging=true",
+    "[2025-03-14 09:00:19.003] DEBUG Heartbeat OK",
+    "[2025-03-14 09:00:31.440] ERROR Failed to read tracker pose — retrying (1/3)",
+    "[2025-03-14 09:00:31.591] ERROR Failed to read tracker pose — retrying (2/3)",
+    "[2025-03-14 09:00:31.744] INFO  Tracker pose recovered",
+    "[2025-03-14 09:00:35.003] DEBUG Heartbeat OK",
+    "[2025-03-14 09:00:41.200] INFO  Client disconnected gracefully",
+    "[2025-03-14 09:00:41.205] INFO  Waiting for next connection...",
+  ];
+  loadLogFile("VRDeviceServer (example)", "2025-03-14 09:00:01", lines.join("\n"));
+}
+
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
   // Clear console on every page load
   const consoleOutput = document.getElementById("consoleOutput");
   if (consoleOutput) consoleOutput.innerHTML = "";
   consoleEntries.clear();
+
+  initConsoleTabs();
 
   // Hide logo if showLogo is false
   if (!showLogo) {

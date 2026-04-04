@@ -769,7 +769,7 @@ h6 {
    ======================================== */
 
 .sidebar-target {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -874,13 +874,13 @@ h6 {
 .sidebar-section-divider {
   height: 0;
   border-top: 1px solid var(--border-light);
-  margin: 10px 0;
+  margin: 16px 0;
 }
 
 .sidebar-version-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: 2px 0;
 }
 
@@ -2082,7 +2082,7 @@ h6 {
 }
 
 .battery-bar.charging {
-  overflow: visible;
+  overflow: hidden;
 }
 
 [data-theme="dark"] .battery-bar {
@@ -2098,29 +2098,12 @@ h6 {
 }
 
 /* Bolt is on ::after of fill (no position:relative on fill, so ::after escapes to bar as containing block) */
-.battery-fill.charging::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 10px;
-  height: 14px;
-  background-color: rgba(0, 0, 0, 0.88);
-  clip-path: polygon(72% 0%, 100% 0%, 38% 44%, 72% 44%, 28% 100%, 20% 100%, 52% 56%, 0% 56%);
-  pointer-events: none;
-  z-index: 2;
-}
-
-[data-theme="dark"] .battery-fill.charging::after {
-  background-color: rgba(255, 255, 255, 0.97);
-}
-
 /* Battery fill: universal green — charging/warning levels override below */
 
 .battery-fill.charging {
   background: linear-gradient(90deg, #f59e0b, #fde047, #f59e0b) !important;
   background-size: 300% 100% !important;
+  box-shadow: 0 0 6px 2px rgba(251, 191, 36, 0.55);
 }
 
 .battery-fill.low {
@@ -2621,34 +2604,83 @@ h6 {
   min-height: 0;
 }
 
-.console-header {
+/* Tab bar replaces old console-header */
+.console-tab-bar {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  background: var(--bg-white);
+  padding: 0 10px;
+  background: var(--bg-subtle);
   border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
-.console-header h3 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+.console-tab-bar.tabs-right .console-tabs {
+  order: 2;
+}
+.console-tab-bar.tabs-right .console-tab-actions {
+  order: 1;
+}
+
+.console-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.console-tab {
+  padding: 5px 13px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  position: relative;
+  bottom: -1px;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.console-tab:hover:not(.active) {
+  background: var(--overlay-hover-faint);
+  color: var(--text-secondary);
+}
+
+.console-tab.active {
+  background: var(--bg-white);
   color: var(--text-dark);
-  letter-spacing: -0.01em;
+  border-color: var(--border-light);
+  font-weight: 600;
+}
+
+.console-tab-actions {
+  display: flex;
+  align-items: center;
+  padding-bottom: 2px;
+  gap: 4px;
+}
+
+.console-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .filter-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 500;
   transition: all 0.2s ease;
 }
@@ -2658,15 +2690,60 @@ h6 {
   color: var(--text-dark);
 }
 
-.filter-toggle svg {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2;
-}
-
 .console-filter {
   position: relative;
 }
+
+/* Log file toolbar (shown in tab-actions when logfile tab is active) */
+.log-file-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-file-source {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+}
+
+.log-file-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.log-file-refresh-btn:hover {
+  background: var(--btn-hover-bg);
+  color: var(--text-dark);
+}
+
+/* Log file content pane */
+.log-file-box {
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+
+.log-line {
+  padding: 0 2px;
+  border-radius: 2px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-line.log-error { color: #ef4444; }
+.log-line.log-warn  { color: #f59e0b; }
+.log-line.log-debug { color: var(--text-muted); opacity: 0.7; }
 
 .filter-menu {
   display: none;
@@ -3015,17 +3092,18 @@ h6 {
 
 #commandPrompt {
   display: flex;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 5px 12px;
   background: var(--bg-white);
   border-top: 1px solid var(--border-light);
   margin-top: 0 !important;
+  flex-shrink: 0;
 }
 
 #commandInput {
   flex: 1;
-  padding: 7px 12px;
-  font-size: 14px;
+  padding: 5px 10px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
@@ -3050,8 +3128,8 @@ h6 {
 }
 
 #commandPrompt button {
-  padding: 10px 20px;
-  font-size: 14px;
+  padding: 5px 14px;
+  font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
