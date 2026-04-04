@@ -543,15 +543,19 @@ function updateFileDropState(system) {
 function updateDropdown() {
   const system = allSystems.find((d) => d.name === currentSystem);
 
-  // Set sidebar + command prompt accent color from current system
+  // Set sidebar + command prompt + console accent color from current system
   const sidebar = document.querySelector('.sidebar');
   const prompt = document.getElementById('commandPrompt');
+  const consoleSec = document.querySelector('.console-section');
   if (system) {
-    sidebar?.style.setProperty('--sys-color', getSysColor(system));
-    prompt?.style.setProperty('--sys-color', getSysColor(system));
+    const color = getSysColor(system);
+    sidebar?.style.setProperty('--sys-color', color);
+    prompt?.style.setProperty('--sys-color', color);
+    consoleSec?.style.setProperty('--sys-color', color);
   } else {
     sidebar?.style.removeProperty('--sys-color');
     prompt?.style.removeProperty('--sys-color');
+    consoleSec?.style.removeProperty('--sys-color');
   }
 
   // Show/hide palette button and wire click

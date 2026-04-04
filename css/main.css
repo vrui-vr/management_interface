@@ -2595,6 +2595,7 @@ h6 {
   flex: 1;
   background-color: var(--bg-white);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--sys-color, var(--border));
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-top: 10px;
@@ -2602,6 +2603,7 @@ h6 {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  transition: border-left-color 0.3s ease;
 }
 
 /* Tab bar replaces old console-header */
@@ -2709,9 +2711,6 @@ h6 {
   align-items: center;
 }
 
-.log-pane-actions {
-  top: 25px;
-}
 
 .console-filter {
   position: relative;
