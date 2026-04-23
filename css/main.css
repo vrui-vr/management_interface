@@ -294,14 +294,7 @@ body {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.topbar-divider {
-  width: 1px;
-  height: 16px;
-  background: var(--border-light);
-  flex-shrink: 0;
+  gap: 14px;
 }
 
 .topbar-theme-toggle {
@@ -309,8 +302,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
   border: none;
   background: none;
   color: var(--text-muted);
@@ -320,21 +311,19 @@ body {
 }
 
 .topbar-theme-toggle:hover {
-  color: var(--sys-color, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 .topbar-theme-toggle svg {
-  flex-shrink: 0;
+  display: block;
 }
 
 .topbar-docs-link {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 500;
   color: var(--text-muted);
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 .topbar-docs-link:hover {

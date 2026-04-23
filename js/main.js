@@ -2128,6 +2128,7 @@ function subscribeToDeviceEvents(system) {
   system.deviceEventSource = es;
 
   es.onopen = () => {
+    stampHeard(); // reset silence clock so first poll doesn't immediately fire a spurious ping
     autoUpdateConsole(system, "tracking", `[SSE] Device events connected — real-time push active`);
   };
 
