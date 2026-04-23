@@ -2604,6 +2604,11 @@ h6 {
   display: flex;
   gap: 4px;
   align-items: center;
+  transition: top 0.15s ease;
+}
+
+.console-pane-actions.search-open {
+  top: 46px;
 }
 
 
@@ -3251,9 +3256,9 @@ h6 {
   position: relative;
   top: auto;
   right: auto;
-  width: auto;
-  height: auto;
-  padding: 6px 9px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   box-shadow: none;
 }
 

@@ -2849,6 +2849,8 @@ function _toggleSearchBar(barId, inputId) {
   const input = document.getElementById(inputId);
   const opening = bar.style.display === "none";
   bar.style.display = opening ? "" : "none";
+  bar.closest('.console-pane')?.querySelector('.console-pane-actions')
+    ?.classList.toggle('search-open', opening);
   if (opening) {
     input.focus();
   } else {
@@ -2867,7 +2869,10 @@ function _filterEntries(selector, query) {
 function clearConsoleSearch() {
   document.getElementById("consoleSearchInput").value = "";
   _filterEntries("#consoleOutput .log-entry", "");
-  document.getElementById("consoleSearchBar").style.display = "none";
+  const bar = document.getElementById("consoleSearchBar");
+  bar.style.display = "none";
+  bar.closest('.console-pane')?.querySelector('.console-pane-actions')
+    ?.classList.remove('search-open');
 }
 
 function clearLogSearch() {
