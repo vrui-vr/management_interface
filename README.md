@@ -2,6 +2,8 @@
 
 A browser-based dashboard for managing systems running the [Vrui](https://Vrui-vr.github.io/) (Virtual Reality User Interface) software stack. This interface replaces manual console commands with a dynamic web UI for remote control and monitoring of multiple VR devices and systems over a network.
 
+![Dashboard Overview](images/dashboard-overview.png)
+
 ---
 
 ## Table of Contents
@@ -55,7 +57,21 @@ management_interface/
 ├── js/
 │   └── main.js            # All application logic (~2,900 lines): state, API, rendering
 ├── images/
-│   └── vruilogo.jpg       # Sidebar logo
+│   ├── vruilogo.jpg                  # Sidebar logo
+│   ├── dashboard-overview.png        # Full interface overview
+│   ├── system-card-connected.png     # System card — connected state
+│   ├── system-card-disconnected.png  # System card — disconnected state
+│   ├── system-card-unreachable.png   # System card — unreachable state
+│   ├── sidebar.png                   # Sidebar panel
+│   ├── add-system-dialog.png         # Add System modal
+│   ├── edit-system-menu.png          # Edit/rename/remove context menu
+│   ├── device-controls.png           # Device list with haptic and power controls
+│   ├── console.png                   # Console log with filters
+│   └── mini-monitor.png              # Detachable mini monitor popup
+├── docs/
+│   ├── overview.md        # Feature overview and quick start
+│   ├── usage.md           # Full usage guide
+│   └── developer.md       # Architecture, API, and extending
 └── README.md
 ```
 
@@ -113,6 +129,10 @@ Cards use one of six color classes (`rig-0` through `rig-5`) for visual distinct
 | Connected | Launcher alive + servers running | Full color |
 | Disconnected | Launcher alive, servers stopped | Faded/muted |
 | Unreachable | Cannot contact launcher | Grayed out |
+
+![Connected](images/system-card-connected.png)
+![Disconnected](images/system-card-disconnected.png)
+![Unreachable](images/system-card-unreachable.png)
 
 #### Console (`div.console-section`)
 - **Live message log**: timestamped, color-coded by system and severity (normal/warning/error)
