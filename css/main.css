@@ -290,17 +290,29 @@ body {
   color: var(--text-dark);
 }
 
+.topbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
 .topbar-theme-toggle {
   position: static;
-  margin-left: auto;
-  width: 28px;
-  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-light);
-  border-radius: 7px;
-  background: var(--bg-subtle);
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
@@ -308,18 +320,14 @@ body {
 }
 
 .topbar-theme-toggle:hover {
-  background: var(--btn-hover-bg);
-  border-color: var(--border);
-  color: var(--text-secondary);
+  color: var(--sys-color, var(--text-secondary));
 }
 
 .topbar-theme-toggle svg {
-  opacity: 0.65;
   flex-shrink: 0;
 }
 
 .topbar-docs-link {
-  margin-left: 8px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -475,124 +483,23 @@ h6 {
   opacity: 1;
 }
 
-.sidebar[data-color-class="rig-0"]:not(.offline)::before {
+.sidebar:not(.offline)[data-color-class]::before {
   background: conic-gradient(
     from var(--angle, 0deg),
-    var(--rig-0),
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0),
-    var(--rig-0-dark),
-    var(--rig-0)
+    var(--sys-color),
+    color-mix(in srgb, var(--sys-color), white 25%),
+    var(--sys-color),
+    color-mix(in srgb, var(--sys-color), black 15%),
+    var(--sys-color),
+    color-mix(in srgb, var(--sys-color), black 30%),
+    var(--sys-color)
   );
-
 }
 
-.sidebar[data-color-class="rig-0"]:not(.offline) {
+.sidebar:not(.offline)[data-color-class] {
   box-shadow:
     0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-0-shadow);
-}
-
-.sidebar[data-color-class="rig-1"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-1),
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1),
-    var(--rig-1-dark),
-    var(--rig-1)
-  );
-
-}
-
-.sidebar[data-color-class="rig-1"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-1-shadow);
-}
-
-.sidebar[data-color-class="rig-2"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-2),
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2),
-    var(--rig-2-dark),
-    var(--rig-2)
-  );
-
-}
-
-.sidebar[data-color-class="rig-2"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-2-shadow);
-}
-
-.sidebar[data-color-class="rig-3"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-3),
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3),
-    var(--rig-3-dark),
-    var(--rig-3)
-  );
-
-}
-
-.sidebar[data-color-class="rig-3"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-3-shadow);
-}
-
-.sidebar[data-color-class="rig-4"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-4),
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4),
-    var(--rig-4-dark),
-    var(--rig-4)
-  );
-
-}
-
-.sidebar[data-color-class="rig-4"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-4-shadow);
-}
-
-.sidebar[data-color-class="rig-5"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-5),
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5),
-    var(--rig-5-dark),
-    var(--rig-5)
-  );
-
-}
-
-.sidebar[data-color-class="rig-5"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-5-shadow);
+    0 0 24px color-mix(in srgb, var(--sys-color), transparent 55%);
 }
 
 /* Unreachable — can't contact launcher, red error sidebar */
@@ -645,66 +552,16 @@ h6 {
   border-color: var(--unreachable-border-hover) !important;
 }
 
-/* Offline — launcher alive but servers stopped, muted rig color */
+/* Offline — launcher alive but servers stopped, muted sys color */
 
-.sidebar.offline[data-color-class="rig-0"]::before {
-  background: var(--rig-0-muted);
+.sidebar.offline[data-color-class]::before {
+  background: color-mix(in srgb, var(--sys-color), white 30%);
 }
 
-.sidebar.offline[data-color-class="rig-0"] {
+.sidebar.offline[data-color-class] {
   box-shadow:
     0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-0-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-1"]::before {
-  background: var(--rig-1-muted);
-}
-
-.sidebar.offline[data-color-class="rig-1"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-1-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-2"]::before {
-  background: var(--rig-2-muted);
-}
-
-.sidebar.offline[data-color-class="rig-2"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-2-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-3"]::before {
-  background: var(--rig-3-muted);
-}
-
-.sidebar.offline[data-color-class="rig-3"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-3-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-4"]::before {
-  background: var(--rig-4-muted);
-}
-
-.sidebar.offline[data-color-class="rig-4"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-4-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-5"]::before {
-  background: var(--rig-5-muted);
-}
-
-.sidebar.offline[data-color-class="rig-5"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-5-shadow-soft);
+    0 0 16px color-mix(in srgb, var(--sys-color), transparent 70%);
 }
 
 /* Sidebar logo (kept for mini-monitor popup reference) */
@@ -1888,6 +1745,28 @@ h6 {
 }
 
 
+.server-restart-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--status-error);
+  border-radius: 4px;
+  color: var(--status-error);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.server-restart-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--status-error), transparent 88%);
+}
+
 /* server-name uses --sys-color-muted, inherits per-card color */
 
 /* Server names use neutral text — no per-rig coloring */
@@ -2701,6 +2580,16 @@ h6 {
   opacity: 1;
 }
 
+.console-float-btn.active {
+  background: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 85%);
+  border-color: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 50%);
+  color: var(--sys-color, #3b82f6);
+}
+
+.console-float-btn.active svg {
+  opacity: 1;
+}
+
 .console-float-btn svg {
   opacity: 0.65;
   transition: opacity 0.2s ease;
@@ -2993,45 +2882,14 @@ h6 {
   font-size: 0.75rem;
 }
 
-.log-entry.rig-0 {
-  border-left-color: var(--rig-0);
-}
-.log-entry.rig-1 {
-  border-left-color: var(--rig-1);
-}
-.log-entry.rig-2 {
-  border-left-color: var(--rig-2);
-}
-.log-entry.rig-3 {
-  border-left-color: var(--rig-3);
-}
-.log-entry.rig-4 {
-  border-left-color: var(--rig-4);
-}
-.log-entry.rig-5 {
-  border-left-color: var(--rig-5);
+.log-entry {
+  border-left-color: var(--sys-color, var(--text-muted));
 }
 .log-entry.unreachable {
   border-left-color: var(--unreachable);
 }
-
-.log-entry.rig-0 .label {
-  color: var(--rig-0);
-}
-.log-entry.rig-1 .label {
-  color: var(--rig-1);
-}
-.log-entry.rig-2 .label {
-  color: var(--rig-2);
-}
-.log-entry.rig-3 .label {
-  color: var(--rig-3);
-}
-.log-entry.rig-4 .label {
-  color: var(--rig-4);
-}
-.log-entry.rig-5 .label {
-  color: var(--rig-5);
+.log-entry .label {
+  color: var(--sys-color, var(--text-dark));
 }
 
 .log-entry.log-pending {

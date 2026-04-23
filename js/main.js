@@ -3,11 +3,12 @@ const activeSystems = new Set();
 let currentSystem = "";
 let hasConnected = false;
 
-const filterState = new Set();
+let filterAllSystems = true; // true = show all, false = show selected system only
 const lowBatteryWarnings = new Set();
 
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
+const topbarEl = document.querySelector(".topbar");
 
 serverLauncherUrl = "VRServerLauncher"
 deviceServerUrl = "VRDeviceServer";
@@ -336,7 +337,6 @@ function removeSystem(systemName, skipConfirm = false) {
 
   // Clean up name-based references
   activeSystems.delete(systemName);
-  filterState.delete(systemName);
 
   allSystems = allSystems.filter((d) => d.name !== systemName);
 
@@ -543,7 +543,7 @@ function updateFileDropState(system) {
 function updateDropdown() {
   const system = allSystems.find((d) => d.name === currentSystem);
 
-  // Set sidebar + command prompt + console accent color from current system
+  // Set sidebar + command prompt + console + topbar accent color from current system
   const sidebar = document.querySelector('.sidebar');
   const prompt = document.getElementById('commandPrompt');
   const consoleSec = document.querySelector('.console-section');
@@ -552,16 +552,18 @@ function updateDropdown() {
     sidebar?.style.setProperty('--sys-color', color);
     prompt?.style.setProperty('--sys-color', color);
     consoleSec?.style.setProperty('--sys-color', color);
+    topbarEl?.style.setProperty('--sys-color', color);
   } else {
     sidebar?.style.removeProperty('--sys-color');
     prompt?.style.removeProperty('--sys-color');
     consoleSec?.style.removeProperty('--sys-color');
+    topbarEl?.style.removeProperty('--sys-color');
   }
 
   // Show/hide palette button and wire click
   const paletteBtn = document.getElementById('sidebarPaletteBtn');
   if (paletteBtn) {
-    if (system && currentSystem !== 'localhost') {
+    if (system) {
       paletteBtn.classList.remove('hidden');
       paletteBtn.onclick = (e) => {
         e.stopPropagation();
@@ -753,6 +755,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   // Reset and reapply classes on every update
   logEntry.className = "";
   logEntry.classList.add("log-entry", colorClass);
+  logEntry.style.setProperty('--sys-color', getSysColor(knownSystem));
   if (isOffline) logEntry.classList.add("unreachable");
   if (isPending) logEntry.classList.add("log-pending");
   if (severity === "success")  logEntry.classList.add("log-success");
@@ -1162,6 +1165,21 @@ function renderSystems(systems) {
 		  name.textContent = server.name;
 
 		  item.append(dot, name);
+
+		  // Restart button for compositing server when it's red/down, localhost only
+		  const isDown = statusClass === "status-error" || statusClass === "status-unknown";
+		  if (index === 1 && isDown && system.name === "localhost") {
+		    const restartBtn = document.createElement("button");
+		    restartBtn.className = "server-restart-btn sys-tooltip";
+		    restartBtn.dataset.tooltip = "Restart compositing server";
+		    restartBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+		    restartBtn.onclick = (e) => {
+		      e.stopPropagation();
+		      restartCompositingServer(system);
+		    };
+		    item.append(restartBtn);
+		  }
+
 		  section.appendChild(item);
 		});
 
@@ -1752,11 +1770,6 @@ function renameSystem(system) {
           activeSystems.delete(oldName);
           activeSystems.add(name);
         }
-        if (filterState.has(oldName)) {
-          filterState.delete(oldName);
-          filterState.add(name);
-        }
-
         system.name = name;
         saveSystemsToLocalStorage();
         updateInterface();
@@ -1777,6 +1790,11 @@ function recolorSystem(system) {
       if (color) {
         system.customColor = color;
         saveSystemsToLocalStorage();
+        // Update --sys-color on all existing console entries for this system
+        const prefix = `${system.name}:`;
+        consoleEntries.forEach((entry, key) => {
+          if (key.startsWith(prefix)) entry.style.setProperty('--sys-color', color);
+        });
         updateInterface();
       }
     },
@@ -1965,6 +1983,16 @@ function startLauncherServers(system) {
     });
 }
 
+// Restart the compositing server (index 1) by telling the launcher to start servers.
+// The launcher restarts any server that is not currently running/healthy.
+function restartCompositingServer(system) {
+  if (!system || system.name !== "localhost") return;
+  autoUpdateConsole(system, "compositing", "Restarting compositing server...");
+  startLauncherServers(system).then(() => {
+    setTimeout(() => pingServerStatus(system, 1, getCompositingServerEndpoint(system)), 1500);
+  });
+}
+
 // Stop VR Compositor and VRRunDeviceTracker
 function stopLauncherServers(system) {
   if (!system) return;
@@ -2103,8 +2131,11 @@ function subscribeToDeviceEvents(system) {
     autoUpdateConsole(system, "tracking", `[SSE] Device events connected — real-time push active`);
   };
 
+  const stampHeard = () => { if (system.servers?.[0]) system.servers[0].lastHeardAt = Date.now(); };
+
   es.addEventListener('deviceStateChanged', (e) => {
     console.log(`[SSE deviceStateChanged] raw:`, e.data);
+    stampHeard();
     try {
       const device = JSON.parse(e.data);
       if (!device?.name) {
@@ -2135,12 +2166,17 @@ function subscribeToDeviceEvents(system) {
   // Also catch any event type to see if the server is sending under a different name
   es.onmessage = (e) => {
     console.log(`[SSE onmessage] unnamed event:`, e.data);
+    stampHeard();
   };
 
   es.onerror = () => {
-    autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected — falling back to polling`);
+    autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected — checking server status`);
     es.close();
     system.deviceEventSource = null;
+    if (system.servers?.[0]?.isRunning) {
+      pingServerStatus(system, 0, getDeviceServerEndpoint(system));
+      return;
+    }
     if (system.servers?.[0]) {
       system.servers[0].status = 'error';
       system.servers[0].lastStatus = 'error';
@@ -2499,6 +2535,8 @@ function pingServerStatus(system, serverIndex, endpoint) {
       if (data?.status === "Success") {
         system.servers[serverIndex].status = 'online';
         system.servers[serverIndex].isRunning = true;
+        system.servers[serverIndex].lastHeardAt = Date.now();
+        system.servers[serverIndex].sseSilenceLogged = false;
 
         // Store the server's own protocol version (default 0 if absent)
         const serverProto = data.protocolVersion ?? 0;
@@ -2699,33 +2737,30 @@ function clearConsoleMessages() {
 }
 
 // Resets the chat filter
-function resetFilterCheckboxes(systems) {
-  filterState.clear();
-  systems.forEach((d) => filterState.add(d.name));
-  updateFilterMenu();
-}
+function updateFilterMenu() { /* no-op — replaced by toggle */ }
+function resetFilterCheckboxes() { /* no-op — replaced by toggle */ }
 
-// Add clickable boxes for the filter toggles
 document.getElementById("filterToggle").addEventListener("click", (e) => {
-  e.stopPropagation(); // Prevent click from bubbling to document
-  const menu = document.getElementById("filterMenu");
-  menu.style.display = menu.style.display === "block" ? "none" : "block";
+  e.stopPropagation();
+  filterAllSystems = !filterAllSystems;
+  updateFilterToggleUI();
+  applyConsoleFilter();
 });
 
-// Close filter menu when clicking outside
-document.addEventListener("click", (e) => {
-  const filterMenu = document.getElementById("filterMenu");
-  const filterToggle = document.getElementById("filterToggle");
-  
-  // Close filter menu if clicking outside of it and the toggle button
-  if (filterMenu && 
-      filterMenu.style.display === "block" && 
-      !filterMenu.contains(e.target) && 
-      !filterToggle.contains(e.target)) {
-    filterMenu.style.display = "none";
+function updateFilterToggleUI() {
+  const btn = document.getElementById("filterToggle");
+  if (!btn) return;
+  if (filterAllSystems) {
+    btn.dataset.tooltip = "Showing all systems — click to show selected only";
+    btn.classList.remove("active");
+  } else {
+    const name = currentSystem || "selected";
+    btn.dataset.tooltip = `Showing ${name} only — click to show all`;
+    btn.classList.add("active");
   }
-  
-  // Close action menu (existing behavior)
+}
+
+document.addEventListener("click", (e) => {
   const actionMenu = document.getElementById("actionMenu");
   if (actionMenu.classList.contains("visible")) {
     actionMenu.classList.remove("visible");
@@ -2733,80 +2768,26 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Updates the chat filter menu
-// Update updateFilterMenu to ONLY add known systems
-function updateFilterMenu() {
-  const menu = document.getElementById("filterMenu");
-  menu.innerHTML = "";
-
-  // Only add checkboxes for actual systems in allSystems
-  allSystems.forEach((system) => {
-    const label = document.createElement("label");
-    label.className = `filter-option ${system.colorClass} ${system.launcherAlive ? "connected" : "disconnected"}`;
-
-    const labelText = document.createElement("span");
-    labelText.className = "label-text";
-    labelText.textContent = system.name;
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = system.name;
-    checkbox.checked = filterState.has(system.name);
-
-    checkbox.onchange = () => {
-      if (checkbox.checked) {
-        filterState.add(system.name);
-      } else {
-        filterState.delete(system.name);
-      }
-      applyConsoleFilter();
-    };
-
-    label.appendChild(labelText);
-    label.appendChild(checkbox);
-    menu.appendChild(label);
-
-    // Ensure it's tracked by default
-    if (!filterState.has(system.name)) {
-      filterState.add(system.name);
-    }
-  });
-  
-  // No "Other" option anymore - completely removed
-}
-
-// Filters chat based on filter menu
-// Update applyConsoleFilter to only handle known systems
-// Update applyConsoleFilter to only handle known systems
 function applyConsoleFilter() {
+  updateFilterToggleUI(); // keep tooltip in sync with currentSystem
   const entries = document.querySelectorAll(".log-entry");
   let visibleCount = 0;
 
   entries.forEach((entry) => {
     const label = entry.querySelector(".label");
     if (!label) return;
-
     const name = label.textContent.trim();
-    
-    // Only show if it's a known system AND it's in the filter
-    const shouldShow = filterState.has(name);
-
+    const shouldShow = filterAllSystems || name === currentSystem;
     entry.style.display = shouldShow ? "block" : "none";
     if (shouldShow) visibleCount++;
   });
 
-  // Update empty state message
   const consoleBox = document.getElementById("consoleOutput");
   const isEmpty = visibleCount === 0;
-
   if (isEmpty) {
-    const existing = consoleBox.querySelector(".log-empty");
-    if (!existing) {
-      logEmpty(consoleBox);
-    }
+    if (!consoleBox.querySelector(".log-empty")) logEmpty(consoleBox);
   } else {
-    const existing = consoleBox.querySelector(".log-empty");
-    if (existing) existing.remove();
+    consoleBox.querySelector(".log-empty")?.remove();
   }
 }
 
@@ -2973,6 +2954,7 @@ document.addEventListener("DOMContentLoaded", () => {
   consoleEntries.clear();
 
   initConsoleTabs();
+  updateFilterToggleUI();
 
   // Hide logo if showLogo is false
   if (!showLogo) {
@@ -3080,8 +3062,18 @@ setInterval(() => {
     if (hasServers) {
       system.servers.forEach((srv, index) => {
         if (srv.isRunning) {
-          // Skip device server ping if SSE is providing real-time device state updates
-          if (index === 0 && system.deviceEventSource) return;
+          // Skip device server ping if SSE is active and heard from recently
+          if (index === 0 && system.deviceEventSource) {
+            const silentMs = Date.now() - (srv.lastHeardAt ?? 0);
+            if (silentMs < 60000) {
+              srv.sseSilenceLogged = false; // reset flag when SSE is healthy
+              return;
+            }
+            if (!srv.sseSilenceLogged) {
+              autoUpdateConsole(system, "tracking", `[SSE] No data in ${Math.round(silentMs / 1000)}s — pinging to verify`);
+              srv.sseSilenceLogged = true;
+            }
+          }
           const serverEndpoint = index === 0
             ? getDeviceServerEndpoint(system)
             : getCompositingServerEndpoint(system);
