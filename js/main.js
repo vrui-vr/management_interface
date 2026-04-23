@@ -1142,7 +1142,7 @@ function renderSystems(systems) {
 		title.textContent = "Servers";
 		section.appendChild(title);
 
-		system.servers.forEach((server) => {
+		system.servers.forEach((server, index) => {
 		  const item = document.createElement("div");
 		  item.className = "server-item";
 
@@ -2752,11 +2752,11 @@ function updateFilterToggleUI() {
   const btn = document.getElementById("filterToggle");
   if (!btn) return;
   if (filterAllSystems) {
-    btn.dataset.tooltip = "Showing all systems — click to show selected only";
+    btn.dataset.tooltip = "All systems";
     btn.classList.remove("active");
   } else {
     const name = currentSystem || "selected";
-    btn.dataset.tooltip = `Showing ${name} only — click to show all`;
+    btn.dataset.tooltip = `${name} only`;
     btn.classList.add("active");
   }
 }
