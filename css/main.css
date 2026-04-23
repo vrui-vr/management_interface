@@ -110,7 +110,7 @@
   --overlay-hover: rgba(0, 0, 0, 0.06);
   --overlay-hover-faint: rgba(0, 0, 0, 0.04);
   --overlay-hover-subtle: rgba(0, 0, 0, 0.01);
-  --section-bg: rgba(0, 0, 0, 0.02);
+  --section-bg: rgba(0, 0, 0, 0.06);
   --console-bg: rgba(0, 0, 0, 0.04);
   --divider-color: rgba(0, 0, 0, 0.15);
   --modal-backdrop: rgba(0, 0, 0, 0.45);
@@ -246,6 +246,7 @@ body {
     "Helvetica Neue", "Segoe UI", system-ui, sans-serif !important;
   background-color: var(--bg-light);
   display: flex;
+  flex-direction: column;
   height: 100vh;
   color: var(--text-dark);
   -webkit-font-smoothing: antialiased;
@@ -255,6 +256,98 @@ body {
   font-optical-sizing: auto;
   font-size: 15px;
   line-height: 1.5;
+}
+
+/* ========================================
+   TOP BAR
+   ======================================== */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  z-index: 100;
+}
+
+.topbar-logo {
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.topbar-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: color-mix(in srgb, var(--sys-color, var(--text-dark)), var(--text-dark) 65%);
+}
+
+.topbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-theme-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 9px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.topbar-theme-toggle:hover {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: var(--btn-hover-bg);
+}
+
+.topbar-theme-toggle svg {
+  display: block;
+}
+
+.topbar-docs-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  padding: 6px 12px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.topbar-docs-link:hover {
+  border-color: var(--border);
+  color: var(--text-secondary);
+  background: var(--btn-hover-bg);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 * {
@@ -352,7 +445,7 @@ h6 {
   width: 28%;
   min-width: 380px;
   max-width: 460px;
-  margin: 16px;
+  margin: 12px;
   margin-right: 8px;
   padding: 24px;
   background-color: var(--bg-white);
@@ -363,6 +456,14 @@ h6 {
   box-shadow: var(--shadow);
   position: relative;
   transition: box-shadow 0.3s ease;
+
+  /* Per-sidebar accent color — set by JS via sidebar.style.setProperty('--sys-color', ...) */
+  --sys-color: #3b82f6;
+  --sys-color-muted: var(--sys-color);
+}
+
+[data-theme="dark"] .sidebar {
+  --sys-color-muted: color-mix(in srgb, var(--sys-color), white 50%);
 }
 
 .sidebar::before {
@@ -384,124 +485,23 @@ h6 {
   opacity: 1;
 }
 
-.sidebar[data-color-class="rig-0"]:not(.offline)::before {
+.sidebar:not(.offline)[data-color-class]::before {
   background: conic-gradient(
     from var(--angle, 0deg),
-    var(--rig-0),
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0),
-    var(--rig-0-dark),
-    var(--rig-0)
+    var(--sys-color),
+    color-mix(in srgb, var(--sys-color), white 25%),
+    var(--sys-color),
+    color-mix(in srgb, var(--sys-color), black 15%),
+    var(--sys-color),
+    color-mix(in srgb, var(--sys-color), black 30%),
+    var(--sys-color)
   );
-
 }
 
-.sidebar[data-color-class="rig-0"]:not(.offline) {
+.sidebar:not(.offline)[data-color-class] {
   box-shadow:
     0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-0-shadow);
-}
-
-.sidebar[data-color-class="rig-1"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-1),
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1),
-    var(--rig-1-dark),
-    var(--rig-1)
-  );
-
-}
-
-.sidebar[data-color-class="rig-1"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-1-shadow);
-}
-
-.sidebar[data-color-class="rig-2"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-2),
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2),
-    var(--rig-2-dark),
-    var(--rig-2)
-  );
-
-}
-
-.sidebar[data-color-class="rig-2"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-2-shadow);
-}
-
-.sidebar[data-color-class="rig-3"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-3),
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3),
-    var(--rig-3-dark),
-    var(--rig-3)
-  );
-
-}
-
-.sidebar[data-color-class="rig-3"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-3-shadow);
-}
-
-.sidebar[data-color-class="rig-4"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-4),
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4),
-    var(--rig-4-dark),
-    var(--rig-4)
-  );
-
-}
-
-.sidebar[data-color-class="rig-4"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-4-shadow);
-}
-
-.sidebar[data-color-class="rig-5"]:not(.offline)::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-5),
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5),
-    var(--rig-5-dark),
-    var(--rig-5)
-  );
-
-}
-
-.sidebar[data-color-class="rig-5"]:not(.offline) {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 24px var(--rig-5-shadow);
+    0 0 24px color-mix(in srgb, var(--sys-color), transparent 55%);
 }
 
 /* Unreachable — can't contact launcher, red error sidebar */
@@ -554,150 +554,25 @@ h6 {
   border-color: var(--unreachable-border-hover) !important;
 }
 
-/* Offline — launcher alive but servers stopped, muted rig color */
+/* Offline — launcher alive but servers stopped, muted sys color */
 
-.sidebar.offline[data-color-class="rig-0"]::before {
-  background: var(--rig-0-muted);
+.sidebar.offline[data-color-class]::before {
+  background: color-mix(in srgb, var(--sys-color), white 30%);
 }
 
-.sidebar.offline[data-color-class="rig-0"] {
+.sidebar.offline[data-color-class] {
   box-shadow:
     0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-0-shadow-soft);
+    0 0 16px color-mix(in srgb, var(--sys-color), transparent 70%);
 }
 
-.sidebar.offline[data-color-class="rig-1"]::before {
-  background: var(--rig-1-muted);
-}
-
-.sidebar.offline[data-color-class="rig-1"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-1-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-2"]::before {
-  background: var(--rig-2-muted);
-}
-
-.sidebar.offline[data-color-class="rig-2"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-2-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-3"]::before {
-  background: var(--rig-3-muted);
-}
-
-.sidebar.offline[data-color-class="rig-3"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-3-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-4"]::before {
-  background: var(--rig-4-muted);
-}
-
-.sidebar.offline[data-color-class="rig-4"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-4-shadow-soft);
-}
-
-.sidebar.offline[data-color-class="rig-5"]::before {
-  background: var(--rig-5-muted);
-}
-
-.sidebar.offline[data-color-class="rig-5"] {
-  box-shadow:
-    0 0 0 2px var(--bg-light),
-    0 0 16px var(--rig-5-shadow-soft);
-}
-
-/* ========================================
-   SIDEBAR HEADER (Logo, Title, Theme Toggle)
-   ======================================== */
-
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.sidebar-header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-#Vrui-logo-link {
-  display: flex;
-  flex-shrink: 0;
-}
-
+/* Sidebar logo (kept for mini-monitor popup reference) */
 .sidebar-logo {
   width: 48px;
   height: 48px;
   border-radius: 11px;
   object-fit: cover;
   flex-shrink: 0;
-  transition: opacity 0.15s ease;
-}
-
-#Vrui-logo-link:hover .sidebar-logo {
-  opacity: 0.8;
-}
-
-.sidebar-title-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.sidebar-title {
-  margin: 0 0 6px 0;
-  font-size: 23px;
-  font-weight: 700;
-  color: var(--text-dark);
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-
-.sidebar-docs-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-  text-decoration: none;
-  letter-spacing: 0.01em;
-  padding: 2px 8px 2px 6px;
-  border-radius: 20px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-light);
-  width: fit-content;
-  transition: all 0.2s ease;
-}
-
-.sidebar-docs-link:hover {
-  border-color: var(--border);
-  background-color: var(--btn-hover-bg);
-}
-
-.sidebar-docs-link svg {
-  flex-shrink: 0;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.sidebar-docs-link:hover svg {
-  opacity: 1;
 }
 
 /* Docs link: always muted rig color regardless of online state */
@@ -761,41 +636,33 @@ h6 {
    ======================================== */
 
 .sidebar-target {
-  margin-bottom: 20px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-target-text {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .sidebar-target-name {
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   line-height: 1.3;
-  color: var(--text-dark);
+  color: var(--sys-color-muted);
   width: fit-content;
   border-radius: 6px;
-  transition:
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    padding 0.15s ease,
-    margin 0.15s ease;
-}
-
-.sidebar-target-name:hover:not([style*="cursor: default"]) {
-  background-color: var(--overlay-hover);
-  padding: 0.1rem 0.35rem;
-  margin: -0.1rem -0.35rem;
-  transform: translateY(-1px);
-  cursor: pointer;
-}
-
-[data-theme="dark"] .sidebar-target-name:hover:not([style*="cursor: default"]) {
-  background-color: var(--overlay-hover);
 }
 
 .sidebar-target-info {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   font-weight: 400;
   letter-spacing: 0.01em;
@@ -809,79 +676,6 @@ h6 {
   cursor: pointer;
 }
 
-/* Connected rig gradient — matches system card title exactly */
-.sidebar[data-color-class="rig-0"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-1"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-2"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-3"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-4"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.sidebar[data-color-class="rig-5"]:not(.offline) .sidebar-target-name {
-  background: linear-gradient(
-    135deg,
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
 
 /* Offline — muted color, matches disconnected system card title */
 .sidebar.offline[data-color-class="rig-0"] .sidebar-target-name {
@@ -901,6 +695,93 @@ h6 {
 }
 .sidebar.offline[data-color-class="rig-5"] .sidebar-target-name {
   color: var(--rig-5-muted);
+}
+
+/* Sidebar editable field rows — name and IP/port with pencil affordance */
+.sidebar-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-edit-pencil {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 3px 4px;
+  border-radius: 5px;
+  color: var(--text-gray);
+  opacity: 0.65;
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  line-height: 0;
+}
+
+.sidebar-edit-pencil:hover {
+  opacity: 1;
+  color: var(--text-secondary);
+}
+
+/* Name pencil inherits the system accent color */
+#sidebarNamePencil {
+  color: var(--sys-color-muted);
+}
+
+#sidebarNamePencil:hover {
+  color: var(--sys-color-muted);
+  opacity: 1;
+}
+
+.sidebar-edit-pencil.hidden {
+  display: none;
+}
+
+.sidebar-section-divider {
+  height: 0;
+  border-top: 1px solid var(--border-light);
+  margin: 16px 0;
+}
+
+.sidebar-version-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.sidebar-version-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-version-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--sys-color-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sidebar-version-value {
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.sidebar-version-row-secondary .sidebar-version-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.sidebar-version-row-secondary .sidebar-version-value {
+  font-size: 0.68rem;
 }
 
 .title-row {
@@ -1322,7 +1203,7 @@ h6 {
 
 .main {
   flex: 1;
-  margin: 16px;
+  margin: 12px;
   margin-left: 8px;
   padding: 24px;
   background-color: var(--bg-white);
@@ -1338,7 +1219,7 @@ h6 {
   display: flex;
   flex-wrap: nowrap;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
   overflow-x: auto;
   overflow-y: visible;
   padding: 12px;
@@ -1386,10 +1267,20 @@ h6 {
   position: relative;
   display: flex;
   flex-direction: column;
+
+  /* Per-card accent color — set by JS via card.style.setProperty('--sys-color', ...) */
+  --sys-color: #3b82f6;
+  --sys-color-light:       color-mix(in srgb, var(--sys-color), white 25%);
+  --sys-color-dark:        color-mix(in srgb, var(--sys-color), black 30%);
+  --sys-color-mid:         color-mix(in srgb, var(--sys-color), black 15%);
+  --sys-color-muted:       var(--sys-color);
+  --sys-color-shadow:      color-mix(in srgb, var(--sys-color) 30%, transparent);
+  --sys-color-shadow-soft: color-mix(in srgb, var(--sys-color) 20%, transparent);
 }
 
 [data-theme="dark"] .system-card {
   background-color: var(--card-bg);
+  --sys-color-muted: color-mix(in srgb, var(--sys-color), white 50%);
 }
 
 /* Unreachable — can't contact launcher at all, red error state */
@@ -1435,88 +1326,17 @@ h6 {
   opacity: 1;
 }
 
-.system-card.connected.rig-0::before {
+.system-card.connected::before {
   background: conic-gradient(
     from var(--angle, 0deg),
-    var(--rig-0),
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0),
-    var(--rig-0-dark),
-    var(--rig-0)
+    var(--sys-color),
+    var(--sys-color-light),
+    var(--sys-color),
+    var(--sys-color-mid),
+    var(--sys-color),
+    var(--sys-color-dark),
+    var(--sys-color)
   );
-
-}
-
-.system-card.connected.rig-1::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-1),
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1),
-    var(--rig-1-dark),
-    var(--rig-1)
-  );
-
-}
-
-.system-card.connected.rig-2::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-2),
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2),
-    var(--rig-2-dark),
-    var(--rig-2)
-  );
-
-}
-
-.system-card.connected.rig-3::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-3),
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3),
-    var(--rig-3-dark),
-    var(--rig-3)
-  );
-
-}
-
-.system-card.connected.rig-4::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-4),
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4),
-    var(--rig-4-dark),
-    var(--rig-4)
-  );
-
-}
-
-.system-card.connected.rig-5::before {
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    var(--rig-5),
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5),
-    var(--rig-5-dark),
-    var(--rig-5)
-  );
-
 }
 
 .system-card.selected {
@@ -1536,105 +1356,22 @@ h6 {
   padding: 3px;
 }
 
-.system-card.selected.connected.rig-0 {
+.system-card.selected.connected {
   box-shadow:
     0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-0-shadow);
-}
-
-.system-card.selected.connected.rig-1 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-1-shadow);
-}
-
-.system-card.selected.connected.rig-2 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-2-shadow);
-}
-
-.system-card.selected.connected.rig-3 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-3-shadow);
-}
-
-.system-card.selected.connected.rig-4 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-4-shadow);
-}
-
-.system-card.selected.connected.rig-5 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 20px var(--rig-5-shadow);
+    0 0 20px var(--sys-color-shadow);
 }
 
 .system-card.selected.disconnected::before {
   inset: -3px;
   padding: 3px;
+  background: var(--sys-color-muted);
 }
 
-.system-card.selected.disconnected.rig-0::before {
-  background: var(--rig-0-muted);
-}
-
-.system-card.selected.disconnected.rig-0 {
+.system-card.selected.disconnected {
   box-shadow:
     0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-0-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-1::before {
-  background: var(--rig-1-muted);
-}
-
-.system-card.selected.disconnected.rig-1 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-1-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-2::before {
-  background: var(--rig-2-muted);
-}
-
-.system-card.selected.disconnected.rig-2 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-2-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-3::before {
-  background: var(--rig-3-muted);
-}
-
-.system-card.selected.disconnected.rig-3 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-3-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-4::before {
-  background: var(--rig-4-muted);
-}
-
-.system-card.selected.disconnected.rig-4 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-4-shadow-soft);
-}
-
-.system-card.selected.disconnected.rig-5::before {
-  background: var(--rig-5-muted);
-}
-
-.system-card.selected.disconnected.rig-5 {
-  box-shadow:
-    0 0 0 2px var(--bg-white),
-    0 0 16px var(--rig-5-shadow-soft);
+    0 0 16px var(--sys-color-shadow-soft);
 }
 
 /* Unreachable — red border, error state */
@@ -1714,66 +1451,12 @@ h6 {
 
 .system-card.disconnected::before {
   padding: 2px;
-}
-
-.system-card.disconnected.rig-0::before {
   background: linear-gradient(
     135deg,
-    var(--rig-0-muted),
-    var(--rig-0),
-    var(--rig-0-muted)
+    var(--sys-color-muted),
+    var(--sys-color),
+    var(--sys-color-muted)
   );
-
-}
-
-.system-card.disconnected.rig-1::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-1-muted),
-    var(--rig-1),
-    var(--rig-1-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-2::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-2-muted),
-    var(--rig-2),
-    var(--rig-2-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-3::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-3-muted),
-    var(--rig-3),
-    var(--rig-3-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-4::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-4-muted),
-    var(--rig-4),
-    var(--rig-4-muted)
-  );
-
-}
-
-.system-card.disconnected.rig-5::before {
-  background: linear-gradient(
-    135deg,
-    var(--rig-5-muted),
-    var(--rig-5),
-    var(--rig-5-muted)
-  );
-
 }
 
 .system-card.disconnected .battery-label,
@@ -1867,146 +1550,27 @@ h6 {
 
 .title-section {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
   flex: 1;
+  min-width: 0;
 }
 
 .system-title {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   line-height: 1.3;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  color: var(--sys-color-muted);
 }
 
-.system-title:not(.is-localhost) {
-  cursor: text;
-  transition:
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    filter 0.15s ease;
-}
-
-.system-title:hover:not(.inactive-field):not(.is-localhost) {
-  background-color: var(--overlay-hover);
-  border-radius: 6px;
-  padding: 0.2rem 0.4rem;
-  margin: -0.2rem -0.4rem;
-  transform: translateY(-1px);
-}
-
-.system-card.selected:not(.is-localhost) .system-title {
+.system-card.selected .system-title {
   font-weight: 700;
   letter-spacing: -0.015em;
 }
 
-.system-card.disconnected.rig-0 .system-title {
-  color: var(--rig-0-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-1 .system-title {
-  color: var(--rig-1-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-2 .system-title {
-  color: var(--rig-2-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-3 .system-title {
-  color: var(--rig-3-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-4 .system-title {
-  color: var(--rig-4-muted);
-  opacity: 0.9;
-}
-
-.system-card.disconnected.rig-5 .system-title {
-  color: var(--rig-5-muted);
-  opacity: 0.9;
-}
-
-.system-card.connected.rig-0 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-1 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-2 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-3 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-4 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.system-card.connected.rig-5 .system-title {
-  background: linear-gradient(
-    135deg,
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5-dark)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+/* System title uses neutral text — rig color lives on the card border accent only */
 
 .offline-badge {
   font-size: 0.75rem;
@@ -2066,7 +1630,7 @@ h6 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-gray);
+  color: var(--sys-color-muted);
   margin-bottom: 0.5rem;
 }
 
@@ -2127,54 +1691,21 @@ h6 {
 }
 
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
   box-sizing: border-box;
+  cursor: default;
 }
 
 .status-dot.status-online {
-  background-color: var(--rig-2);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-0 .status-dot.status-online {
   background-color: var(--rig-0);
-  box-shadow: 0 0 4px var(--status-online);
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.7);
   border: 1px solid transparent;
 }
 
-.system-card.connected.rig-1 .status-dot.status-online {
-  background-color: var(--rig-1);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-2 .status-dot.status-online {
-  background-color: var(--rig-2);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-3 .status-dot.status-online {
-  background-color: var(--rig-3);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-4 .status-dot.status-online {
-  background-color: var(--rig-4);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
-
-.system-card.connected.rig-5 .status-dot.status-online {
-  background-color: var(--rig-5);
-  box-shadow: 0 0 4px var(--status-online);
-  border: 1px solid transparent;
-}
+/* Server online dot: blue — green reserved for device tracking */
 
 .status-dot.status-stopped {
   background-color: transparent;
@@ -2192,48 +1723,13 @@ h6 {
   border: 1px solid transparent;
 }
 
-.system-card.connected.rig-0 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-0);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-1 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-1);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-2 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-2);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-3 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-3);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-4 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-4);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-5 .status-dot.status-stopped {
-  background-color: transparent;
-  border: 1px solid var(--rig-5);
-  opacity: 0.4;
-}
+/* Server stopped dot: universal gray border regardless of rig */
 
 .server-name {
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--sys-color-muted);
   font-size: 0.8rem;
   letter-spacing: -0.01em;
-  flex: 1;
   transition: all 0.2s ease;
 }
 
@@ -2250,32 +1746,143 @@ h6 {
   margin-left: auto;
 }
 
-[data-theme="dark"] .server-name {
-  color: var(--text-gray);
+
+.server-restart-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--status-error);
+  border-radius: 4px;
+  color: var(--status-error);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
-.system-card.connected.rig-0 .status-dot.status-online ~ .server-name {
-  color: var(--rig-0);
+.server-restart-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--status-error), transparent 88%);
 }
 
-.system-card.connected.rig-1 .status-dot.status-online ~ .server-name {
-  color: var(--rig-1);
+/* server-name uses --sys-color-muted, inherits per-card color */
+
+/* Server names use neutral text — no per-rig coloring */
+
+/* ========================================
+   CUSTOM TOOLTIPS  (.sys-tooltip + data-tooltip)
+   ======================================== */
+
+.sys-tooltip {
+  position: relative;
 }
 
-.system-card.connected.rig-2 .status-dot.status-online ~ .server-name {
-  color: var(--rig-2);
+.sys-tooltip[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #111;
+  color: #f0f0f0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: pre-line;
+  min-width: max-content;
+  max-width: 220px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  letter-spacing: 0.01em;
 }
 
-.system-card.connected.rig-3 .status-dot.status-online ~ .server-name {
-  color: var(--rig-3);
+.sys-tooltip[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  border: 5px solid transparent;
+  border-top-color: #111;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
 }
 
-.system-card.connected.rig-4 .status-dot.status-online ~ .server-name {
-  color: var(--rig-4);
+.sys-tooltip[data-tooltip]:hover::after,
+.sys-tooltip[data-tooltip]:hover::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
-.system-card.connected.rig-5 .status-dot.status-online ~ .server-name {
-  color: var(--rig-5);
+/* Tooltip pointing downward (for elements near top of viewport) */
+.sys-tooltip.tooltip-down[data-tooltip]::after {
+  top: calc(100% + 7px);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-4px);
+}
+.sys-tooltip.tooltip-down[data-tooltip]::before {
+  top: calc(100% + 3px);
+  bottom: auto;
+  border-top-color: transparent;
+  border-bottom-color: #111;
+  transform: translateX(-50%) translateY(-4px);
+}
+.sys-tooltip.tooltip-down[data-tooltip]:hover::after,
+.sys-tooltip.tooltip-down[data-tooltip]:hover::before {
+  transform: translateX(-50%) translateY(0);
+}
+[data-theme="dark"] .sys-tooltip.tooltip-down[data-tooltip]::before {
+  border-bottom-color: #2a2a2a;
+  border-top-color: transparent;
+}
+
+/* Tooltip pointing down + anchored to the right edge */
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: translateY(-4px);
+}
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]::before {
+  left: auto;
+  right: 10px;
+  transform: translateY(-4px);
+}
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]:hover::after,
+.sys-tooltip.tooltip-down.tooltip-right[data-tooltip]:hover::before {
+  transform: translateY(0);
+}
+
+[data-theme="dark"] .sys-tooltip[data-tooltip]::after {
+  background: #2a2a2a;
+  color: #f5f5f5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+[data-theme="dark"] .sys-tooltip[data-tooltip]::before {
+  border-top-color: #2a2a2a;
+}
+
+/* Status dots: sit above siblings so pointer hits them before parent row elements */
+.status-dot.sys-tooltip {
+  position: relative;
+  z-index: 1;
+  cursor: default;
+}
+
+/* Suppress parent tooltip when a nested tooltip (e.g. a dot) is being hovered */
+.sys-tooltip:has(> .sys-tooltip:hover)[data-tooltip]::after,
+.sys-tooltip:has(> .sys-tooltip:hover)[data-tooltip]::before {
+  opacity: 0 !important;
 }
 
 /* ========================================
@@ -2302,8 +1909,8 @@ h6 {
 }
 
 .device-item .status-dot.device-tracked {
-  background-color: var(--rig-2);
-  box-shadow: 0 0 4px var(--status-online);
+  background-color: var(--status-online);
+  box-shadow: 0 0 6px 2px rgba(34, 197, 94, 0.55);
   border: 1px solid transparent;
 }
 
@@ -2318,53 +1925,16 @@ h6 {
   border: 1px solid var(--status-stopped);
 }
 
-.system-card.connected.rig-0 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-0);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-1 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-1);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-2 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-2);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-3 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-3);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-4 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-4);
-  opacity: 0.4;
-}
-
-.system-card.connected.rig-5 .device-item .status-dot.device-disconnected {
-  background-color: transparent;
-  border: 1px solid var(--rig-5);
-  opacity: 0.4;
-}
+/* Device disconnected dot: universal gray regardless of rig */
 
 .device-name {
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--sys-color-muted);
   font-size: 0.8rem;
   letter-spacing: -0.01em;
   transition: all 0.2s ease;
 }
 
-[data-theme="dark"] .device-name {
-  color: var(--text-gray);
-}
 
 .device-name:hover:not(.inactive-field) {
   background-color: var(--overlay-hover-faint);
@@ -2382,101 +1952,26 @@ h6 {
 
 .device-status-text {
   font-size: 0.7rem;
-  color: var(--text-gray);
-}
-
-.device-item
-  .status-dot.device-disconnected
-  ~ .device-name
-  ~ .device-info
-  .device-status-text {
   color: var(--text-secondary);
 }
 
-[data-theme="dark"]
-  .device-item
-  .status-dot.device-disconnected
-  ~ .device-name
-  ~ .device-info
-  .device-status-text {
+[data-theme="dark"] .device-status-text {
   color: var(--text-gray);
 }
 
-.system-card.connected.rig-0
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-0);
-}
-
-.system-card.connected.rig-1
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-1);
-}
-
-.system-card.connected.rig-2
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-2);
-}
-
-.system-card.connected.rig-3
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-3);
-}
-
-.system-card.connected.rig-4
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-4);
-}
-
-.system-card.connected.rig-5
-  .device-item
-  .status-dot.device-connected
-  ~ .device-name {
-  color: var(--rig-5);
-}
-
-/* If device tracked */
-
-.system-card.connected.rig-0 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-0);
-}
-
-.system-card.connected.rig-1 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-1);
-}
-
-.system-card.connected.rig-2 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-2);
-}
-
-.system-card.connected.rig-3 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-3);
-}
-
-.system-card.connected.rig-4 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-4);
-}
-
-.system-card.connected.rig-5 .device-item .status-dot.device-tracked ~ .device-name {
-  color: var(--rig-5);
-}
+/* Device names use neutral text — status communicated by dot color only */
 
 .battery-bar {
   width: 50px;
-  height: 8px;
+  height: 10px;
   background-color: var(--overlay-hover);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
+}
+
+.battery-bar.charging {
+  overflow: hidden;
 }
 
 [data-theme="dark"] .battery-bar {
@@ -2486,91 +1981,43 @@ h6 {
 .battery-fill {
   height: 100%;
   transition: width 0.3s ease;
-  position: relative;
   border-radius: 4px;
-}
-
-.system-card.connected.rig-0 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-0),
-    var(--rig-0-light),
-    var(--rig-0),
-    var(--rig-0-mid),
-    var(--rig-0)
-  );
+  background: linear-gradient(90deg, #16a34a, #22c55e, #16a34a);
   background-size: 300% 100%;
-
 }
 
-.system-card.connected.rig-1 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-1),
-    var(--rig-1-light),
-    var(--rig-1),
-    var(--rig-1-mid),
-    var(--rig-1)
-  );
-  background-size: 300% 100%;
+/* Bolt is on ::after of fill (no position:relative on fill, so ::after escapes to bar as containing block) */
+/* Battery fill: universal green — charging/warning levels override below */
 
+.battery-fill.charging {
+  background: linear-gradient(90deg, #f59e0b, #fde047, #f59e0b) !important;
+  background-size: 300% 100% !important;
+  box-shadow: 0 0 6px 2px rgba(251, 191, 36, 0.55);
 }
 
-.system-card.connected.rig-2 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-2),
-    var(--rig-2-light),
-    var(--rig-2),
-    var(--rig-2-mid),
-    var(--rig-2)
-  );
-  background-size: 300% 100%;
-
+.battery-fill.low {
+  background: linear-gradient(90deg, #dc2626, #f87171, #dc2626) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-3 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-3),
-    var(--rig-3-light),
-    var(--rig-3),
-    var(--rig-3-mid),
-    var(--rig-3)
-  );
-  background-size: 300% 100%;
-
+.battery-fill.danger {
+  background: linear-gradient(90deg, #b91c1c, #ef4444, #b91c1c) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-4 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-4),
-    var(--rig-4-light),
-    var(--rig-4),
-    var(--rig-4-mid),
-    var(--rig-4)
-  );
-  background-size: 300% 100%;
-
+.battery-fill.critical {
+  background: linear-gradient(90deg, #7f1d1d, #dc2626, #7f1d1d) !important;
+  background-size: 300% 100% !important;
 }
 
-.system-card.connected.rig-5 .battery-fill {
-  background: linear-gradient(
-    90deg,
-    var(--rig-5),
-    var(--rig-5-light),
-    var(--rig-5),
-    var(--rig-5-mid),
-    var(--rig-5)
-  );
-  background-size: 300% 100%;
+.battery-percent.low      { color: #f87171 !important; }
+.battery-percent.danger   { color: #dc2626 !important; }
+.battery-percent.critical { color: #991b1b !important; }
 
-}
 
 .battery-percent {
   font-size: 0.7rem;
-  color: var(--text-gray-dark);
+  color: var(--text-secondary);
   font-weight: 500;
   font-family: "Courier New", monospace;
   min-width: 32px;
@@ -2657,25 +2104,13 @@ h6 {
   pointer-events: none;
 }
 
-/* Per-rig icon colors */
-.system-card.disconnected.rig-0 .connect-zone {
-  color: var(--rig-0-muted);
-}
-.system-card.disconnected.rig-1 .connect-zone {
-  color: var(--rig-1-muted);
-}
-.system-card.disconnected.rig-2 .connect-zone {
-  color: var(--rig-2-muted);
-}
-.system-card.disconnected.rig-3 .connect-zone {
-  color: var(--rig-3-muted);
-}
-.system-card.disconnected.rig-4 .connect-zone {
-  color: var(--rig-4-muted);
-}
-.system-card.disconnected.rig-5 .connect-zone {
-  color: var(--rig-5-muted);
-}
+/* Connect zone (loading spinner + connect icon) retains rig color — it's a pre-session loading state */
+.system-card.rig-0 .connect-zone { color: var(--rig-0-muted); }
+.system-card.rig-1 .connect-zone { color: var(--rig-1-muted); }
+.system-card.rig-2 .connect-zone { color: var(--rig-2-muted); }
+.system-card.rig-3 .connect-zone { color: var(--rig-3-muted); }
+.system-card.rig-4 .connect-zone { color: var(--rig-4-muted); }
+.system-card.rig-5 .connect-zone { color: var(--rig-5-muted); }
 
 .shutdown-container {
   display: flex;
@@ -2874,6 +2309,79 @@ h6 {
 }
 
 /* ========================================
+   SIDEBAR PALETTE BUTTON
+   ======================================== */
+
+.sidebar-palette-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-white);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.sidebar-palette-btn:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.sidebar-palette-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-palette-btn svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-palette-btn:hover svg {
+  opacity: 1;
+}
+
+.sidebar-palette-btn.hidden {
+  display: none;
+}
+
+/* Tooltip */
+.sidebar-palette-btn::after {
+  content: "Change color";
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--text-dark);
+  color: var(--bg-white);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 5px 9px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.sidebar-palette-btn:hover::after {
+  opacity: 1;
+}
+
+/* ========================================
    SYSTEM SECTION WRAPPER & MINI MONITOR
    ======================================== */
 
@@ -2975,7 +2483,7 @@ h6 {
 .console-section {
   flex: 1;
   background-color: var(--bg-white);
-  border: 1px solid var(--border);
+  border: 2px solid var(--sys-color, var(--border));
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-top: 10px;
@@ -2985,52 +2493,224 @@ h6 {
   min-height: 0;
 }
 
-.console-header {
+/* Tab bar replaces old console-header */
+.console-tab-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  background: var(--bg-white);
+  align-items: flex-end;
+  padding: 6px 10px 0;
+  background: var(--bg-subtle);
   border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
-.console-header h3 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+.console-tab-bar.tabs-right .console-tabs {
+  margin-left: auto;
+}
+
+.console-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.console-tab {
+  padding: 6px 14px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  position: relative;
+  bottom: -1px;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.console-tab:hover:not(.active) {
+  background: var(--overlay-hover-faint);
+  color: var(--text-secondary);
+}
+
+.console-tab.active {
+  background: var(--bg-white);
   color: var(--text-dark);
-  letter-spacing: -0.01em;
+  border-color: var(--border-light);
+  font-weight: 600;
 }
 
-.filter-toggle {
+.console-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* Floating action button inside console panes — matches theme-toggle style */
+.console-float-btn {
+  position: relative;
+  z-index: 10;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: var(--bg-white);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 500;
   transition: all 0.2s ease;
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
-.filter-toggle:hover {
+.console-float-btn:hover {
   background: var(--btn-hover-bg);
-  color: var(--text-dark);
+  border-color: var(--border);
+  color: var(--text-secondary);
+  transform: translateY(-1px);
 }
 
-.filter-toggle svg {
-  width: 16px;
-  height: 16px;
-  stroke-width: 2;
+.console-float-btn:hover svg {
+  opacity: 1;
 }
+
+.console-float-btn.active {
+  background: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 85%);
+  border-color: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 50%);
+  color: var(--sys-color, #3b82f6);
+}
+
+.console-float-btn.active svg {
+  opacity: 1;
+}
+
+.console-float-btn svg {
+  opacity: 0.65;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.console-pane-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  transition: top 0.15s ease;
+}
+
+.console-pane-actions.search-open {
+  top: 46px;
+}
+
 
 .console-filter {
   position: relative;
 }
+
+/* Search bar — slides in below tab bar */
+.console-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.console-search-bar input {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-white);
+  color: var(--text-dark);
+  font-family: "SF Mono", "Monaco", "Cascadia Code", "Consolas", monospace;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.console-search-bar input:focus {
+  border-color: var(--primary);
+}
+
+.console-search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 0 3px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.console-search-clear:hover {
+  color: var(--text-dark);
+}
+
+.log-file-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.log-file-refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: 1px solid var(--border-light);
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.log-file-refresh-btn:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+/* Log file content pane */
+.log-file-box {
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+
+.log-line {
+  padding: 0 2px;
+  border-radius: 2px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-line.log-error { color: #ef4444; }
+.log-line.log-warn  { color: #f59e0b; }
+.log-line.log-debug { color: var(--text-muted); opacity: 0.7; }
 
 .filter-menu {
   display: none;
@@ -3183,9 +2863,9 @@ h6 {
   margin-bottom: 0.4rem;
   padding-left: 0.5rem;
   border-left: 2px solid transparent;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s;
+  width: fit-content;
+  min-width: 0;
+  border-radius: 3px;
 }
 
 .log-entry:hover {
@@ -3207,45 +2887,14 @@ h6 {
   font-size: 0.75rem;
 }
 
-.log-entry.rig-0 {
-  border-left-color: var(--rig-0);
-}
-.log-entry.rig-1 {
-  border-left-color: var(--rig-1);
-}
-.log-entry.rig-2 {
-  border-left-color: var(--rig-2);
-}
-.log-entry.rig-3 {
-  border-left-color: var(--rig-3);
-}
-.log-entry.rig-4 {
-  border-left-color: var(--rig-4);
-}
-.log-entry.rig-5 {
-  border-left-color: var(--rig-5);
+.log-entry {
+  border-left-color: var(--sys-color, var(--text-muted));
 }
 .log-entry.unreachable {
   border-left-color: var(--unreachable);
 }
-
-.log-entry.rig-0 .label {
-  color: var(--rig-0);
-}
-.log-entry.rig-1 .label {
-  color: var(--rig-1);
-}
-.log-entry.rig-2 .label {
-  color: var(--rig-2);
-}
-.log-entry.rig-3 .label {
-  color: var(--rig-3);
-}
-.log-entry.rig-4 .label {
-  color: var(--rig-4);
-}
-.log-entry.rig-5 .label {
-  color: var(--rig-5);
+.log-entry .label {
+  color: var(--sys-color, var(--text-dark));
 }
 
 .log-entry.log-pending {
@@ -3373,23 +3022,52 @@ h6 {
   font-size: 0.85rem;
 }
 
+/* Log file bottom search bar — mirrors commandPrompt layout */
+.log-search-prompt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-white);
+  border-top: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.log-search-prompt input {
+  flex: 1;
+  padding: 5px 10px;
+  font-size: 12px;
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--border)), transparent 50%);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-dark);
+  font-family: "SF Mono", "Monaco", "Cascadia Code", "Consolas", monospace;
+  outline: none;
+}
+
+.log-search-prompt input:focus {
+  border-color: var(--sys-color, var(--primary));
+  background: var(--bg-white);
+}
+
 /* ========================================
    COMMAND PROMPT
    ======================================== */
 
 #commandPrompt {
   display: flex;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 5px 12px;
   background: var(--bg-white);
   border-top: 1px solid var(--border-light);
   margin-top: 0 !important;
+  flex-shrink: 0;
 }
 
 #commandInput {
   flex: 1;
-  padding: 7px 12px;
-  font-size: 14px;
+  padding: 5px 10px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
@@ -3414,21 +3092,21 @@ h6 {
 }
 
 #commandPrompt button {
-  padding: 10px 20px;
-  font-size: 14px;
+  padding: 5px 14px;
+  font-size: 12px;
   font-weight: 500;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--sys-color, #3b82f6), transparent 62%);
   border-radius: var(--radius-sm);
-  background: var(--bg-white);
-  color: var(--text-dark);
+  background: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 90%);
+  color: var(--sys-color, #3b82f6);
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 #commandPrompt button:hover {
-  background: var(--btn-hover-bg);
-  border-color: var(--text-secondary);
+  background: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 80%);
+  border-color: color-mix(in srgb, var(--sys-color, #3b82f6), transparent 45%);
 }
 
 #commandPrompt button:active {
@@ -3573,6 +3251,22 @@ h6 {
   display: block;
 }
 
+/* Topbar context: reset the absolute positioning so it flows in flexbox */
+.topbar-end .theme-toggle {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.topbar-end .theme-toggle::after,
+.topbar-end .theme-toggle::before {
+  display: none;
+}
+
 /* ========================================
    FORM MODAL
    ======================================== */
@@ -3641,6 +3335,13 @@ h6 {
 .form-modal-row input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--rig-0-bg);
+}
+
+.form-modal-row input[type="color"] {
+  padding: 3px 5px;
+  height: 36px;
+  cursor: pointer;
+  width: 100%;
 }
 
 .form-modal-buttons {
@@ -3852,134 +3553,33 @@ h6 {
 }
 
 /* Rig-colored environment dropdown — focus ring */
-.sidebar[data-color-class="rig-0"] .environment-dropdown:focus {
-  border-color: var(--rig-0);
-  box-shadow: 0 0 0 3px var(--rig-0-bg);
-}
-.sidebar[data-color-class="rig-1"] .environment-dropdown:focus {
-  border-color: var(--rig-1);
-  box-shadow: 0 0 0 3px var(--rig-1-bg);
-}
-.sidebar[data-color-class="rig-2"] .environment-dropdown:focus {
-  border-color: var(--rig-2);
-  box-shadow: 0 0 0 3px var(--rig-2-bg);
-}
-.sidebar[data-color-class="rig-3"] .environment-dropdown:focus {
-  border-color: var(--rig-3);
-  box-shadow: 0 0 0 3px var(--rig-3-bg);
-}
-.sidebar[data-color-class="rig-4"] .environment-dropdown:focus {
-  border-color: var(--rig-4);
-  box-shadow: 0 0 0 3px var(--rig-4-bg);
-}
-.sidebar[data-color-class="rig-5"] .environment-dropdown:focus {
-  border-color: var(--rig-5);
-  box-shadow: 0 0 0 3px var(--rig-5-bg);
+.sidebar[data-color-class] .environment-dropdown:focus {
+  border-color: var(--sys-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-color), transparent 94%);
 }
 
-/* Rig-colored environment label icon — connected */
-.sidebar[data-color-class="rig-0"]:not(.offline) .environment-label svg {
-  color: var(--rig-0);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-1"]:not(.offline) .environment-label svg {
-  color: var(--rig-1);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-2"]:not(.offline) .environment-label svg {
-  color: var(--rig-2);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-3"]:not(.offline) .environment-label svg {
-  color: var(--rig-3);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-4"]:not(.offline) .environment-label svg {
-  color: var(--rig-4);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-5"]:not(.offline) .environment-label svg {
-  color: var(--rig-5);
+/* Environment label icon tinted by system color when connected */
+.sidebar[data-color-class]:not(.offline) .environment-label svg {
+  color: var(--sys-color);
   opacity: 0.8;
 }
 
 /* Rig-colored environment label text — connected */
-.sidebar[data-color-class="rig-0"]:not(.offline) .environment-label {
-  color: var(--rig-0-muted);
-}
-.sidebar[data-color-class="rig-1"]:not(.offline) .environment-label {
-  color: var(--rig-1-muted);
-}
-.sidebar[data-color-class="rig-2"]:not(.offline) .environment-label {
-  color: var(--rig-2-muted);
-}
-.sidebar[data-color-class="rig-3"]:not(.offline) .environment-label {
-  color: var(--rig-3-muted);
-}
-.sidebar[data-color-class="rig-4"]:not(.offline) .environment-label {
-  color: var(--rig-4-muted);
-}
-.sidebar[data-color-class="rig-5"]:not(.offline) .environment-label {
-  color: var(--rig-5-muted);
+.sidebar[data-color-class]:not(.offline) .environment-label {
+  color: var(--sys-color-muted);
 }
 
-/* Rig-colored environment chevron — connected */
-.sidebar[data-color-class="rig-0"]:not(.offline) .environment-dropdown-chevron {
-  color: var(--rig-0);
-}
-.sidebar[data-color-class="rig-1"]:not(.offline) .environment-dropdown-chevron {
-  color: var(--rig-1);
-}
-.sidebar[data-color-class="rig-2"]:not(.offline) .environment-dropdown-chevron {
-  color: var(--rig-2);
-}
-.sidebar[data-color-class="rig-3"]:not(.offline) .environment-dropdown-chevron {
-  color: var(--rig-3);
-}
-.sidebar[data-color-class="rig-4"]:not(.offline) .environment-dropdown-chevron {
-  color: var(--rig-4);
-}
-.sidebar[data-color-class="rig-5"]:not(.offline) .environment-dropdown-chevron {
-  color: var(--rig-5);
+.sidebar[data-color-class]:not(.offline) .environment-dropdown-chevron {
+  color: var(--sys-color);
 }
 
 /* Offline — muted environment colors */
-.sidebar.offline[data-color-class="rig-0"] .environment-label svg {
-  color: var(--rig-0-muted);
-}
-.sidebar.offline[data-color-class="rig-1"] .environment-label svg {
-  color: var(--rig-1-muted);
-}
-.sidebar.offline[data-color-class="rig-2"] .environment-label svg {
-  color: var(--rig-2-muted);
-}
-.sidebar.offline[data-color-class="rig-3"] .environment-label svg {
-  color: var(--rig-3-muted);
-}
-.sidebar.offline[data-color-class="rig-4"] .environment-label svg {
-  color: var(--rig-4-muted);
-}
-.sidebar.offline[data-color-class="rig-5"] .environment-label svg {
-  color: var(--rig-5-muted);
+.sidebar.offline[data-color-class] .environment-label svg {
+  color: var(--sys-color-muted);
 }
 
-.sidebar.offline[data-color-class="rig-0"] .environment-dropdown-chevron {
-  color: var(--rig-0-muted);
-}
-.sidebar.offline[data-color-class="rig-1"] .environment-dropdown-chevron {
-  color: var(--rig-1-muted);
-}
-.sidebar.offline[data-color-class="rig-2"] .environment-dropdown-chevron {
-  color: var(--rig-2-muted);
-}
-.sidebar.offline[data-color-class="rig-3"] .environment-dropdown-chevron {
-  color: var(--rig-3-muted);
-}
-.sidebar.offline[data-color-class="rig-4"] .environment-dropdown-chevron {
-  color: var(--rig-4-muted);
-}
-.sidebar.offline[data-color-class="rig-5"] .environment-dropdown-chevron {
-  color: var(--rig-5-muted);
+.sidebar.offline[data-color-class] .environment-dropdown-chevron {
+  color: var(--sys-color-muted);
 }
 
 /* 4K native / 5K at 100% OS scaling (≥3840 CSS px) */

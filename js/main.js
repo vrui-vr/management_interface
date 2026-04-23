@@ -3,15 +3,19 @@ const activeSystems = new Set();
 let currentSystem = "";
 let hasConnected = false;
 
-const filterState = new Set();
+let filterAllSystems = true; // true = show all, false = show selected system only
 const lowBatteryWarnings = new Set();
 
 const fileDropBox = document.querySelector(".file-drop-box");
 const fileInput = document.getElementById("fileInput");
+const topbarEl = document.querySelector(".topbar");
 
-serverLauncherUrl = "VRServerLauncher.cgi"
-deviceServerUrl = "VRDeviceServer.cgi";
-compositingServerUrl = "VRCompositingServer.cgi";
+serverLauncherUrl = "VRServerLauncher"
+deviceServerUrl = "VRDeviceServer";
+compositingServerUrl = "VRCompositingServer";
+eventsExtension = "Events"
+
+const RIG_DEFAULT_COLORS = ['#3b82f6', '#f97316', '#22c55e', '#facc15', '#8b5cf6', '#ec4899'];
 
 const getServerStatusInterval = 3000;
 const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before resuming regular pings
@@ -19,13 +23,15 @@ const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
 let showLogo = false; // show the sidebar logo (set to true when a real logo is available)
-// Non-localhost systems are monitor-only: no start/stop/shutdown server commands
+const TEST_BATTERY = false; // drain all device batteries 5%/sec to preview battery UI
+const CONSOLE_TABS_LEFT = true; // true = tabs on left, false = tabs on right
 
+// Non-localhost systems are monitor-only: no start/stop/shutdown server commands
 function sendButton(buttonNumber) {
   if (buttonNumber === 1) {
     // Toggle the global variable
     getStatusUpdates = !getStatusUpdates;
-    console.log(`🔄 getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`);
+    console.log(`getStatusUpdates is now: ${getStatusUpdates ? "ON" : "OFF"}`);
 	
     // Optional: Update button label to reflect state
     const btn = document.getElementById(`btn-1`);
@@ -96,7 +102,7 @@ fileInput?.addEventListener("change", () => {
 });
 
 function handleFile(file) {
-  console.log("📄 File received:", file.name, file);
+  console.log("File received:", file.name, file);
 
   // Example: log to console area
   autoUpdateConsole(
@@ -134,6 +140,7 @@ function normalizeSystems(rawSystems) {
       connected: !!normalizedDevices?.hmd?.connected, // fallback to headset connected if available
       ip: d.ip || "N/A",
       colorClass: `rig-${index % 6}`,
+      customColor: d.customColor || null,
       devices: normalizedDevices,
       environments: [],
       serversRunning: false,
@@ -149,25 +156,31 @@ function saveSystemsToLocalStorage() {
     ip: d.ip,
     serverLauncherPort: d.serverLauncherPort,
     deviceServerPort: d.deviceServerPort,
-    compositingServerPort: d.compositingServerPort
+    compositingServerPort: d.compositingServerPort,
+    customColor: d.customColor || null,
   }));
   localStorage.setItem("savedSystems", JSON.stringify(toSave));
 }
 
 // Gets the address of a system's server launcher
-// ex): http://192.0.0.1:8080/ServerLauncher.cgi
-function getServerLauncherEndpoint(system) {
-  return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}`;
-}
-// Gets the address of a system using the global url combined with the local data of the system
-// ex): http://192.0.0.1:8081/VRDeviceServer.cgi
-function getDeviceServerEndpoint(system) {
-  return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}`;
+// ex): http://192.0.0.1:8080/Events.cgi
+function getEventsEndpoint(ip, port) {
+  return `http://${ip}:${port}/${eventsExtension}.cgi`;
 }
 
-// Gets adress of the VR compositingServer
+// ex): http://192.0.0.1:8080/VRServerLauncher.cgi
+function getServerLauncherEndpoint(system) {
+  return `http://${system.ip}:${system.serverLauncherPort}/${serverLauncherUrl}.cgi`;
+}
+
+// ex): http://192.0.0.1:8081/VRDeviceServer.cgi
+function getDeviceServerEndpoint(system) {
+  return `http://${system.ip}:${system.deviceServerPort}/${deviceServerUrl}.cgi`;
+}
+
+// ex): http://192.0.0.1:8082/VRCompositingServer.cgi
 function getCompositingServerEndpoint(system) {
-  return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}`;
+  return `http://${system.ip}:${system.compositingServerPort}/${compositingServerUrl}.cgi`;
 }
 
 // Shows a modal form with configurable fields for user input
@@ -266,6 +279,8 @@ function addSystem() {
     defaultName = `Rig ${String.fromCharCode(65 + nameIndex)}`;
   }
 
+  const defaultColor = RIG_DEFAULT_COLORS[availableIndex !== undefined ? availableIndex : allSystems.length % 6];
+
   showFormModal({
     title: "Add System",
     submitLabel: "Add",
@@ -274,8 +289,9 @@ function addSystem() {
       { key: "name", label: "Name", default: defaultName, placeholder: defaultName },
       { key: "ip", label: "IP Address", default: "192.168.1.15", placeholder: "192.168.1.15" },
       { key: "port", label: "Launcher Port", default: "8080", placeholder: "8080" },
+      { key: "color", label: "Color", type: "color", default: defaultColor },
     ],
-    onSubmit: ({ name, ip, port }) => {
+    onSubmit: ({ name, ip, port, color }) => {
       const newName = name || defaultName;
       if (
         newName.toLowerCase() === "local host" ||
@@ -294,13 +310,14 @@ function addSystem() {
         launcherAlive: null,
         servers: [],
         colorClass: newColorClass,
+        customColor: color || null,
         devices: {},
       };
       allSystems.push(newSystem);
       updateInterface();
       autoUpdateConsole(newSystem, "add", `Added system '${newName}'`);
       saveSystemsToLocalStorage();
-      checkLauncherAlive(newSystem);
+      getLauncherStatus(newSystem);
     },
   });
 }
@@ -320,7 +337,6 @@ function removeSystem(systemName, skipConfirm = false) {
 
   // Clean up name-based references
   activeSystems.delete(systemName);
-  filterState.delete(systemName);
 
   allSystems = allSystems.filter((d) => d.name !== systemName);
 
@@ -435,8 +451,16 @@ function getStartupPhaseText(phase) {
   }
 }
 
-// Gets color of the system theme from css
+// Returns the base hex color for a system (custom override or rig default)
+function getSysColor(system) {
+  if (system.customColor) return system.customColor;
+  const rigIndex = parseInt(system.colorClass?.replace('rig-', '') ?? '0', 10);
+  return RIG_DEFAULT_COLORS[rigIndex % RIG_DEFAULT_COLORS.length];
+}
+
+// Gets color of the system theme from css (used by mini-monitor and sidebar)
 function getSystemColor(system, muted = false) {
+  if (system.customColor && !muted) return system.customColor;
   const varName = `--${system.colorClass || "rig-0"}${muted ? "-muted" : ""}`;
   return (
     getComputedStyle(document.documentElement)
@@ -519,20 +543,58 @@ function updateFileDropState(system) {
 function updateDropdown() {
   const system = allSystems.find((d) => d.name === currentSystem);
 
+  // Set sidebar + command prompt + console + topbar accent color from current system
+  const sidebar = document.querySelector('.sidebar');
+  const prompt = document.getElementById('commandPrompt');
+  const consoleSec = document.querySelector('.console-section');
+  if (system) {
+    const color = getSysColor(system);
+    sidebar?.style.setProperty('--sys-color', color);
+    prompt?.style.setProperty('--sys-color', color);
+    consoleSec?.style.setProperty('--sys-color', color);
+    topbarEl?.style.setProperty('--sys-color', color);
+  } else {
+    sidebar?.style.removeProperty('--sys-color');
+    prompt?.style.removeProperty('--sys-color');
+    consoleSec?.style.removeProperty('--sys-color');
+    topbarEl?.style.removeProperty('--sys-color');
+  }
+
+  // Show/hide palette button and wire click
+  const paletteBtn = document.getElementById('sidebarPaletteBtn');
+  if (paletteBtn) {
+    if (system) {
+      paletteBtn.classList.remove('hidden');
+      paletteBtn.onclick = (e) => {
+        e.stopPropagation();
+        recolorSystem(system);
+      };
+    } else {
+      paletteBtn.classList.add('hidden');
+      paletteBtn.onclick = null;
+    }
+  }
+
   const nameEl = document.getElementById("currentSystemName");
   if (nameEl) {
     nameEl.textContent = currentSystem;
     if (system && currentSystem !== "localhost") {
       nameEl.style.cursor = "pointer";
-      nameEl.title = "Edit name";
-      nameEl.onclick = (e) => {
-        e.stopPropagation();
-        showEditMenu(e, system, "name");
-      };
+      nameEl.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "name"); };
     } else {
       nameEl.style.cursor = "default";
-      nameEl.title = "";
       nameEl.onclick = null;
+    }
+  }
+
+  const namePencil = document.getElementById("sidebarNamePencil");
+  if (namePencil) {
+    if (system && currentSystem !== "localhost") {
+      namePencil.classList.remove("hidden");
+      namePencil.onclick = (e) => { e.stopPropagation(); renameSystem(system); };
+    } else {
+      namePencil.classList.add("hidden");
+      namePencil.onclick = null;
     }
   }
 
@@ -541,13 +603,56 @@ function updateDropdown() {
     infoEl.textContent = system ? `${system.ip}:${system.serverLauncherPort}` : "—";
     if (system) {
       infoEl.style.cursor = "pointer";
-      infoEl.title = "Edit IP / Ports";
-      infoEl.onclick = (e) => {
-        e.stopPropagation();
-        showEditMenu(e, system, "ipport");
-      };
+      infoEl.onclick = (e) => { e.stopPropagation(); showEditMenu(e, system, "ipport"); };
     } else {
+      infoEl.style.cursor = "default";
       infoEl.onclick = null;
+    }
+  }
+
+  const infoPencil = document.getElementById("sidebarInfoPencil");
+  if (infoPencil) {
+    if (system) {
+      infoPencil.classList.remove("hidden");
+      infoPencil.onclick = (e) => { e.stopPropagation(); showEditConnectionModal(system); };
+    } else {
+      infoPencil.classList.add("hidden");
+      infoPencil.onclick = null;
+    }
+  }
+
+  // Version info block
+  const versionBlock = document.getElementById("sidebarVersionInfo");
+  const vruiRow = document.getElementById("sidebarVruiVersion");
+  const protoRow = document.getElementById("sidebarLauncherProtocol");
+  const trackingProtoRow = document.getElementById("sidebarTrackingProtocol");
+  const compositingProtoRow = document.getElementById("sidebarCompositingProtocol");
+  if (versionBlock && vruiRow && protoRow) {
+    const trackingProto = system?.servers?.[0]?.protocolVersion;
+    const compositingProto = system?.servers?.[1]?.protocolVersion;
+    const hasVersion = system && (system.vruiVersion || system.launcherProtocolVersion != null || trackingProto != null || compositingProto != null);
+    versionBlock.style.display = hasVersion ? "" : "none";
+    if (hasVersion) {
+      vruiRow.innerHTML = system.vruiVersion
+        ? `<span class="sidebar-version-label">Vrui Version</span><span class="sidebar-version-value">${system.vruiVersion}</span>`
+        : "";
+      vruiRow.style.display = system.vruiVersion ? "" : "none";
+      protoRow.innerHTML = system.launcherProtocolVersion != null
+        ? `<span class="sidebar-version-label">Launcher Protocol</span><span class="sidebar-version-value">v${system.launcherProtocolVersion}</span>`
+        : "";
+      protoRow.style.display = system.launcherProtocolVersion != null ? "" : "none";
+      if (trackingProtoRow) {
+        trackingProtoRow.innerHTML = trackingProto != null
+          ? `<span class="sidebar-version-label">Tracking Protocol</span><span class="sidebar-version-value">v${trackingProto}</span>`
+          : "";
+        trackingProtoRow.style.display = trackingProto != null ? "" : "none";
+      }
+      if (compositingProtoRow) {
+        compositingProtoRow.innerHTML = compositingProto != null
+          ? `<span class="sidebar-version-label">Compositing Protocol</span><span class="sidebar-version-value">v${compositingProto}</span>`
+          : "";
+        compositingProtoRow.style.display = compositingProto != null ? "" : "none";
+      }
     }
   }
 }
@@ -568,6 +673,14 @@ function updateButtonStates() {
 
   const btn3 = document.getElementById("btn-3");
   if (btn3) btn3.disabled = true;
+}
+
+
+function batteryLevelClass(pct) {
+  if (pct <= 5)  return 'critical';
+  if (pct <= 10) return 'danger';
+  if (pct <= 20) return 'low';
+  return '';
 }
 
 // Updates the UI for the system widgets
@@ -619,7 +732,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   if (!knownSystem) return;
 
   // Polling commands update in place; everything else creates a new entry once the previous one resolves
-  const POLLING_COMMANDS = new Set(["isAlive", "tracking", "compositing", "getLauncherStatus", "getServerStatus", "getCompositingStatus"]);
+  const POLLING_COMMANDS = new Set(["tracking", "compositing", "getLauncherStatus", "getServerStatus", "getCompositingStatus"]);
 
   const entryKey = `${system.name}:${command}`;
   let logEntry = consoleEntries.get(entryKey);
@@ -642,6 +755,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
   // Reset and reapply classes on every update
   logEntry.className = "";
   logEntry.classList.add("log-entry", colorClass);
+  logEntry.style.setProperty('--sys-color', getSysColor(knownSystem));
   if (isOffline) logEntry.classList.add("unreachable");
   if (isPending) logEntry.classList.add("log-pending");
   if (severity === "success")  logEntry.classList.add("log-success");
@@ -671,7 +785,7 @@ function autoUpdateConsole(system, command, message, severity = "") {
 }
 
 // Changes color of system
-function changeTargetColor(systemName) {
+function changeTargetColor(_systemName) {
   // This function is no longer needed with the new UI
   // The device selector doesn't use color coding
   // Keeping it as a no-op for backwards compatibility
@@ -736,6 +850,7 @@ function renderSystems(systems) {
       if (c.startsWith("rig-")) card.classList.remove(c);
     });
     card.classList.add(system.colorClass);
+    card.style.setProperty('--sys-color', getSysColor(system));
 
     card.onclick = () => changeSystem(system.name);
 
@@ -743,21 +858,25 @@ function renderSystems(systems) {
     // DETECT WHAT CHANGED
     // =============================== 
     const prev = card._prevState || {};
-    const needsHeaderRebuild = 
+    const needsHeaderRebuild =
       !prev.name || prev.name !== system.name ||
       prev.ip !== system.ip ||
       prev.ports !== `${system.serverLauncherPort}-${system.deviceServerPort}-${system.compositingServerPort}` ||
       prev.isAlive !== isAlive ||
-      prev.currentSystem !== currentSystem;
+      prev.currentSystem !== currentSystem ||
+      prev.vruiVersion !== system.vruiVersion ||
+      prev.launcherProtocolVersion !== system.launcherProtocolVersion ||
+      prev.customColor !== system.customColor;
 
-    const needsServersRebuild = 
+    const needsServersRebuild =
       !prev.servers ||
       prev.servers.length !== (system.servers?.length || 0) ||
-      prev.servers.some((s, i) => 
+      prev.servers.some((s, i) =>
         !system.servers?.[i] ||
         s.name !== system.servers[i].name ||
         s.isRunning !== system.servers[i].isRunning ||
-        s.status !== system.servers[i].status
+        s.status !== system.servers[i].status ||
+        s.protocolVersion !== system.servers[i].protocolVersion
       );
 
     const needsDevicesRebuild = 
@@ -780,26 +899,41 @@ function renderSystems(systems) {
       prev.startupPhase !== system.startupPhase;
 
     // Check for battery-only changes (can be updated without rebuild)
-    const batteryOnlyChange = 
+    const batteryOnlyChange =
       !needsDevicesRebuild &&
       prev.devices?.some((d, i) => {
         const device = Object.values(system.devices || {})[i];
-        return device && d.battery !== device.battery;
+        return device && (d.battery !== device.battery || d.isCharging !== device.isCharging);
       });
 
     // =============================== 
     // FAST PATH: Update battery only
     // =============================== 
     if (batteryOnlyChange && card._sections.devices && !card._needsFullRebuild) {
-      Object.entries(system.devices || {}).forEach(([key, device], i) => {
+      Object.entries(system.devices || {}).forEach(([, device], i) => {
         if (device?.connected && device.hasBattery && device.battery >= 0) {
           const deviceItem = card._sections.devices.querySelectorAll('.device-item')[i];
           if (deviceItem) {
             const fill = deviceItem.querySelector('.battery-fill');
             const percent = deviceItem.querySelector('.battery-percent');
             if (fill && percent) {
+              const lvlClass = batteryLevelClass(device.battery);
+              const barTitle = device.isCharging ? `${device.battery}% — charging` : `${device.battery}% battery`;
               fill.style.width = `${device.battery}%`;
               percent.textContent = `${device.battery}%`;
+              fill.classList.toggle('charging', !!device.isCharging);
+              fill.classList.toggle('low',      lvlClass === 'low');
+              fill.classList.toggle('danger',   lvlClass === 'danger');
+              fill.classList.toggle('critical', lvlClass === 'critical');
+              const bar = fill.parentElement;
+              if (bar) {
+                bar.dataset.tooltip = barTitle;
+                bar.classList.toggle('charging', !!device.isCharging);
+                bar.classList.toggle('low',      lvlClass === 'low');
+                bar.classList.toggle('danger',   lvlClass === 'danger');
+                bar.classList.toggle('critical', lvlClass === 'critical');
+              }
+              percent.className = ['battery-percent', lvlClass].filter(Boolean).join(' ');
             }
           }
         }
@@ -814,6 +948,9 @@ function renderSystems(systems) {
         isConnected,
         currentSystem,
         colorClass: system.colorClass,
+        customColor: system.customColor,
+        vruiVersion: system.vruiVersion,
+        launcherProtocolVersion: system.launcherProtocolVersion,
         startupPhase: system.startupPhase,
         servers: system.servers?.map(s => ({
           name: s.name,
@@ -824,8 +961,10 @@ function renderSystems(systems) {
           key: k,
           name: d?.name,
           connected: d?.connected,
+          tracked: d?.tracked,
           battery: d?.battery,
-          hasBattery: d?.hasBattery
+          hasBattery: d?.hasBattery,
+          isCharging: d?.isCharging,
         }))
       };
       return;
@@ -844,19 +983,8 @@ function renderSystems(systems) {
       titleSection.className = "title-section";
 
       const labelSpan = document.createElement("span");
-      labelSpan.className = "system-title";
+      labelSpan.className = "system-title inactive-field";
       labelSpan.textContent = system.name;
-
-      if (system.name !== "localhost" && system.name === currentSystem) {
-        labelSpan.style.cursor = "pointer";
-        labelSpan.title = "Edit name";
-        labelSpan.onclick = e => {
-          e.stopPropagation();
-          showEditMenu(e, system, "name");
-        };
-      } else {
-        labelSpan.classList.add("inactive-field");
-      }
 
       if (!isAlive && !isPending) {
         const offline = document.createElement("span");
@@ -912,8 +1040,8 @@ function renderSystems(systems) {
         `;
         msg.onclick = e => {
           e.stopPropagation();
-          autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-          checkLauncherAlive(system);
+          autoUpdateConsole(system, "getServerStatus", "Attempting to contact launcher...");
+          getLauncherStatus(system);
         };
         msg.style.cursor = "pointer";
         msg.title = "Click to retry connection";
@@ -1014,7 +1142,7 @@ function renderSystems(systems) {
 		title.textContent = "Servers";
 		section.appendChild(title);
 
-		system.servers.forEach((server) => {
+		system.servers.forEach((server, index) => {
 		  const item = document.createElement("div");
 		  item.className = "server-item";
 
@@ -1029,13 +1157,29 @@ function renderSystems(systems) {
 
 		  // Create elements like devices
 		  const dot = document.createElement("span");
-		  dot.className = `status-dot ${statusClass}`;
+		  dot.className = `status-dot ${statusClass} sys-tooltip`;
+		  dot.dataset.tooltip = !server.isRunning ? "Stopped" : server.status === "online" ? "Online" : "Error";
 
 		  const name = document.createElement("span");
 		  name.className = "server-name";
 		  name.textContent = server.name;
 
 		  item.append(dot, name);
+
+		  // Restart button for compositing server when it's red/down, localhost only
+		  const isDown = statusClass === "status-error" || statusClass === "status-unknown";
+		  if (index === 1 && isDown && system.name === "localhost") {
+		    const restartBtn = document.createElement("button");
+		    restartBtn.className = "server-restart-btn sys-tooltip";
+		    restartBtn.dataset.tooltip = "Restart compositing server";
+		    restartBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+		    restartBtn.onclick = (e) => {
+		      e.stopPropagation();
+		      restartCompositingServer(system);
+		    };
+		    item.append(restartBtn);
+		  }
+
 		  section.appendChild(item);
 		});
 
@@ -1081,12 +1225,14 @@ function renderSystems(systems) {
 
 		  const dot = document.createElement("span");
 		  if (device.connected) {
-			  dot.className = device?.tracked 
-        ? "status-dot device-tracked" 
-        : "status-dot device-connected";
+			  dot.className = device?.tracked
+        ? "status-dot device-tracked sys-tooltip"
+        : "status-dot device-connected sys-tooltip";
+        dot.dataset.tooltip = device?.tracked ? "Tracked" : "Connected\n(not tracked)";
 		  }
 		  else {
-        dot.className = "status-dot device-disconnected";
+        dot.className = "status-dot device-disconnected sys-tooltip";
+        dot.dataset.tooltip = "Not connected";
 		  }
 
 		  const name = document.createElement("span");
@@ -1107,17 +1253,29 @@ function renderSystems(systems) {
 		  info.className = "device-info";
 
 		  if (device?.connected && device.hasBattery && device.battery >= 0) {
+			const lvlClass = batteryLevelClass(device.battery);
+			const barTitle = device.isCharging
+			  ? `${device.battery}% — charging`
+			  : `${device.battery}% battery`;
 			const bar = document.createElement("div");
-			bar.className = "battery-bar";
+			bar.className = ["battery-bar", device.isCharging ? "charging" : "", lvlClass].filter(Boolean).join(" ");
+			bar.dataset.tooltip = barTitle;
+			bar.classList.add("sys-tooltip");
 			const fill = document.createElement("div");
-			fill.className = "battery-fill";
+			fill.className = ["battery-fill", device.isCharging ? "charging" : "", lvlClass].filter(Boolean).join(" ");
 			fill.style.width = `${device.battery}%`;
 			bar.appendChild(fill);
 
-			info.append(bar, Object.assign(document.createElement("span"), {
+			const pct = Object.assign(document.createElement("span"), {
 			  textContent: `${device.battery}%`,
-			  className: "battery-percent"
-			}));
+			  className: "battery-percent" + (lvlClass ? ` ${lvlClass}` : ""),
+			});
+
+			if (device.isCharging) {
+			  info.append(bar, pct, makeBoltSvg());
+			} else {
+			  info.append(bar, pct);
+			}
 		  } else {
 			const statusText = document.createElement("span");
 			statusText.className = "device-status-text";
@@ -1198,18 +1356,24 @@ function renderSystems(systems) {
       isConnected,
       currentSystem,
       colorClass: system.colorClass,
+      customColor: system.customColor,
+      vruiVersion: system.vruiVersion,
+      launcherProtocolVersion: system.launcherProtocolVersion,
       startupPhase: system.startupPhase,
       servers: system.servers?.map(s => ({
         name: s.name,
         isRunning: s.isRunning,
-        status: s.status
+        status: s.status,
+        protocolVersion: s.protocolVersion,
       })) || [],
       devices: Object.entries(system.devices || {}).map(([k, d]) => ({
         key: k,
         name: d?.name,
         connected: d?.connected,
+        tracked: d?.tracked,
         battery: d?.battery,
-        hasBattery: d?.hasBattery
+        hasBattery: d?.hasBattery,
+        isCharging: d?.isCharging,
       }))
     };
     card._needsFullRebuild = false;
@@ -1242,7 +1406,7 @@ function renderSystems(systems) {
 }
 
 // Creates battery widgets a system
-function createBattery(system, label, percent, isConnected, isTracked, hasBattery) {
+function createBattery(system, label, percent, isConnected, _isTracked, hasBattery) {
   const row = document.createElement("div");
   row.className = "battery-row";
 
@@ -1256,7 +1420,7 @@ function createBattery(system, label, percent, isConnected, isTracked, hasBatter
   labelSpan.onclick = (e) => {
     e.stopPropagation();
 
-    // 🚀 Just use the label (which is the device key!)
+    // Just use the label (which is the device key!)
     const field = label;
 
     // console.log(`[DEBUG] label click → label='${label}', field='${field}'`);
@@ -1369,6 +1533,7 @@ function showEditMenu(e, system, field, popupWin = null) {
   if (field === "name" && !isLocal) {
 	// console.log("[DEBUG] Adding action: Rename");
 	available.push("Rename");
+	available.push("Change Color");
   } else if (field === "ipport") {
     available.push("Edit Connection");
   } else {
@@ -1421,6 +1586,9 @@ function showEditMenu(e, system, field, popupWin = null) {
         switch (action) {
           case "Rename":
             renameSystem(system);
+            break;
+          case "Change Color":
+            recolorSystem(system);
             break;
           case "Edit Connection":
             showEditConnectionModal(system);
@@ -1485,64 +1653,6 @@ function handleServerResponse(system, command, data) {
 	}
 }
 
-// Check if the VRServerLauncher daemon is reachable
-// Does NOT start any servers — just confirms the launcher is alive, then queries status
-function checkLauncherAlive(system) {
-  if (!system) return;
-
-  const endpoint = getServerLauncherEndpoint(system);
-
-  autoUpdateConsole(system, "isAlive", `Checking launcher at ${endpoint}...`);
-
-  fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "isAlive" }),
-  }, 8000)
-    .then((r) => r.json())
-    .then((data) => {
-      if (data?.isRunning === true) {
-        system.launcherAlive = true;
-        system.initialCheckRetried = false;
-        system.intentionallyShutdown = false;
-        system.lastSeen = Date.now();
-
-        autoUpdateConsole(system, "isAlive", "Launcher is alive");
-
-        // Fetch environments on first connect
-        getEnvironments(system);
-
-        // Check server states — only auto-start on localhost
-        const isLocal = system.name === "localhost";
-        getLauncherStatus(system, isLocal);
-      } else {
-        system.launcherAlive = false;
-        autoUpdateConsole(system, "isAlive", `Launcher responded but isRunning=${data?.isRunning}`, "error");
-      }
-
-      updateSystemUI(system);
-    })
-    .catch((err) => {
-      // On the very first failure, silently retry once before showing unreachable
-      if (system.launcherAlive === null && !system.initialCheckRetried) {
-        system.initialCheckRetried = true;
-        setTimeout(() => checkLauncherAlive(system), 2000);
-        return;
-      }
-
-      system.launcherAlive = false;
-
-      if (err.name === "AbortError") {
-        autoUpdateConsole(system, "isAlive", "Timed out contacting launcher (8s)", "error");
-      } else if (err.name === "TypeError" && err.message.includes("Failed to fetch")) {
-        autoUpdateConsole(system, "isAlive", "Network error - check if launcher is running and CORS is configured", "error");
-      } else {
-        autoUpdateConsole(system, "isAlive", `Failed to contact launcher: ${err.message}`, "error");
-      }
-
-      updateSystemUI(system);
-    });
-}
 
 // Sends a haptic tick command to the system
 function sendHapticTick(system, deviceName, featureIndex) {
@@ -1660,17 +1770,35 @@ function renameSystem(system) {
           activeSystems.delete(oldName);
           activeSystems.add(name);
         }
-        if (filterState.has(oldName)) {
-          filterState.delete(oldName);
-          filterState.add(name);
-        }
-
         system.name = name;
         saveSystemsToLocalStorage();
         updateInterface();
       }
     },
   });
+}
+
+function recolorSystem(system) {
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.value = getSysColor(system);
+  picker.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(picker);
+  picker.addEventListener('change', () => {
+    picker.remove();
+    const color = picker.value;
+    system.customColor = color;
+    saveSystemsToLocalStorage();
+    const prefix = `${system.name}:`;
+    consoleEntries.forEach((entry, key) => {
+      if (!key.startsWith(prefix)) return;
+      entry.style.setProperty('--sys-color', color);
+      const lbl = entry.querySelector('.label');
+      if (lbl && !entry.classList.contains('unreachable')) lbl.style.color = color;
+    });
+    updateInterface();
+  });
+  picker.click();
 }
 
 // Edit a system's connection details (IP and Launcher Port) in a single modal
@@ -1732,6 +1860,7 @@ function updateSystemWithJsonData(system, jsonData) {
 		orientation: device.trackerState?.rotation || [],
 		position: device.trackerState?.translation || [],
 		battery: device.batteryLevel != null ? device.batteryLevel : -1,
+		isCharging: !!device.isCharging,
 	  };
 
 	  // Save device by its name
@@ -1827,8 +1956,23 @@ function startLauncherServers(system) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "startServers" }),
   }, 5000)
-    .then(() => {
+    .then((r) => r.json())
+    .then((data) => {
       autoUpdateConsole(system, "startServers", "Start command sent to launcher.");
+      if (Array.isArray(data.servers)) {
+        system.servers = data.servers.map((srv, i) => ({
+          ...srv,
+          status: srv.isRunning ? 'checking...' : 'stopped',
+          lastStatus: system.servers?.[i]?.lastStatus ?? null,
+        }));
+        data.servers.forEach((srv, index) => {
+          if (srv.httpPort) {
+            if (index === 0) system.deviceServerPort = String(srv.httpPort);
+            else if (index === 1) system.compositingServerPort = String(srv.httpPort);
+          }
+        });
+        updateSystemUI(system);
+      }
     })
     .catch((err) => {
       if (err.name === "AbortError") {
@@ -1837,6 +1981,16 @@ function startLauncherServers(system) {
         autoUpdateConsole(system, "startServers", "Failed to contact launcher", "error");
       }
     });
+}
+
+// Restart the compositing server (index 1) by telling the launcher to start servers.
+// The launcher restarts any server that is not currently running/healthy.
+function restartCompositingServer(system) {
+  if (!system || system.name !== "localhost") return;
+  autoUpdateConsole(system, "compositing", "Restarting compositing server...");
+  startLauncherServers(system).then(() => {
+    setTimeout(() => pingServerStatus(system, 1, getCompositingServerEndpoint(system)), 1500);
+  });
 }
 
 // Stop VR Compositor and VRRunDeviceTracker
@@ -1851,8 +2005,19 @@ function stopLauncherServers(system) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "stopServers" }),
   }, 3000)
-    .then(() => {
+    .then((r) => r.json())
+    .then((data) => {
       autoUpdateConsole(system, "stopServers", "Stop command sent to launcher.");
+      if (Array.isArray(data.servers)) {
+        system.servers = data.servers.map((srv, i) => ({
+          ...srv,
+          status: 'stopped',
+          lastStatus: system.servers?.[i]?.lastStatus ?? null,
+        }));
+        system.connected = false;
+        system.serversRunning = false;
+        updateSystemUI(system);
+      }
     })
     .catch((err) => {
       if (err.name === "AbortError") {
@@ -1909,6 +2074,117 @@ function getEnvironments(system) {
         autoUpdateConsole(system, "getEnvironments", "Failed to fetch environments", "error");
       }
     });
+}
+
+// Subscribe to server-sent events from VRServerLauncher for real-time status updates.
+// The C++ server pushes "serverStatusUpdated" (on start / child crash) and
+// "serverStatusChanged" (on stop). On any event we do a full getLauncherStatus refresh.
+function subscribeToLauncherEvents(system) {
+  if (system.launcherEventSource) return; // already subscribed
+  if ((system.launcherProtocolVersion ?? 0) < 1) return; // old server — use polling
+
+  const url = getEventsEndpoint(system.ip, system.serverLauncherPort);
+  const es = new EventSource(url);
+  system.launcherEventSource = es;
+
+  es.onopen = () => {
+    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events connected — real-time push active`);
+  };
+
+  const handler = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (Array.isArray(data.servers)) {
+        system.servers = data.servers.map((srv, i) => ({
+          ...srv,
+          status: srv.isRunning ? 'checking...' : 'stopped',
+          lastStatus: system.servers?.[i]?.lastStatus ?? null,
+        }));
+        system.serversRunning = system.servers.every(s => s.isRunning);
+        updateSystemUI(system);
+      }
+    } catch (_) {}
+    getLauncherStatus(system);
+  };
+
+  es.addEventListener('serverStatusUpdated', handler);
+  es.addEventListener('serverStatusChanged', handler);
+
+  es.onerror = () => {
+    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events disconnected — falling back to polling`);
+    es.close();
+    system.launcherEventSource = null;
+  };
+}
+
+// Subscribe to server-sent events from VRDeviceServer for real-time device state changes.
+// Only used when the device server's protocolVersion >= 1.
+// When active, replaces periodic pingServerStatus calls for the device server (index 0).
+function subscribeToDeviceEvents(system) {
+  if (system.deviceEventSource) return;
+
+  const url = getEventsEndpoint(system.ip, system.deviceServerPort);
+  const es = new EventSource(url);
+  system.deviceEventSource = es;
+
+  es.onopen = () => {
+    stampHeard(); // reset silence clock so first poll doesn't immediately fire a spurious ping
+    autoUpdateConsole(system, "tracking", `[SSE] Device events connected — real-time push active`);
+  };
+
+  const stampHeard = () => { if (system.servers?.[0]) system.servers[0].lastHeardAt = Date.now(); };
+
+  es.addEventListener('deviceStateChanged', (e) => {
+    console.log(`[SSE deviceStateChanged] raw:`, e.data);
+    stampHeard();
+    try {
+      const device = JSON.parse(e.data);
+      if (!device?.name) {
+        console.warn(`[SSE deviceStateChanged] event has no name field`, device);
+        return;
+      }
+      const key = device.name.trim().toLowerCase();
+      console.log(`[SSE deviceStateChanged] key="${key}", known keys:`, Object.keys(system.devices ?? {}));
+      if (!system.devices?.[key]) {
+        console.warn(`[SSE deviceStateChanged] key "${key}" not found in system.devices`);
+        return;
+      }
+
+      const d = system.devices[key];
+      d.connected = !!device.isConnected;
+      d.tracked = !!device.isTracked;
+      d.hasBattery = !!device.hasBattery;
+      if (device.hasBattery) {
+        if (device.batteryLevel != null) d.battery = device.batteryLevel;
+        d.isCharging = !!device.isCharging;
+      }
+      updateSystemUI(system);
+    } catch (err) {
+      console.error(`[SSE deviceStateChanged] error processing event:`, err, e.data);
+    }
+  });
+
+  // Also catch any event type to see if the server is sending under a different name
+  es.onmessage = (e) => {
+    console.log(`[SSE onmessage] unnamed event:`, e.data);
+    stampHeard();
+  };
+
+  es.onerror = () => {
+    autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected — checking server status`);
+    es.close();
+    system.deviceEventSource = null;
+    if (system.servers?.[0]?.isRunning) {
+      pingServerStatus(system, 0, getDeviceServerEndpoint(system));
+      return;
+    }
+    if (system.servers?.[0]) {
+      system.servers[0].status = 'error';
+      system.servers[0].lastStatus = 'error';
+    }
+    system.connected = false;
+    updateSystemUI(system);
+  };
 }
 
 // Updates the environment dropdown UI based on the system's stored environments
@@ -2022,12 +2298,33 @@ function getLauncherStatus(system, autoStart = false) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 5000)
+  }, 8000)
     .then((r) => r.json())
     .then((data) => {
       if (!Array.isArray(data.servers)) {
+        system.launcherAlive = false;
         updateSystemUI(system);
         return;
+      }
+
+      // Mark launcher as reachable; fetch environments on first connect
+      const wasAlive = system.launcherAlive;
+      system.launcherAlive = true;
+      system.initialCheckRetried = false;
+      system.intentionallyShutdown = system.intentionallyShutdown && wasAlive === true;
+      system.lastSeen = Date.now();
+
+      // Store launcher metadata; default protocolVersion to 0 if absent (old server)
+      system.launcherProtocolVersion = data.protocolVersion ?? 0;
+      if (data.vruiVersion !== undefined && system.vruiVersion !== data.vruiVersion) {
+        system.vruiVersion = data.vruiVersion;
+        const launcherMode = system.launcherProtocolVersion >= 1 ? 'SSE' : 'polling';
+        autoUpdateConsole(system, "getServerStatus", `Vrui ${data.vruiVersion} — launcher protocol v${system.launcherProtocolVersion} (${launcherMode})`);
+      }
+
+      if (!wasAlive) {
+        getEnvironments(system);
+        subscribeToLauncherEvents(system);
       }
 
       // Store server info, preserving lastStatus to reduce log spam
@@ -2039,9 +2336,9 @@ function getLauncherStatus(system, autoStart = false) {
 
       // Update device/compositing ports from launcher response
       data.servers.forEach((srv, index) => {
-        if (srv.port) {
-          if (index === 0) system.deviceServerPort = String(srv.port);
-          else if (index === 1) system.compositingServerPort = String(srv.port);
+        if (srv.httpPort) {
+          if (index === 0) system.deviceServerPort = String(srv.httpPort);
+          else if (index === 1) system.compositingServerPort = String(srv.httpPort);
         }
       });
 
@@ -2083,9 +2380,9 @@ function getLauncherStatus(system, autoStart = false) {
         }
 
         if (srv.isRunning) {
-          const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
-          const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-          const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
+          const serverEndpoint = index === 0
+            ? getDeviceServerEndpoint(system)
+            : getCompositingServerEndpoint(system);
           pingServerStatus(system, index, serverEndpoint);
         } else {
           if (system.servers[index]) {
@@ -2097,11 +2394,33 @@ function getLauncherStatus(system, autoStart = false) {
       updateSystemUI(system);
     })
     .catch((err) => {
-      if (err.name === "AbortError") {
-        autoUpdateConsole(system, "getLauncherStatus", "Timed out contacting launcher", "error");
-      } else {
-        autoUpdateConsole(system, "getLauncherStatus", "Failed to contact launcher — connection error", "error");
+      // On the very first failure, silently retry once before showing unreachable
+      if (system.launcherAlive === null && !system.initialCheckRetried) {
+        system.initialCheckRetried = true;
+        setTimeout(() => getLauncherStatus(system), 2000);
+        return;
       }
+
+      system.launcherAlive = false;
+
+      if (system.launcherEventSource) {
+        system.launcherEventSource.close();
+        system.launcherEventSource = null;
+      }
+      if (system.deviceEventSource) {
+        system.deviceEventSource.close();
+        system.deviceEventSource = null;
+      }
+
+      if (err.name === "AbortError") {
+        autoUpdateConsole(system, "getServerStatus", "Timed out contacting launcher (8s)", "error");
+      } else if (err.name === "TypeError" && err.message.includes("Failed to fetch")) {
+        autoUpdateConsole(system, "getServerStatus", "Network error - check if launcher is running and CORS is configured", "error");
+      } else {
+        autoUpdateConsole(system, "getServerStatus", `Failed to contact launcher: ${err.message}`, "error");
+      }
+
+      updateSystemUI(system);
     });
 }
 
@@ -2132,8 +2451,7 @@ function startAndCheckServers(system) {
 
     const waitForDeviceServer = () => {
       attempts++;
-      const devicePort = system.deviceServerPort;
-      const deviceEndpoint = `http://${system.ip}:${devicePort}/${deviceServerUrl}`;
+      const deviceEndpoint = getDeviceServerEndpoint(system);
 
       fetchWithTimeout(deviceEndpoint, {
         method: "POST",
@@ -2195,7 +2513,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
   }
 
   const serverName = system.servers[serverIndex].name;
-  console.log(`🔔 Pinging ${serverName} at ${endpoint} with command=getServerStatus`);
+  console.log(`Pinging ${serverName} at ${endpoint} with command=getServerStatus`);
 
   fetchWithTimeout(endpoint, {
     method: "POST",
@@ -2203,11 +2521,11 @@ function pingServerStatus(system, serverIndex, endpoint) {
     body: new URLSearchParams({ command: "getServerStatus" }),
   }, 3000)
     .then((r) => {
-      console.log(`✅ ${serverName} responded with status ${r.status}`);
+      console.log(`${serverName} responded with status ${r.status}`);
       return r.json();
     })
     .then((data) => {
-      console.log(`📦 ${serverName} data:`, data);
+      console.log(`${serverName} data:`, data);
       
       // Re-check that server still exists (array might have changed)
       if (!system.servers || !system.servers[serverIndex]) {
@@ -2218,10 +2536,19 @@ function pingServerStatus(system, serverIndex, endpoint) {
       if (data?.status === "Success") {
         system.servers[serverIndex].status = 'online';
         system.servers[serverIndex].isRunning = true;
+        system.servers[serverIndex].lastHeardAt = Date.now();
+        system.servers[serverIndex].sseSilenceLogged = false;
+
+        // Store the server's own protocol version (default 0 if absent)
+        const serverProto = data.protocolVersion ?? 0;
+        system.servers[serverIndex].protocolVersion = serverProto;
 
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
-          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} is online`);
+          const transport = serverIndex === 0
+            ? (serverProto >= 1 ? 'SSE' : 'polling')
+            : 'polling';
+          autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} online — protocol v${serverProto} (${transport})`);
           system.servers[serverIndex].lastStatus = 'online';
         }
 
@@ -2234,6 +2561,11 @@ function pingServerStatus(system, serverIndex, endpoint) {
         if (serverIndex === 0) {
           system.connected = true;
           activeSystems.add(system.name);
+
+          // Subscribe to device SSE if protocol supports it and we're not already subscribed
+          if (serverProto >= 1 && !system.deviceEventSource) {
+            subscribeToDeviceEvents(system);
+          }
 
           // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
@@ -2278,7 +2610,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
         system.isConnecting = false;
       }
 
-      console.error(`❌ ${serverName} failed:`, err.name, err.message);
+      console.error(`${serverName} failed:`, err.name, err.message);
 
       system.servers[serverIndex].status = 'offline';
       if (system.servers[serverIndex].lastStatus !== 'offline') {
@@ -2406,33 +2738,30 @@ function clearConsoleMessages() {
 }
 
 // Resets the chat filter
-function resetFilterCheckboxes(systems) {
-  filterState.clear();
-  systems.forEach((d) => filterState.add(d.name));
-  updateFilterMenu();
-}
+function updateFilterMenu() { /* no-op — replaced by toggle */ }
+function resetFilterCheckboxes() { /* no-op — replaced by toggle */ }
 
-// Add clickable boxes for the filter toggles
 document.getElementById("filterToggle").addEventListener("click", (e) => {
-  e.stopPropagation(); // Prevent click from bubbling to document
-  const menu = document.getElementById("filterMenu");
-  menu.style.display = menu.style.display === "block" ? "none" : "block";
+  e.stopPropagation();
+  filterAllSystems = !filterAllSystems;
+  updateFilterToggleUI();
+  applyConsoleFilter();
 });
 
-// Close filter menu when clicking outside
-document.addEventListener("click", (e) => {
-  const filterMenu = document.getElementById("filterMenu");
-  const filterToggle = document.getElementById("filterToggle");
-  
-  // Close filter menu if clicking outside of it and the toggle button
-  if (filterMenu && 
-      filterMenu.style.display === "block" && 
-      !filterMenu.contains(e.target) && 
-      !filterToggle.contains(e.target)) {
-    filterMenu.style.display = "none";
+function updateFilterToggleUI() {
+  const btn = document.getElementById("filterToggle");
+  if (!btn) return;
+  if (filterAllSystems) {
+    btn.dataset.tooltip = "All systems";
+    btn.classList.remove("active");
+  } else {
+    const name = currentSystem || "selected";
+    btn.dataset.tooltip = `${name} only`;
+    btn.classList.add("active");
   }
-  
-  // Close action menu (existing behavior)
+}
+
+document.addEventListener("click", (e) => {
   const actionMenu = document.getElementById("actionMenu");
   if (actionMenu.classList.contains("visible")) {
     actionMenu.classList.remove("visible");
@@ -2440,80 +2769,26 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Updates the chat filter menu
-// Update updateFilterMenu to ONLY add known systems
-function updateFilterMenu() {
-  const menu = document.getElementById("filterMenu");
-  menu.innerHTML = "";
-
-  // Only add checkboxes for actual systems in allSystems
-  allSystems.forEach((system) => {
-    const label = document.createElement("label");
-    label.className = `filter-option ${system.colorClass} ${system.launcherAlive ? "connected" : "disconnected"}`;
-
-    const labelText = document.createElement("span");
-    labelText.className = "label-text";
-    labelText.textContent = system.name;
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = system.name;
-    checkbox.checked = filterState.has(system.name);
-
-    checkbox.onchange = () => {
-      if (checkbox.checked) {
-        filterState.add(system.name);
-      } else {
-        filterState.delete(system.name);
-      }
-      applyConsoleFilter();
-    };
-
-    label.appendChild(labelText);
-    label.appendChild(checkbox);
-    menu.appendChild(label);
-
-    // Ensure it's tracked by default
-    if (!filterState.has(system.name)) {
-      filterState.add(system.name);
-    }
-  });
-  
-  // No "Other" option anymore - completely removed
-}
-
-// Filters chat based on filter menu
-// Update applyConsoleFilter to only handle known systems
-// Update applyConsoleFilter to only handle known systems
 function applyConsoleFilter() {
+  updateFilterToggleUI(); // keep tooltip in sync with currentSystem
   const entries = document.querySelectorAll(".log-entry");
   let visibleCount = 0;
 
   entries.forEach((entry) => {
     const label = entry.querySelector(".label");
     if (!label) return;
-
     const name = label.textContent.trim();
-    
-    // Only show if it's a known system AND it's in the filter
-    const shouldShow = filterState.has(name);
-
+    const shouldShow = filterAllSystems || name === currentSystem;
     entry.style.display = shouldShow ? "block" : "none";
     if (shouldShow) visibleCount++;
   });
 
-  // Update empty state message
   const consoleBox = document.getElementById("consoleOutput");
   const isEmpty = visibleCount === 0;
-
   if (isEmpty) {
-    const existing = consoleBox.querySelector(".log-empty");
-    if (!existing) {
-      logEmpty(consoleBox);
-    }
+    if (!consoleBox.querySelector(".log-empty")) logEmpty(consoleBox);
   } else {
-    const existing = consoleBox.querySelector(".log-empty");
-    if (existing) existing.remove();
+    consoleBox.querySelector(".log-empty")?.remove();
   }
 }
 
@@ -2533,12 +2808,159 @@ function updateInterface() {
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
+// ============================================================
+//   CONSOLE TABS
+// ============================================================
+
+let activeConsolePane = "console"; // "console" | "logfile"
+
+function initConsoleTabs() {
+  const tabBar = document.getElementById("consoleTabBar");
+  if (!tabBar) return;
+
+  // Apply left/right positioning
+  tabBar.classList.toggle("tabs-right", !CONSOLE_TABS_LEFT);
+
+  // Seed example log content
+  _seedExampleLog();
+
+  document.getElementById("consoleTabs").addEventListener("click", (e) => {
+    const tab = e.target.closest(".console-tab");
+    if (!tab) return;
+    switchConsoleTab(tab.dataset.pane);
+  });
+
+  // Console search
+  document.getElementById("consoleSearchToggle")?.addEventListener("click", () => {
+    _toggleSearchBar("consoleSearchBar", "consoleSearchInput");
+  });
+  document.getElementById("consoleSearchInput")?.addEventListener("input", (e) => {
+    _filterEntries("#consoleOutput .log-entry", e.target.value);
+  });
+
+  // Log file search — always-visible bottom bar, wire input directly
+  document.getElementById("logSearchInput")?.addEventListener("input", (e) => {
+    _filterEntries("#logFileOutput .log-line", e.target.value);
+  });
+}
+
+function _toggleSearchBar(barId, inputId) {
+  const bar = document.getElementById(barId);
+  const input = document.getElementById(inputId);
+  const opening = bar.style.display === "none";
+  bar.style.display = opening ? "" : "none";
+  bar.closest('.console-pane')?.querySelector('.console-pane-actions')
+    ?.classList.toggle('search-open', opening);
+  if (opening) {
+    input.focus();
+  } else {
+    input.value = "";
+    _filterEntries(barId === "consoleSearchBar" ? "#consoleOutput .log-entry" : "#logFileOutput .log-line", "");
+  }
+}
+
+function _filterEntries(selector, query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll(selector).forEach(el => {
+    el.style.display = !q || el.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+}
+
+function clearConsoleSearch() {
+  document.getElementById("consoleSearchInput").value = "";
+  _filterEntries("#consoleOutput .log-entry", "");
+  const bar = document.getElementById("consoleSearchBar");
+  bar.style.display = "none";
+  bar.closest('.console-pane')?.querySelector('.console-pane-actions')
+    ?.classList.remove('search-open');
+}
+
+function clearLogSearch() {
+  document.getElementById("logSearchInput").value = "";
+  _filterEntries("#logFileOutput .log-line", "");
+}
+
+function switchConsoleTab(pane) {
+  activeConsolePane = pane;
+  document.querySelectorAll(".console-tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.pane === pane);
+  });
+  document.getElementById("consolePaneConsole").style.display = pane === "console" ? "" : "none";
+  document.getElementById("consolePaneLogfile").style.display = pane === "logfile" ? "" : "none";
+}
+
+// Load log content into the log file pane.
+// Call this when a server log becomes available:
+//   loadLogFile("VRDeviceServer", "2024-03-01T12:00:00", rawText)
+// Load log content into the log file pane.
+// Call this when a server log becomes available:
+//   loadLogFile("VRDeviceServer", "2024-03-01T12:00:00", rawText)
+function loadLogFile(serverName, timestamp, rawText) {
+  const output = document.getElementById("logFileOutput");
+  if (!output) return;
+  const source = document.getElementById("logFileSourceLabel");
+  if (source) source.textContent = `${serverName}  —  ${timestamp}`;
+  output.innerHTML = "";
+  rawText.trim().split("\n").forEach(line => {
+    const el = document.createElement("div");
+    el.className = "log-line " + _logLineClass(line);
+    el.textContent = line;
+    output.appendChild(el);
+  });
+  output.scrollTop = output.scrollHeight;
+  // Re-apply active search if any
+  const q = document.getElementById("logSearchInput")?.value ?? "";
+  if (q) _filterEntries("#logFileOutput .log-line", q);
+}
+
+function refreshLogFile() {
+  // TODO: fetch current log from active server
+  // loadLogFile(serverName, new Date().toISOString(), fetchedText);
+}
+
+function _logLineClass(line) {
+  const l = line.toLowerCase();
+  if (l.includes("error") || l.includes("fatal")) return "log-error";
+  if (l.includes("warn"))  return "log-warn";
+  if (l.includes("debug")) return "log-debug";
+  return "";
+}
+
+function _seedExampleLog() {
+  const lines = [
+    "[2025-03-14 09:00:01.042] INFO  VRDeviceServer starting up",
+    "[2025-03-14 09:00:01.103] INFO  Loading configuration from /etc/vrui/VRDeviceServer.cfg",
+    "[2025-03-14 09:00:01.187] INFO  Protocol version: 1",
+    "[2025-03-14 09:00:01.210] INFO  Listening on port 8080",
+    "[2025-03-14 09:00:01.312] INFO  Registered device: HMD (Vive Pro 2)",
+    "[2025-03-14 09:00:01.318] INFO  Registered device: Controller_L",
+    "[2025-03-14 09:00:01.321] INFO  Registered device: Controller_R",
+    "[2025-03-14 09:00:02.001] INFO  Client connected from 192.168.1.10:54321",
+    "[2025-03-14 09:00:02.015] DEBUG Sending initial device state snapshot (3 devices)",
+    "[2025-03-14 09:00:04.500] WARN  Controller_L battery low: 18%",
+    "[2025-03-14 09:00:04.612] INFO  deviceStateChanged: Controller_L battery=18 charging=false",
+    "[2025-03-14 09:00:09.003] DEBUG Heartbeat OK",
+    "[2025-03-14 09:00:12.771] INFO  deviceStateChanged: HMD battery=92 charging=true",
+    "[2025-03-14 09:00:19.003] DEBUG Heartbeat OK",
+    "[2025-03-14 09:00:31.440] ERROR Failed to read tracker pose — retrying (1/3)",
+    "[2025-03-14 09:00:31.591] ERROR Failed to read tracker pose — retrying (2/3)",
+    "[2025-03-14 09:00:31.744] INFO  Tracker pose recovered",
+    "[2025-03-14 09:00:35.003] DEBUG Heartbeat OK",
+    "[2025-03-14 09:00:41.200] INFO  Client disconnected gracefully",
+    "[2025-03-14 09:00:41.205] INFO  Waiting for next connection...",
+  ];
+  loadLogFile("VRDeviceServer (example)", "2025-03-14 09:00:01", lines.join("\n"));
+}
+
 // Initial Events on Page Load
 document.addEventListener("DOMContentLoaded", () => {
   // Clear console on every page load
   const consoleOutput = document.getElementById("consoleOutput");
   if (consoleOutput) consoleOutput.innerHTML = "";
   consoleEntries.clear();
+
+  initConsoleTabs();
+  updateFilterToggleUI();
 
   // Hide logo if showLogo is false
   if (!showLogo) {
@@ -2556,6 +2978,7 @@ document.addEventListener("DOMContentLoaded", () => {
       serverLauncherPort: d.serverLauncherPort,
       deviceServerPort: d.deviceServerPort,
       compositingServerPort: d.compositingServerPort,
+      customColor: d.customColor || null,
       connected: false,
       launcherAlive: null,
       servers: [],
@@ -2616,9 +3039,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize dark mode toggle
   initDarkModeToggle();
   
-  // Check if launcher is alive for all systems on page load
+  // Fetch server status for all systems on page load
   allSystems.forEach((system) => {
-    checkLauncherAlive(system);
+    getLauncherStatus(system);
   });
 });
 
@@ -2637,7 +3060,8 @@ setInterval(() => {
     // If launcher is alive but no servers are running, or some servers are still
     // reported as stopped, re-check launcher status so stale isRunning flags get refreshed
     if (hasServers && (!anyRunning || !system.serversRunning)) {
-      getLauncherStatus(system);
+      // Skip if launcher SSE is active — it will push status changes to us
+      if (!system.launcherEventSource) getLauncherStatus(system);
       return;
     }
 
@@ -2645,16 +3069,40 @@ setInterval(() => {
     if (hasServers) {
       system.servers.forEach((srv, index) => {
         if (srv.isRunning) {
-          const port = srv.port || (index === 0 ? system.deviceServerPort : system.compositingServerPort);
-          const serverUrl = index === 0 ? deviceServerUrl : compositingServerUrl;
-          const serverEndpoint = `http://${system.ip}:${port}/${serverUrl}`;
-
+          // Skip device server ping if SSE is active and heard from recently
+          if (index === 0 && system.deviceEventSource) {
+            const silentMs = Date.now() - (srv.lastHeardAt ?? 0);
+            if (silentMs < 60000) {
+              srv.sseSilenceLogged = false; // reset flag when SSE is healthy
+              return;
+            }
+            if (!srv.sseSilenceLogged) {
+              autoUpdateConsole(system, "tracking", `[SSE] No data in ${Math.round(silentMs / 1000)}s — pinging to verify`);
+              srv.sseSilenceLogged = true;
+            }
+          }
+          const serverEndpoint = index === 0
+            ? getDeviceServerEndpoint(system)
+            : getCompositingServerEndpoint(system);
           pingServerStatus(system, index, serverEndpoint);
         }
       });
     }
   });
 }, getServerStatusInterval); // every certain amount of seconds
+
+if (TEST_BATTERY) {
+  setInterval(() => {
+    allSystems.forEach(system => {
+      if (!system.devices) return;
+      Object.values(system.devices).forEach(d => {
+        if (d.battery == null) return;
+        d.battery = Math.max(0, d.battery - 5);
+      });
+      updateSystemUI(system);
+    });
+  }, 1000);
+}
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -2812,13 +3260,14 @@ function openMiniMonitor() {
   const currentTheme =
     document.documentElement.getAttribute("data-theme") || "light";
 
-  miniMonitorPopup.document.write(`
-    <!DOCTYPE html>
-    <html lang="en" data-theme="${currentTheme}">
+  miniMonitorPopup.document.documentElement.lang = "en";
+  miniMonitorPopup.document.documentElement.setAttribute("data-theme", currentTheme);
+  const cssBase = new URL('css/main.css', window.location.href).href;
+  miniMonitorPopup.document.documentElement.innerHTML = `
     <head>
       <meta charset="UTF-8">
       <title>Vrui Monitor</title>
-      <link rel="stylesheet" href="css/main.css">
+      <link rel="stylesheet" href="${cssBase}">
       <style>
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -2844,8 +3293,8 @@ function openMiniMonitor() {
           flex-wrap: nowrap;
           gap: 16px;
           padding: 12px 16px 12px 12px;
-          overflow-x: hidden;
-          overflow-y: hidden;
+          overflow-x: auto;
+          overflow-y: visible;
           align-items: stretch;
           min-height: 0;
           scrollbar-width: thin;
@@ -2898,13 +3347,8 @@ function openMiniMonitor() {
     <body>
       <div id="popupActionMenu" class="action-menu hidden"></div>
       <div class="mini-monitor-container" id="miniContainer"></div>
-      <script>
-        window._miniMonitorReady = true;
-      </script>
     </body>
-    </html>
-  `);
-  miniMonitorPopup.document.close();
+  `;
 
   // Wait for popup DOM to be ready, then start syncing
   const waitForReady = setInterval(() => {
@@ -2912,7 +3356,7 @@ function openMiniMonitor() {
       clearInterval(waitForReady);
       return;
     }
-    if (miniMonitorPopup._miniMonitorReady) {
+    if (miniMonitorPopup.document.getElementById("miniContainer")) {
       clearInterval(waitForReady);
       syncMiniMonitor();
       miniMonitorSyncId = setInterval(syncMiniMonitor, 400);
@@ -2968,6 +3412,9 @@ function syncMiniMonitor() {
         existing.innerHTML = srcCard.innerHTML;
       }
       existing.className = srcCard.className;
+      // Sync inline CSS custom properties (e.g. --sys-color set by renderSystems)
+      const sysColor = srcCard.style.getPropertyValue('--sys-color');
+      if (sysColor) existing.style.setProperty('--sys-color', sysColor);
     } else {
       const clone = srcCard.cloneNode(true);
       target.appendChild(clone);
@@ -2999,8 +3446,8 @@ function rebindMiniMonitorHandlers(container) {
       e.stopPropagation();
       const system = allSystems.find((s) => s.name === systemName);
       if (system) {
-        autoUpdateConsole(system, "isAlive", "Attempting to contact launcher...");
-        checkLauncherAlive(system, true);
+        autoUpdateConsole(system, "getServerStatus", "Attempting to contact launcher...");
+        getLauncherStatus(system, true);
       }
     };
     const connectIcon = card.querySelector(".connect-btn-wrap");

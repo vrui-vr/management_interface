@@ -9,34 +9,80 @@
   <body>
     <div id="actionMenu" class="action-menu hidden"></div>
 
-    <div class="sidebar">
-      <!-- Sidebar Header with Logo, Title, and Theme Toggle -->
-      <div class="sidebar-header">
-        <div class="sidebar-header-left">
-          <a href="https://Vrui-vr.github.io/" target="_blank" rel="noopener" id="Vrui-logo-link">
-            <img
-              src="images/vruilogo.jpg"
-              alt="Vrui Logo"
-              class="sidebar-logo"
-            />
-          </a>
-          <div class="sidebar-title-group">
-            <h2 class="sidebar-title">Vrui Management Interface</h2>
-            <a href="https://Vrui-vr.github.io/" target="_blank" rel="noopener" class="sidebar-docs-link">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
-              </svg>
-              Documentation
-            </a>
-          </div>
-        </div>
+    <!-- Top bar -->
+    <div class="topbar">
+      <a href="https://Vrui-vr.github.io/" target="_blank" rel="noopener" id="Vrui-logo-link">
+        <img src="images/vruilogo.jpg" alt="Vrui Logo" class="sidebar-logo topbar-logo" />
+      </a>
+      <h2 class="topbar-title">Vrui Management Interface</h2>
+      <div class="topbar-end">
+        <button class="theme-toggle topbar-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="theme-icon sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg class="theme-icon moon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="https://Vrui-vr.github.io/" target="_blank" rel="noopener" class="topbar-docs-link" title="Documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/>
+          </svg>
+          Docs
+        </a>
       </div>
+    </div>
+
+    <!-- Main app row -->
+    <div class="app-body">
+    <div class="sidebar">
 
       <!-- Active system display -->
       <div class="sidebar-target">
-        <div class="sidebar-target-name" id="currentSystemName">localhost</div>
-        <div class="sidebar-target-info" id="currentSystemInfo">—</div>
+        <div class="sidebar-target-text">
+          <div class="sidebar-edit-row">
+            <div class="sidebar-target-name" id="currentSystemName">localhost</div>
+            <button id="sidebarNamePencil" class="sidebar-edit-pencil hidden" aria-label="Edit name">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="sidebar-edit-row">
+            <div class="sidebar-target-info" id="currentSystemInfo">—</div>
+            <button id="sidebarInfoPencil" class="sidebar-edit-pencil hidden" aria-label="Edit connection">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button id="sidebarPaletteBtn" class="sidebar-palette-btn hidden" aria-label="Change system color">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+          </svg>
+        </button>
       </div>
+
+      <!-- Version info (shown when launcher is connected) -->
+      <div class="sidebar-section-divider"></div>
+      <div id="sidebarVersionInfo" class="sidebar-version-info" style="display:none;">
+        <div class="sidebar-version-row" id="sidebarVruiVersion"></div>
+        <div class="sidebar-version-row" id="sidebarLauncherProtocol"></div>
+        <div class="sidebar-version-row sidebar-version-row-secondary" id="sidebarTrackingProtocol"></div>
+        <div class="sidebar-version-row sidebar-version-row-secondary" id="sidebarCompositingProtocol"></div>
+      </div>
+      <div class="sidebar-section-divider"></div>
 
       <!-- Environment selector (hidden when no environments available) -->
       <div class="environment-selector" id="environmentSelector" style="display: none;">
@@ -110,22 +156,6 @@
 
     <div class="main">
       <div class="system-section-wrapper">
-        <button class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-          <svg class="theme-icon sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-          <svg class="theme-icon moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
         <button class="mini-monitor-btn" onclick="openMiniMonitor()" title="Detach monitor">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -136,39 +166,58 @@
         <div class="system-section" id="systemContainer"></div>
       </div>
       <div class="console-section">
-        <div class="console-header">
-          <h3>Console</h3>
-          <div class="console-filter">
-            <button id="filterToggle" class="filter-toggle">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="4" y1="21" x2="4" y2="14"></line>
-                <line x1="4" y1="10" x2="4" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12" y2="3"></line>
-                <line x1="20" y1="21" x2="20" y2="16"></line>
-                <line x1="20" y1="12" x2="20" y2="3"></line>
-                <line x1="1" y1="14" x2="7" y2="14"></line>
-                <line x1="9" y1="8" x2="15" y2="8"></line>
-                <line x1="17" y1="16" x2="23" y2="16"></line>
-              </svg>
-              Filter
-            </button>
-            <div id="filterMenu" class="filter-menu">
-              <!-- Dynamically filled with checkboxes -->
-            </div>
+        <div class="console-tab-bar" id="consoleTabBar">
+          <div class="console-tabs" id="consoleTabs">
+            <button class="console-tab active" data-pane="console">Console</button>
+            <button class="console-tab" data-pane="logfile">Log File</button>
           </div>
         </div>
-        <div id="consoleOutput" class="console-box"></div>
-        <div id="commandPrompt">
-          <input
-            type="text"
-            id="commandInput"
-            placeholder="Enter command (e.g. reset)"
-          />
-          <button onclick="sendConsoleCommand()">Send</button>
+
+        <!-- Console pane -->
+        <div class="console-pane" id="consolePaneConsole">
+          <div class="console-pane-actions">
+            <button class="console-float-btn" id="consoleSearchToggle" aria-label="Search console">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
+            <button id="filterToggle" class="console-float-btn sys-tooltip tooltip-down tooltip-right" aria-label="Filter" data-tooltip="All systems">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 3H2l8 9.46V19l4 2V12.46L22 3z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="console-search-bar" id="consoleSearchBar" style="display:none;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.5">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="consoleSearchInput" placeholder="Search console..." autocomplete="off" />
+            <button class="console-search-clear" onclick="clearConsoleSearch()">×</button>
+          </div>
+          <div id="consoleOutput" class="console-box"></div>
+          <div id="commandPrompt">
+            <input type="text" id="commandInput" placeholder="Enter command (e.g. reset)" />
+            <button onclick="sendConsoleCommand()">Send</button>
+          </div>
+        </div>
+
+        <!-- Log file pane -->
+        <div class="console-pane" id="consolePaneLogfile" style="display:none;">
+          <div class="log-file-header" id="logFileSource">
+            <span id="logFileSourceLabel"></span>
+          </div>
+          <div id="logFileOutput" class="console-box log-file-box"></div>
+          <div class="log-search-prompt">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.45">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="logSearchInput" placeholder="Search log..." autocomplete="off" />
+            <button class="console-search-clear" onclick="clearLogSearch()">×</button>
+          </div>
         </div>
       </div>
     </div>
+    </div><!-- /.app-body -->
     <script src="js/main.js"></script>
   </body>
 </html>
