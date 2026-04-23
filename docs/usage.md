@@ -13,6 +13,8 @@ The top bar spans the full width and contains:
 
 Each configured system gets its own color-coded card in the main area.
 
+![System card — connected](../images/system-card-connected.png)
+
 **What each card shows:**
 
 - System name and connection status
@@ -28,6 +30,8 @@ Each configured system gets its own color-coded card in the main area.
 | Edit IP / port | Click the IP address or pencil icon in the sidebar |
 | Start servers | Click the power button (appears when servers are stopped) |
 | Remove | Click × in the card header |
+
+![Edit system menu](../images/edit-system-menu.png)
 
 > [!NOTE]
 > The **localhost** system cannot be removed. Server start/stop controls are only available on localhost — remote systems are monitor-only.
@@ -51,9 +55,13 @@ Click any device row to open an action menu:
 - **Ping** — send a haptic vibration to physically locate the device
 - **Power off** — shut down the device (if the hardware supports it)
 
+![Device controls](../images/device-controls.png)
+
 These actions work for both localhost and remote systems.
 
 ## Sidebar
+
+![Sidebar](../images/sidebar.png)
 
 The sidebar reflects the currently selected system.
 
@@ -79,6 +87,8 @@ When the launcher returns a list of VR environments, a dropdown appears. Selecti
 Click the **palette icon** in the sidebar to change the accent color for the selected system. The color picker opens immediately — pick a color and confirm in the native dialog. The color is saved and will persist on the next page load.
 
 ## Console
+
+![Console](../images/console.png)
 
 The console area at the bottom has two tabs:
 
@@ -109,6 +119,8 @@ Displays the log file from the most recently connected server. Supports inline s
 ## Mini Monitor
 
 Click the **monitor icon** (top-right of the system cards area) to pop out a detachable window that mirrors all system cards. Useful for a secondary display. The mini monitor respects the current theme.
+
+![Mini Monitor](../images/mini-monitor.png)
 
 ## Default Ports
 
