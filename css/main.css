@@ -3064,11 +3064,12 @@ h6 {
   flex-shrink: 0;
 }
 
+
 #commandInput {
   flex: 1;
   padding: 5px 10px;
   font-size: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--border)), transparent 50%);
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
   color: var(--text-dark);
@@ -3077,12 +3078,8 @@ h6 {
   outline: none;
 }
 
-#commandInput:hover {
-  border-color: var(--text-secondary);
-}
-
 #commandInput:focus {
-  border-color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--sys-color, var(--border)), transparent 50%);
   background: var(--bg-white);
   box-shadow: 0 0 0 3px var(--rig-0-bg);
 }
