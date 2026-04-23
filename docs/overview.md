@@ -2,27 +2,25 @@
 
 The **Vrui Management Interface** is a browser-based dashboard for managing VR systems running the [Vrui](https://vrui-vr.github.io/) software stack.
 
-![Dashboard Overview](../images/dashboard-overview.png)
-
 ## What You Can Do
 
 - **Manage multiple VR systems** from one screen
 - **Monitor devices** in real time — battery, tracking, and connection status
 - **Control VR servers** — start, stop, and load environments remotely
 - **Interact with hardware** — ping devices with haptic feedback, power them off
-- **Send commands** via a live console
+- **Send commands** via a live console with command history
 
 ## Quick Start
 
 > [!NOTE]
 > Vrui must be installed and built (`Make.sh`) before the interface can talk to any system.
 
-1. Launch the interface using the **desktop shortcut**, or open `index.html` directly in any browser
-2. A default **Local Host** system is created automatically
-3. Add more systems with the **+** button
-4. The interface polls each system every 3 seconds
+1. Open `index.html` directly in any browser
+2. A default **localhost** system is created automatically pointing to `127.0.0.1:8080`
+3. Add remote systems with the **+** button
+4. The interface connects immediately and switches to real-time push (SSE) once the server supports it
 
-No build tools or servers required.
+No build tools or servers required — the browser talks directly to the Vrui C++ backend.
 
 ## System States
 
@@ -30,21 +28,44 @@ Each system card shows one of three states:
 
 | State | What It Means |
 |-------|---------------|
-| **Connected** | Launcher alive and servers running (system color) |
-| **Disconnected** | Launcher alive but servers stopped (muted) |
-| **Unreachable** | Can't contact launcher (red) |
+| **Connected** | Launcher alive and servers running — full system color |
+| **Disconnected** | Launcher alive but servers stopped — muted color |
+| **Unreachable** | Can't contact launcher — red |
+
+## Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  [Logo]  Vrui Management Interface          [☀/☾] [Docs] │  ← Top bar
+├──────────────┬──────────────────────────────────────────┤
+│              │  [ System Card ]  [ System Card ]  ...   │
+│   Sidebar    │                                          │
+│  (selected   │                                          │
+│   system)    ├──────────────────────────────────────────┤
+│              │  Console  │  Log File                    │
+│              │  ─────────────────────────────────────── │
+│              │  (live log entries)                      │
+└──────────────┴──────────────────────────────────────────┘
+```
 
 ## Adding a System
 
-![Add System Dialog](../images/add-system-dialog.png)
-
 1. Click the **+** button
-2. Enter a **name** and **IP address**
-3. Adjust **ports** if needed (defaults: `8080`, `8081`, `8082`)
+2. Enter a **name**, **IP address**, and **launcher port** (default: `8080`)
+3. Pick a color — appears in the color picker immediately
 
-All configurations are saved automatically and persist across sessions. Type `reset` in the console to start fresh.
+All configurations persist automatically via `localStorage`. Type `reset` in the console to clear everything and restore defaults.
+
+## Sidebar
+
+The sidebar shows connection details for the currently selected system:
+
+- **System name and IP:port** — click either to edit
+- **Color palette button** — change the accent color (persists across reloads)
+- **Version info** — shown once the launcher responds (see [Protocol Versioning](developer.md#protocol-versioning))
+- **Environment dropdown** — appears when the launcher reports available VR environments
 
 ## Next Steps
 
-- **[Usage Guide](usage.md)** — How to use the interface
-- **[Developer Reference](developer.md)** — Architecture, API, and extending
+- **[Usage Guide](usage.md)** — How to use every feature
+- **[Developer Reference](developer.md)** — Architecture, API, protocol versioning, and extending
