@@ -1779,26 +1779,26 @@ function renameSystem(system) {
 }
 
 function recolorSystem(system) {
-  showFormModal({
-    title: `Color — ${system.name}`,
-    submitLabel: "Apply",
-    colorClass: system.colorClass || "",
-    fields: [
-      { key: "color", label: "Color", type: "color", default: getSysColor(system) },
-    ],
-    onSubmit: ({ color }) => {
-      if (color) {
-        system.customColor = color;
-        saveSystemsToLocalStorage();
-        // Update --sys-color on all existing console entries for this system
-        const prefix = `${system.name}:`;
-        consoleEntries.forEach((entry, key) => {
-          if (key.startsWith(prefix)) entry.style.setProperty('--sys-color', color);
-        });
-        updateInterface();
-      }
-    },
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.value = getSysColor(system);
+  picker.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(picker);
+  picker.addEventListener('change', () => {
+    picker.remove();
+    const color = picker.value;
+    system.customColor = color;
+    saveSystemsToLocalStorage();
+    const prefix = `${system.name}:`;
+    consoleEntries.forEach((entry, key) => {
+      if (!key.startsWith(prefix)) return;
+      entry.style.setProperty('--sys-color', color);
+      const lbl = entry.querySelector('.label');
+      if (lbl && !entry.classList.contains('unreachable')) lbl.style.color = color;
+    });
+    updateInterface();
   });
+  picker.click();
 }
 
 // Edit a system's connection details (IP and Launcher Port) in a single modal
@@ -2973,6 +2973,7 @@ document.addEventListener("DOMContentLoaded", () => {
       serverLauncherPort: d.serverLauncherPort,
       deviceServerPort: d.deviceServerPort,
       compositingServerPort: d.compositingServerPort,
+      customColor: d.customColor || null,
       connected: false,
       launcherAlive: null,
       servers: [],

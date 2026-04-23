@@ -3248,6 +3248,17 @@ h6 {
   display: block;
 }
 
+/* Topbar context: reset the absolute positioning so it flows in flexbox */
+.topbar-end .theme-toggle {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: auto;
+  height: auto;
+  padding: 6px 9px;
+  box-shadow: none;
+}
+
 /* ========================================
    FORM MODAL
    ======================================== */
@@ -3534,54 +3545,14 @@ h6 {
 }
 
 /* Rig-colored environment dropdown — focus ring */
-.sidebar[data-color-class="rig-0"] .environment-dropdown:focus {
-  border-color: var(--rig-0);
-  box-shadow: 0 0 0 3px var(--rig-0-bg);
-}
-.sidebar[data-color-class="rig-1"] .environment-dropdown:focus {
-  border-color: var(--rig-1);
-  box-shadow: 0 0 0 3px var(--rig-1-bg);
-}
-.sidebar[data-color-class="rig-2"] .environment-dropdown:focus {
-  border-color: var(--rig-2);
-  box-shadow: 0 0 0 3px var(--rig-2-bg);
-}
-.sidebar[data-color-class="rig-3"] .environment-dropdown:focus {
-  border-color: var(--rig-3);
-  box-shadow: 0 0 0 3px var(--rig-3-bg);
-}
-.sidebar[data-color-class="rig-4"] .environment-dropdown:focus {
-  border-color: var(--rig-4);
-  box-shadow: 0 0 0 3px var(--rig-4-bg);
-}
-.sidebar[data-color-class="rig-5"] .environment-dropdown:focus {
-  border-color: var(--rig-5);
-  box-shadow: 0 0 0 3px var(--rig-5-bg);
+.sidebar[data-color-class] .environment-dropdown:focus {
+  border-color: var(--sys-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-color), transparent 94%);
 }
 
-/* Rig-colored environment label icon — connected */
-.sidebar[data-color-class="rig-0"]:not(.offline) .environment-label svg {
-  color: var(--rig-0);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-1"]:not(.offline) .environment-label svg {
-  color: var(--rig-1);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-2"]:not(.offline) .environment-label svg {
-  color: var(--rig-2);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-3"]:not(.offline) .environment-label svg {
-  color: var(--rig-3);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-4"]:not(.offline) .environment-label svg {
-  color: var(--rig-4);
-  opacity: 0.8;
-}
-.sidebar[data-color-class="rig-5"]:not(.offline) .environment-label svg {
-  color: var(--rig-5);
+/* Environment label icon tinted by system color when connected */
+.sidebar[data-color-class]:not(.offline) .environment-label svg {
+  color: var(--sys-color);
   opacity: 0.8;
 }
 
