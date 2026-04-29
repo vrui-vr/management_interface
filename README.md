@@ -121,14 +121,14 @@ Each system you add gets a card showing:
   - Haptic ping button (vibrate a device to identify it)
   - Power off button
 
-Cards use one of six color classes (`rig-0` through `rig-5`) for visual distinction.
+Cards can be customely colored to distinguish between different systems
 
 **Three visual states per system:**
 | State | Meaning | Appearance |
 |-------|---------|------------|
 | Connected | Launcher alive + servers running | Full color |
 | Disconnected | Launcher alive, servers stopped | Faded/muted |
-| Unreachable | Cannot contact launcher | Grayed out |
+| Unreachable | Cannot contact launcher | Red error message |
 
 ![Connected](images/system-card-connected.png)
 ![Disconnected](images/system-card-disconnected.png)
