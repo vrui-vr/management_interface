@@ -443,6 +443,7 @@ function confirmAndShutdown(system) {
 
 function getStartupPhaseText(phase) {
   switch (phase) {
+    case 'restarting':   return 'Restarting...';
     case 'powering-on':  return 'Powering on...';
     case 'tracking':     return 'Starting tracking server...';
     case 'compositing':  return 'Starting compositing server...';
@@ -1998,45 +1999,22 @@ function closeSystemSSE(system) {
   }
 }
 
-// Poll the launcher until all servers report isRunning: false, then resolve.
-// Gives up and resolves after maxAttempts so the restart still proceeds.
-function waitForServersStopped(system, maxAttempts = 12, interval = 1000) {
-  return new Promise(resolve => {
-    const check = (n) => {
-      fetchWithTimeout(getServerLauncherEndpoint(system), {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ command: "getServerStatus" }),
-      }, 3000)
-        .then(r => r.json())
-        .then(data => {
-          const allStopped = !data.servers?.length || data.servers.every(s => !s.isRunning);
-          if (allStopped) {
-            resolve();
-          } else if (n < maxAttempts) {
-            setTimeout(() => check(n + 1), interval);
-          } else {
-            resolve();
-          }
-        })
-        .catch(() => {
-          if (n < maxAttempts) setTimeout(() => check(n + 1), interval);
-          else resolve();
-        });
-    };
-    setTimeout(() => check(0), 500);
-  });
-}
-
-// Restart all servers: close SSE, stop, poll until actually stopped, then start.
+// Restart all servers: show spinner immediately, close SSE, stop, wait 30s for
+// hardware to fully reset, then start. The 30s matches observed hardware recovery time.
 function restartServers(system) {
   if (!system || system.name !== "localhost") return;
+
+  // Show spinner right away — blocks the power button for the whole restart sequence
+  system.startupPhase = 'restarting';
+  system.intentionallyShutdown = true;
+  system.devices = {};
+  system.servers = [];
+  updateSystemUI(system);
+
   closeSystemSSE(system);
   autoUpdateConsole(system, "restart", "Stopping servers for restart...");
 
-  const endpoint = getServerLauncherEndpoint(system);
-
-  fetchWithTimeout(endpoint, {
+  fetchWithTimeout(getServerLauncherEndpoint(system), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "stopServers" }),
@@ -2045,36 +2023,15 @@ function restartServers(system) {
     .then(() => {
       system.connected = false;
       system.serversRunning = false;
-      system.intentionallyShutdown = true;
-      system.devices = {};
-      system.servers = [];
-      updateSystemUI(system);
-      autoUpdateConsole(system, "restart", "Waiting for servers to stop...");
-      return waitForServersStopped(system);
+      autoUpdateConsole(system, "restart", "Waiting for hardware to reset (30s)...");
+      return new Promise(resolve => setTimeout(resolve, 30000));
     })
     .then(() => {
-      autoUpdateConsole(system, "restart", "Letting hardware reset...");
-      return new Promise(resolve => setTimeout(resolve, 3000));
-    })
-    .then(() => {
-      const maxRetries = 3;
-      let attempt = 0;
-
-      const tryStart = () => {
-        attempt++;
-        if (attempt > 1) {
-          autoUpdateConsole(system, "restart", `Startup failed, retrying (${attempt - 1}/${maxRetries - 1})...`, "warning");
-        }
-        startAndCheckServers(system, attempt < maxRetries ? () => {
-          const retryDelay = attempt * 8000; // 8s, 16s on successive failures
-          autoUpdateConsole(system, "restart", `Hardware not ready, waiting ${retryDelay / 1000}s before retry...`, "warning");
-          setTimeout(tryStart, retryDelay);
-        } : null);
-      };
-
-      tryStart();
+      startAndCheckServers(system);
     })
     .catch(() => {
+      system.startupPhase = null;
+      updateSystemUI(system);
       autoUpdateConsole(system, "restart", "Restart failed", "error");
     });
 }
