@@ -2015,19 +2015,13 @@ function restartServers(system) {
     .then(() => {
       system.connected = false;
       system.serversRunning = false;
+      system.intentionallyShutdown = true; // suppress polling loop during wait
       updateSystemUI(system);
       autoUpdateConsole(system, "restart", "Waiting for servers to stop...");
       return new Promise(resolve => setTimeout(resolve, 2500));
     })
     .then(() => {
-      autoUpdateConsole(system, "restart", "Starting servers...");
-      return startLauncherServers(system);
-    })
-    .then(() => {
-      setTimeout(() => {
-        pingServerStatus(system, 0, getDeviceServerEndpoint(system));
-        pingServerStatus(system, 1, getCompositingServerEndpoint(system));
-      }, 1500);
+      startAndCheckServers(system); // handles full startup sequence with retry polling
     })
     .catch(() => {
       autoUpdateConsole(system, "restart", "Restart failed", "error");
