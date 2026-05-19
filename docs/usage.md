@@ -18,7 +18,7 @@ Each configured system gets its own color-coded card in the main area.
 **What each card shows:**
 
 - System name and connection status
-- Running servers (tracking driver + compositing server) with status dots
+- Running servers (tracking driver + compositing server) with status monitoring dots
 - Connected devices with battery levels and tracking state
 
 **Card actions:**
