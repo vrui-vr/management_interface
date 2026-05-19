@@ -2046,6 +2046,8 @@ function restartServers(system) {
       system.connected = false;
       system.serversRunning = false;
       system.intentionallyShutdown = true;
+      system.devices = {};
+      system.servers = [];
       updateSystemUI(system);
       autoUpdateConsole(system, "restart", "Waiting for servers to stop...");
       return waitForServersStopped(system);
@@ -2055,7 +2057,22 @@ function restartServers(system) {
       return new Promise(resolve => setTimeout(resolve, 3000));
     })
     .then(() => {
-      startAndCheckServers(system);
+      const maxRetries = 3;
+      let attempt = 0;
+
+      const tryStart = () => {
+        attempt++;
+        if (attempt > 1) {
+          autoUpdateConsole(system, "restart", `Startup failed, retrying (${attempt - 1}/${maxRetries - 1})...`, "warning");
+        }
+        startAndCheckServers(system, attempt < maxRetries ? () => {
+          const retryDelay = attempt * 8000; // 8s, 16s on successive failures
+          autoUpdateConsole(system, "restart", `Hardware not ready, waiting ${retryDelay / 1000}s before retry...`, "warning");
+          setTimeout(tryStart, retryDelay);
+        } : null);
+      };
+
+      tryStart();
     })
     .catch(() => {
       autoUpdateConsole(system, "restart", "Restart failed", "error");
@@ -2496,7 +2513,8 @@ function getLauncherStatus(system, autoStart = false) {
 }
 
 // Starts servers via the launcher, then verifies device server is up before checking compositor
-function startAndCheckServers(system) {
+// onFail: optional callback invoked if startup fails, so callers can retry
+function startAndCheckServers(system, onFail = null) {
   if (!system) return;
   if (system.name !== "localhost") return; // remote systems are monitor-only
 
@@ -2519,6 +2537,15 @@ function startAndCheckServers(system) {
     let attempts = 0;
     const maxAttempts = 10;
     const pollInterval = 1500;
+
+    const failStartup = (msg) => {
+      autoUpdateConsole(system, "startServers", msg, "error");
+      system.startupPhase = null;
+      system.isConnecting = false;
+      updateSystemUI(system);
+      getLauncherStatus(system);
+      if (onFail) onFail();
+    };
 
     const waitForDeviceServer = () => {
       attempts++;
@@ -2549,22 +2576,34 @@ function startAndCheckServers(system) {
           } else if (attempts < maxAttempts) {
             setTimeout(waitForDeviceServer, pollInterval);
           } else {
-            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "error");
-            system.startupPhase = null;
-            system.isConnecting = false;
-            updateSystemUI(system);
-            getLauncherStatus(system);
+            failStartup("Tracking driver did not respond in time");
           }
         })
         .catch(() => {
           if (attempts < maxAttempts) {
-            setTimeout(waitForDeviceServer, pollInterval);
+            // On the first failure only: check the launcher once to see if the driver
+            // already exited (fast crash). If so, fail immediately rather than retrying
+            // 10 times. One extra request beats 15 seconds of wasted polling.
+            if (attempts === 1) {
+              fetchWithTimeout(getServerLauncherEndpoint(system), {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ command: "getServerStatus" }),
+              }, 3000)
+                .then(r => r.json())
+                .then(data => {
+                  if (data?.servers?.[0]?.isRunning === false) {
+                    failStartup("Tracking driver failed to start — VR hardware may need to be replugged");
+                  } else {
+                    setTimeout(waitForDeviceServer, pollInterval);
+                  }
+                })
+                .catch(() => setTimeout(waitForDeviceServer, pollInterval));
+            } else {
+              setTimeout(waitForDeviceServer, pollInterval);
+            }
           } else {
-            autoUpdateConsole(system, "startServers", "Tracking driver did not respond in time", "error");
-            system.startupPhase = null;
-            system.isConnecting = false;
-            updateSystemUI(system);
-            getLauncherStatus(system);
+            failStartup("Tracking driver did not respond in time");
           }
         });
     };
