@@ -678,23 +678,8 @@ h6 {
 
 
 /* Offline — muted color, matches disconnected system card title */
-.sidebar.offline[data-color-class="rig-0"] .sidebar-target-name {
-  color: var(--rig-0-muted);
-}
-.sidebar.offline[data-color-class="rig-1"] .sidebar-target-name {
-  color: var(--rig-1-muted);
-}
-.sidebar.offline[data-color-class="rig-2"] .sidebar-target-name {
-  color: var(--rig-2-muted);
-}
-.sidebar.offline[data-color-class="rig-3"] .sidebar-target-name {
-  color: var(--rig-3-muted);
-}
-.sidebar.offline[data-color-class="rig-4"] .sidebar-target-name {
-  color: var(--rig-4-muted);
-}
-.sidebar.offline[data-color-class="rig-5"] .sidebar-target-name {
-  color: var(--rig-5-muted);
+.sidebar.offline .sidebar-target-name {
+  color: var(--sys-color-muted);
 }
 
 /* Sidebar editable field rows — name and IP/port with pencil affordance */
@@ -2104,6 +2089,7 @@ h6 {
 .connect-icon {
   width: 40px;
   height: 40px;
+  color: var(--sys-color);
 }
 
 .connect-label {
@@ -2114,13 +2100,7 @@ h6 {
   pointer-events: none;
 }
 
-/* Connect zone (loading spinner + connect icon) retains rig color — it's a pre-session loading state */
-.system-card.rig-0 .connect-zone { color: var(--rig-0-muted); }
-.system-card.rig-1 .connect-zone { color: var(--rig-1-muted); }
-.system-card.rig-2 .connect-zone { color: var(--rig-2-muted); }
-.system-card.rig-3 .connect-zone { color: var(--rig-3-muted); }
-.system-card.rig-4 .connect-zone { color: var(--rig-4-muted); }
-.system-card.rig-5 .connect-zone { color: var(--rig-5-muted); }
+.system-card .connect-zone { color: var(--sys-color-muted); }
 
 .shutdown-container {
   display: flex;
@@ -3091,7 +3071,7 @@ h6 {
 #commandInput:focus {
   border: 1px solid color-mix(in srgb, var(--sys-color, var(--border)), transparent 50%);
   background: var(--bg-white);
-  box-shadow: 0 0 0 3px var(--rig-0-bg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-color, #3b82f6), transparent 80%);
 }
 
 #commandInput::placeholder {

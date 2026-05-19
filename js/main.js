@@ -1998,7 +1998,37 @@ function closeSystemSSE(system) {
   }
 }
 
-// Restart all servers: stop cleanly first, wait for ports to release, then start.
+// Poll the launcher until all servers report isRunning: false, then resolve.
+// Gives up and resolves after maxAttempts so the restart still proceeds.
+function waitForServersStopped(system, maxAttempts = 12, interval = 1000) {
+  return new Promise(resolve => {
+    const check = (n) => {
+      fetchWithTimeout(getServerLauncherEndpoint(system), {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ command: "getServerStatus" }),
+      }, 3000)
+        .then(r => r.json())
+        .then(data => {
+          const allStopped = !data.servers?.length || data.servers.every(s => !s.isRunning);
+          if (allStopped) {
+            resolve();
+          } else if (n < maxAttempts) {
+            setTimeout(() => check(n + 1), interval);
+          } else {
+            resolve();
+          }
+        })
+        .catch(() => {
+          if (n < maxAttempts) setTimeout(() => check(n + 1), interval);
+          else resolve();
+        });
+    };
+    setTimeout(() => check(0), 500);
+  });
+}
+
+// Restart all servers: close SSE, stop, poll until actually stopped, then start.
 function restartServers(system) {
   if (!system || system.name !== "localhost") return;
   closeSystemSSE(system);
@@ -2015,13 +2045,13 @@ function restartServers(system) {
     .then(() => {
       system.connected = false;
       system.serversRunning = false;
-      system.intentionallyShutdown = true; // suppress polling loop during wait
+      system.intentionallyShutdown = true;
       updateSystemUI(system);
       autoUpdateConsole(system, "restart", "Waiting for servers to stop...");
-      return new Promise(resolve => setTimeout(resolve, 2500));
+      return waitForServersStopped(system);
     })
     .then(() => {
-      startAndCheckServers(system); // handles full startup sequence with retry polling
+      startAndCheckServers(system);
     })
     .catch(() => {
       autoUpdateConsole(system, "restart", "Restart failed", "error");
