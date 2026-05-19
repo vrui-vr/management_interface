@@ -2000,7 +2000,8 @@ function closeSystemSSE(system) {
 }
 
 // Restart all servers: show spinner immediately, close SSE, stop, wait 30s for
-// hardware to fully reset, then start. The 30s matches observed hardware recovery time.
+// hardware to fully reset, then retry startAndCheckServers every 10s until it works.
+// Hardware reset time is variable after SIGKILL, so we keep trying rather than giving up.
 function restartServers(system) {
   if (!system || system.name !== "localhost") return;
 
@@ -2023,7 +2024,7 @@ function restartServers(system) {
     .then(() => {
       system.connected = false;
       system.serversRunning = false;
-      autoUpdateConsole(system, "restart", "Waiting for hardware to reset (30s)...");
+      autoUpdateConsole(system, "restart", "Waiting for hardware to reset...");
       return new Promise(resolve => setTimeout(resolve, 30000));
     })
     .then(() => {
