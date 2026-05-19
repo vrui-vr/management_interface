@@ -1986,23 +1986,60 @@ function startLauncherServers(system) {
     });
 }
 
-// Restart all servers by telling the launcher to start them.
-// The launcher restarts any server that is not currently running/healthy.
+// Close both SSE connections for a system so ports release before a stop/restart.
+function closeSystemSSE(system) {
+  if (system.deviceEventSource) {
+    system.deviceEventSource.close();
+    system.deviceEventSource = null;
+  }
+  if (system.launcherEventSource) {
+    system.launcherEventSource.close();
+    system.launcherEventSource = null;
+  }
+}
+
+// Restart all servers: stop cleanly first, wait for ports to release, then start.
 function restartServers(system) {
   if (!system || system.name !== "localhost") return;
-  autoUpdateConsole(system, "restart", "Restarting servers...");
-  startLauncherServers(system).then(() => {
-    setTimeout(() => {
-      pingServerStatus(system, 0, getDeviceServerEndpoint(system));
-      pingServerStatus(system, 1, getCompositingServerEndpoint(system));
-    }, 1500);
-  });
+  closeSystemSSE(system);
+  autoUpdateConsole(system, "restart", "Stopping servers for restart...");
+
+  const endpoint = getServerLauncherEndpoint(system);
+
+  fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ command: "stopServers" }),
+  }, 5000)
+    .then(r => r.json())
+    .then(() => {
+      system.connected = false;
+      system.serversRunning = false;
+      updateSystemUI(system);
+      autoUpdateConsole(system, "restart", "Waiting for servers to stop...");
+      return new Promise(resolve => setTimeout(resolve, 2500));
+    })
+    .then(() => {
+      autoUpdateConsole(system, "restart", "Starting servers...");
+      return startLauncherServers(system);
+    })
+    .then(() => {
+      setTimeout(() => {
+        pingServerStatus(system, 0, getDeviceServerEndpoint(system));
+        pingServerStatus(system, 1, getCompositingServerEndpoint(system));
+      }, 1500);
+    })
+    .catch(() => {
+      autoUpdateConsole(system, "restart", "Restart failed", "error");
+    });
 }
 
 // Stop VR Compositor and VRRunDeviceTracker
 function stopLauncherServers(system) {
   if (!system) return;
   if (system.name !== "localhost") return; // remote systems are monitor-only
+
+  closeSystemSSE(system);
 
   const endpoint = getServerLauncherEndpoint(system);
 
