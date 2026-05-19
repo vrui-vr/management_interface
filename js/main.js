@@ -2051,6 +2051,10 @@ function restartServers(system) {
       return waitForServersStopped(system);
     })
     .then(() => {
+      autoUpdateConsole(system, "restart", "Letting hardware reset...");
+      return new Promise(resolve => setTimeout(resolve, 3000));
+    })
+    .then(() => {
       startAndCheckServers(system);
     })
     .catch(() => {
