@@ -1747,8 +1747,18 @@ h6 {
 }
 
 
+.server-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.server-section-header .section-title {
+  margin-bottom: 0;
+}
+
 .server-restart-btn {
-  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: center;

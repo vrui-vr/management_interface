@@ -1137,12 +1137,31 @@ function renderSystems(systems) {
 		const section = document.createElement("div");
 		section.className = "server-section";
 
+		const sectionHeader = document.createElement("div");
+		sectionHeader.className = "server-section-header";
+
 		const title = document.createElement("div");
 		title.className = "section-title";
 		title.textContent = "Servers";
-		section.appendChild(title);
+		sectionHeader.appendChild(title);
 
-		system.servers.forEach((server, index) => {
+		// Show restart button if either server is not healthy, localhost only
+		const anyDown = system.servers.some(s => !s.isRunning || s.status !== "online");
+		if (anyDown && system.name === "localhost") {
+		  const restartBtn = document.createElement("button");
+		  restartBtn.className = "server-restart-btn sys-tooltip";
+		  restartBtn.dataset.tooltip = "Restart servers";
+		  restartBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+		  restartBtn.onclick = (e) => {
+		    e.stopPropagation();
+		    restartServers(system);
+		  };
+		  sectionHeader.appendChild(restartBtn);
+		}
+
+		section.appendChild(sectionHeader);
+
+		system.servers.forEach((server) => {
 		  const item = document.createElement("div");
 		  item.className = "server-item";
 
@@ -1155,7 +1174,6 @@ function renderSystems(systems) {
 			statusClass = "status-error";
 		  }
 
-		  // Create elements like devices
 		  const dot = document.createElement("span");
 		  dot.className = `status-dot ${statusClass} sys-tooltip`;
 		  dot.dataset.tooltip = !server.isRunning ? "Stopped" : server.status === "online" ? "Online" : "Error";
@@ -1165,21 +1183,6 @@ function renderSystems(systems) {
 		  name.textContent = server.name;
 
 		  item.append(dot, name);
-
-		  // Restart button for compositing server when it's red/down, localhost only
-		  const isDown = statusClass === "status-error" || statusClass === "status-unknown";
-		  if (index === 1 && isDown && system.name === "localhost") {
-		    const restartBtn = document.createElement("button");
-		    restartBtn.className = "server-restart-btn sys-tooltip";
-		    restartBtn.dataset.tooltip = "Restart compositing server";
-		    restartBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
-		    restartBtn.onclick = (e) => {
-		      e.stopPropagation();
-		      restartCompositingServer(system);
-		    };
-		    item.append(restartBtn);
-		  }
-
 		  section.appendChild(item);
 		});
 
@@ -1983,13 +1986,16 @@ function startLauncherServers(system) {
     });
 }
 
-// Restart the compositing server (index 1) by telling the launcher to start servers.
+// Restart all servers by telling the launcher to start them.
 // The launcher restarts any server that is not currently running/healthy.
-function restartCompositingServer(system) {
+function restartServers(system) {
   if (!system || system.name !== "localhost") return;
-  autoUpdateConsole(system, "compositing", "Restarting compositing server...");
+  autoUpdateConsole(system, "restart", "Restarting servers...");
   startLauncherServers(system).then(() => {
-    setTimeout(() => pingServerStatus(system, 1, getCompositingServerEndpoint(system)), 1500);
+    setTimeout(() => {
+      pingServerStatus(system, 0, getDeviceServerEndpoint(system));
+      pingServerStatus(system, 1, getCompositingServerEndpoint(system));
+    }, 1500);
   });
 }
 
