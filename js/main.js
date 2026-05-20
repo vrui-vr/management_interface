@@ -1959,7 +1959,7 @@ function startLauncherServers(system) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "startServers" }),
-  }, 5000)
+  }, 15000)
     .then((r) => r.json())
     .then((data) => {
       autoUpdateConsole(system, "startServers", "Start command sent to launcher.");
@@ -2476,26 +2476,15 @@ function startAndCheckServers(system, onFail = null) {
   if (!system) return;
   if (system.name !== "localhost") return; // remote systems are monitor-only
 
-  // Clear intentional shutdown flag so polling resumes and UI updates correctly
   system.intentionallyShutdown = false;
-
-  // Suppress regular status pings while connecting
   system.isConnecting = true;
   system.startupPhase = 'powering-on';
   updateSystemUI(system);
-
   autoUpdateConsole(system, "startServers", "Starting servers...");
 
+  // C++ startServers blocks until both servers are confirmed listening on their HTTP ports,
+  // so when this resolves both are already up. No polling loop needed.
   startLauncherServers(system).then(() => {
-    system.startupPhase = 'tracking';
-    updateSystemUI(system);
-    autoUpdateConsole(system, "startServers", "Waiting for tracking driver...");
-
-    // Poll for the device server (index 0) to come online first
-    let attempts = 0;
-    const maxAttempts = 10;
-    const pollInterval = 1500;
-
     const failStartup = (msg) => {
       autoUpdateConsole(system, "startServers", msg, "error");
       system.startupPhase = null;
@@ -2505,69 +2494,96 @@ function startAndCheckServers(system, onFail = null) {
       if (onFail) onFail();
     };
 
-    const waitForDeviceServer = () => {
-      attempts++;
-      const deviceEndpoint = getDeviceServerEndpoint(system);
+    // If the launcher reported failure (no running servers), stop here
+    if (!system.servers?.some(s => s.isRunning)) {
+      failStartup("Servers failed to start");
+      return;
+    }
 
-      fetchWithTimeout(deviceEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ command: "getServerStatus" }),
-      }, 3000)
-        .then(r => r.json())
-        .then(data => {
-          if (data?.status === "Success") {
-            autoUpdateConsole(system, "startServers", "Tracking driver is online");
-            system.connected = true;
-            system.startupPhase = 'compositing';
-            activeSystems.add(system.name);
-            updateSystemWithJsonData(system, data);
-            updateSystemUI(system);
-
-            // Now wait a moment then check full launcher status (including compositor)
-            autoUpdateConsole(system, "startServers", "Waiting for compositor...");
-            setTimeout(() => {
-              getLauncherStatus(system);
-              // isConnecting cleared by pingServerStatus when device server responds
-              setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
-            }, 1500);
-          } else if (attempts < maxAttempts) {
-            setTimeout(waitForDeviceServer, pollInterval);
-          } else {
-            failStartup("Tracking driver did not respond in time");
-          }
-        })
-        .catch(() => {
-          if (attempts < maxAttempts) {
-            // On the first failure only: check the launcher once to see if the driver
-            // already exited (fast crash). If so, fail immediately rather than retrying
-            // 10 times. One extra request beats 15 seconds of wasted polling.
-            if (attempts === 1) {
-              fetchWithTimeout(getServerLauncherEndpoint(system), {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({ command: "getServerStatus" }),
-              }, 3000)
-                .then(r => r.json())
-                .then(data => {
-                  if (data?.servers?.[0]?.isRunning === false) {
-                    failStartup("Tracking driver failed to start — VR hardware may need to be replugged");
-                  } else {
-                    setTimeout(waitForDeviceServer, pollInterval);
-                  }
-                })
-                .catch(() => setTimeout(waitForDeviceServer, pollInterval));
-            } else {
-              setTimeout(waitForDeviceServer, pollInterval);
-            }
-          } else {
-            failStartup("Tracking driver did not respond in time");
-          }
-        });
+    const revealUI = () => {
+      system.connected = true;
+      system.startupPhase = null;
+      system.isConnecting = false;
+      activeSystems.add(system.name);
+      updateSystemUI(system);
+      clearConsoleEntry(system, "startServers");
+      clearConsoleEntry(system, "autoStart");
+      setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
     };
 
-    // Give the launcher a moment to kick things off, then start polling
-    setTimeout(waitForDeviceServer, 1500);
+    // Phase 1: confirm tracking driver (device server, index 0)
+    system.startupPhase = 'tracking';
+    updateSystemUI(system);
+
+    fetchWithTimeout(getDeviceServerEndpoint(system), {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ command: "getServerStatus" }),
+    }, 5000)
+      .then(r => r.json())
+      .then(deviceData => {
+        if (deviceData?.status !== "Success") {
+          failStartup("Tracking driver reported an error");
+          return;
+        }
+
+        // Store device data without revealing UI yet
+        updateSystemWithJsonData(system, deviceData);
+        const serverProto = deviceData.protocolVersion ?? 0;
+        system.servers[0].status = 'online';
+        system.servers[0].protocolVersion = serverProto;
+        system.servers[0].lastStatus = 'online';
+        system.servers[0].lastHeardAt = Date.now();
+        autoUpdateConsole(system, "tracking", `VR tracking driver online — protocol v${serverProto} (${serverProto >= 1 ? 'SSE' : 'polling'})`);
+
+        // Phase 2: confirm compositor (index 1)
+        system.startupPhase = 'compositing';
+        updateSystemUI(system);
+
+        fetchWithTimeout(getCompositingServerEndpoint(system), {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ command: "getServerStatus" }),
+        }, 5000)
+          .then(r => r.json())
+          .then(compData => {
+            const compProto = compData?.protocolVersion ?? 0;
+            system.servers[1].status = compData?.status === "Success" ? 'online' : 'error';
+            system.servers[1].protocolVersion = compProto;
+            system.servers[1].lastStatus = system.servers[1].status;
+            if (compData?.status === "Success") {
+              autoUpdateConsole(system, "compositing", `VR compositing server online — protocol v${compProto} (polling)`);
+            }
+            // Subscribe to device SSE if supported
+            if (serverProto >= 1 && !system.deviceEventSource) {
+              subscribeToDeviceEvents(system);
+            }
+            revealUI();
+          })
+          .catch(() => {
+            // Compositor unreachable — reveal UI anyway so user sees the error state
+            system.servers[1].status = 'offline';
+            system.servers[1].lastStatus = 'offline';
+            revealUI();
+          });
+      })
+      .catch(() => {
+        // Device server connection refused — check launcher once to detect instant crash
+        fetchWithTimeout(getServerLauncherEndpoint(system), {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ command: "getServerStatus" }),
+        }, 3000)
+          .then(r => r.json())
+          .then(data => {
+            if (data?.servers?.[0]?.isRunning === false) {
+              failStartup("Tracking driver failed to start — VR hardware may need to be replugged");
+            } else {
+              failStartup("Tracking driver did not respond");
+            }
+          })
+          .catch(() => failStartup("Tracking driver did not respond"));
+      });
   });
 }
 
@@ -2638,14 +2654,6 @@ function pingServerStatus(system, serverIndex, endpoint) {
           // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
 
-          // Startup complete: reveal everything now that we have full data
-          if (system.startupPhase && system.startupPhase !== 'powering-off') {
-            system.startupPhase = null;
-            system.isConnecting = false;
-            clearConsoleEntry(system, "startServers");
-            clearConsoleEntry(system, "autoStart");
-          }
-
           // Update the UI to show the new device states
           updateSystemUI(system);
         }
@@ -2654,11 +2662,6 @@ function pingServerStatus(system, serverIndex, endpoint) {
         if (system.servers[serverIndex].lastStatus !== 'error') {
           autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} responded with error`, "error");
           system.servers[serverIndex].lastStatus = 'error';
-        }
-        // If startup and device server failed to report success, reveal anyway
-        if (serverIndex === 0 && system.startupPhase && system.startupPhase !== 'powering-off') {
-          system.startupPhase = null;
-          system.isConnecting = false;
         }
       }
       updateSystemUI(system);
@@ -2672,11 +2675,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
       // Servers were intentionally stopped or are shutting down — network errors are expected
       if (system.intentionallyShutdown || system.startupPhase === 'powering-off') return;
 
-      // If startup and device server is unreachable, reveal the error state
-      if (serverIndex === 0 && system.startupPhase) {
-        system.startupPhase = null;
-        system.isConnecting = false;
-      }
+
 
       console.error(`${serverName} failed:`, err.name, err.message);
 
