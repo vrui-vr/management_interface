@@ -1636,14 +1636,21 @@ function showEditMenu(e, system, field, popupWin = null) {
 }
 
 // Fetch with timeout helper
-function fetchWithTimeout(resource, options = {}, timeout = 5000) {
+function fetchWithTimeout(resource, options = {}, timeout = 5000, system = null) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
+  if (system) {
+    if (!system.pendingControllers) system.pendingControllers = new Set();
+    system.pendingControllers.add(controller);
+  }
 
   return fetch(resource, {
     ...options,
     signal: controller.signal
-  }).finally(() => clearTimeout(id));
+  }).finally(() => {
+    clearTimeout(id);
+    if (system?.pendingControllers) system.pendingControllers.delete(controller);
+  });
 }
 
 // Handles server response for commands
@@ -1987,6 +1994,13 @@ function startLauncherServers(system) {
     });
 }
 
+// Abort any in-flight polling fetches for a system (sends TCP RST — instant close, no TIME_WAIT).
+function abortSystemFetches(system) {
+  if (!system.pendingControllers) return;
+  for (const ctrl of system.pendingControllers) ctrl.abort();
+  system.pendingControllers.clear();
+}
+
 // Close both SSE connections for a system so ports release before a stop/restart.
 function closeSystemSSE(system) {
   if (system.deviceEventSource) {
@@ -2008,18 +2022,23 @@ function restartServers(system) {
   // Show spinner right away — blocks the power button for the whole restart sequence
   system.startupPhase = 'restarting';
   system.intentionallyShutdown = true;
+  system.launcherAlive = null;
   system.devices = {};
   system.servers = [];
   updateSystemUI(system);
 
+  abortSystemFetches(system);
   closeSystemSSE(system);
   autoUpdateConsole(system, "restart", "Stopping servers for restart...");
 
-  fetchWithTimeout(getServerLauncherEndpoint(system), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "stopServers" }),
-  }, 5000)
+  // 300ms grace window: gives the browser's SSE FIN time to arrive at the server
+  // before we send stopServers, so the server doesn't initiate close first (→ server TIME_WAIT)
+  new Promise(r => setTimeout(r, 300))
+    .then(() => fetchWithTimeout(getServerLauncherEndpoint(system), {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ command: "stopServers" }),
+    }, 5000))
     .then(r => r.json())
     .then(() => {
       system.connected = false;
@@ -2042,15 +2061,17 @@ function stopLauncherServers(system) {
   if (!system) return;
   if (system.name !== "localhost") return; // remote systems are monitor-only
 
+  abortSystemFetches(system);
   closeSystemSSE(system);
 
   const endpoint = getServerLauncherEndpoint(system);
 
-  fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "stopServers" }),
-  }, 3000)
+  new Promise(r => setTimeout(r, 300))
+    .then(() => fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ command: "stopServers" }),
+    }, 3000))
     .then((r) => r.json())
     .then((data) => {
       autoUpdateConsole(system, "stopServers", "Stop command sent to launcher.");
@@ -2344,7 +2365,7 @@ function getLauncherStatus(system, autoStart = false) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 8000)
+  }, 8000, system)
     .then((r) => r.json())
     .then((data) => {
       if (!Array.isArray(data.servers)) {
@@ -2503,11 +2524,12 @@ function startAndCheckServers(system, onFail = null) {
     const revealUI = () => {
       system.connected = true;
       system.startupPhase = null;
-      system.isConnecting = false;
+      // isConnecting stays true here — keeps polling loop suppressed until delay expires
       activeSystems.add(system.name);
       updateSystemUI(system);
       clearConsoleEntry(system, "startServers");
       clearConsoleEntry(system, "autoStart");
+      getLauncherStatus(system);  // sets launcherAlive, opens launcher SSE, fetches version info
       setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
     };
 
@@ -2554,10 +2576,7 @@ function startAndCheckServers(system, onFail = null) {
             if (compData?.status === "Success") {
               autoUpdateConsole(system, "compositing", `VR compositing server online — protocol v${compProto} (polling)`);
             }
-            // Subscribe to device SSE if supported
-            if (serverProto >= 1 && !system.deviceEventSource) {
-              subscribeToDeviceEvents(system);
-            }
+            // Device SSE subscription is handled by getLauncherStatus → pingServerStatus inside revealUI
             revealUI();
           })
           .catch(() => {
@@ -2603,7 +2622,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 3000)
+  }, 3000, system)
     .then((r) => {
       console.log(`${serverName} responded with status ${r.status}`);
       return r.json();
