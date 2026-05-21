@@ -2001,15 +2001,17 @@ function abortSystemFetches(system) {
   system.pendingControllers.clear();
 }
 
-// Close both SSE connections for a system so ports release before a stop/restart.
-function closeSystemSSE(system) {
+// Close SSE connections on 8081 (device) and 8082 (compositor) before stop/restart
+// so both ports release cleanly. The launcher SSE (8080) is intentionally kept alive —
+// it pushes server status events during shutdown and stays open for the restart handshake.
+function closeServerSSEs(system) {
   if (system.deviceEventSource) {
     system.deviceEventSource.close();
     system.deviceEventSource = null;
   }
-  if (system.launcherEventSource) {
-    system.launcherEventSource.close();
-    system.launcherEventSource = null;
+  if (system.compositingEventSource) {
+    system.compositingEventSource.close();
+    system.compositingEventSource = null;
   }
 }
 
@@ -2028,7 +2030,7 @@ function restartServers(system) {
   updateSystemUI(system);
 
   abortSystemFetches(system);
-  closeSystemSSE(system);
+  closeServerSSEs(system);
   autoUpdateConsole(system, "restart", "Stopping servers for restart...");
 
   // 300ms grace window: gives the browser's SSE FIN time to arrive at the server
@@ -2062,7 +2064,7 @@ function stopLauncherServers(system) {
   if (system.name !== "localhost") return; // remote systems are monitor-only
 
   abortSystemFetches(system);
-  closeSystemSSE(system);
+  closeServerSSEs(system);
 
   const endpoint = getServerLauncherEndpoint(system);
 
@@ -2155,8 +2157,15 @@ function subscribeToLauncherEvents(system) {
   system.launcherEventSource = es;
 
   es.onopen = () => {
-    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events connected — real-time push active`);
+    system.lastSeen = Date.now();
+    const proto = system.launcherProtocolVersion ?? 0;
+    const mode = proto >= 2 ? 'v2 — server heartbeats' : 'v1';
+    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events connected (${mode})`);
   };
+
+  es.addEventListener('heartbeat', () => {
+    system.lastSeen = Date.now();
+  });
 
   const handler = (e) => {
     try {
@@ -2178,7 +2187,7 @@ function subscribeToLauncherEvents(system) {
   es.addEventListener('serverStatusChanged', handler);
 
   es.onerror = () => {
-    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events disconnected — falling back to polling`);
+    autoUpdateConsole(system, "getServerStatus", `[SSE] Launcher events disconnected`);
     es.close();
     system.launcherEventSource = null;
   };
@@ -2195,8 +2204,10 @@ function subscribeToDeviceEvents(system) {
   system.deviceEventSource = es;
 
   es.onopen = () => {
-    stampHeard(); // reset silence clock so first poll doesn't immediately fire a spurious ping
-    autoUpdateConsole(system, "tracking", `[SSE] Device events connected — real-time push active`);
+    stampHeard();
+    const proto = system.servers?.[0]?.protocolVersion ?? 0;
+    const mode = proto >= 2 ? 'v2 — server heartbeats' : 'v1';
+    autoUpdateConsole(system, "tracking", `[SSE] Device events connected (${mode})`);
   };
 
   const stampHeard = () => { if (system.servers?.[0]) system.servers[0].lastHeardAt = Date.now(); };
@@ -2231,6 +2242,10 @@ function subscribeToDeviceEvents(system) {
     }
   });
 
+  es.addEventListener('heartbeat', () => {
+    stampHeard();
+  });
+
   // Also catch any event type to see if the server is sending under a different name
   es.onmessage = (e) => {
     console.log(`[SSE onmessage] unnamed event:`, e.data);
@@ -2238,10 +2253,12 @@ function subscribeToDeviceEvents(system) {
   };
 
   es.onerror = () => {
-    autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected — checking server status`);
+    autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected`);
     es.close();
     system.deviceEventSource = null;
-    if (system.servers?.[0]?.isRunning) {
+    const proto = system.servers?.[0]?.protocolVersion ?? 0;
+    if (proto < 2 && system.servers?.[0]?.isRunning) {
+      // v1: server doesn't send heartbeats, so ping once to confirm it's still alive
       pingServerStatus(system, 0, getDeviceServerEndpoint(system));
       return;
     }
@@ -2250,6 +2267,51 @@ function subscribeToDeviceEvents(system) {
       system.servers[0].lastStatus = 'error';
     }
     system.connected = false;
+    updateSystemUI(system);
+  };
+}
+
+// Subscribe to server-sent events from VRCompositingServer.
+// Only used when the compositing server's protocolVersion >= 1.
+function subscribeToCompositingEvents(system) {
+  if (system.compositingEventSource) return;
+  if ((system.servers?.[1]?.protocolVersion ?? 0) < 1) return;
+
+  const url = getEventsEndpoint(system.ip, system.compositingServerPort);
+  const es = new EventSource(url);
+  system.compositingEventSource = es;
+
+  const stampHeard = () => { if (system.servers?.[1]) system.servers[1].lastHeardAt = Date.now(); };
+
+  es.onopen = () => {
+    stampHeard();
+    const proto = system.servers?.[1]?.protocolVersion ?? 0;
+    const mode = proto >= 2 ? 'v2 — server heartbeats' : 'v1';
+    autoUpdateConsole(system, "compositing", `[SSE] Compositing events connected (${mode})`);
+  };
+
+  es.addEventListener('heartbeat', () => {
+    stampHeard();
+  });
+
+  es.onmessage = (e) => {
+    console.log(`[SSE compositing onmessage] unnamed event:`, e.data);
+    stampHeard();
+  };
+
+  es.onerror = () => {
+    autoUpdateConsole(system, "compositing", `[SSE] Compositing events disconnected`);
+    es.close();
+    system.compositingEventSource = null;
+    const proto = system.servers?.[1]?.protocolVersion ?? 0;
+    if (proto < 2 && system.servers?.[1]?.isRunning) {
+      pingServerStatus(system, 1, getCompositingServerEndpoint(system));
+      return;
+    }
+    if (system.servers?.[1]) {
+      system.servers[1].status = 'error';
+      system.servers[1].lastStatus = 'error';
+    }
     updateSystemUI(system);
   };
 }
@@ -2478,6 +2540,10 @@ function getLauncherStatus(system, autoStart = false) {
         system.deviceEventSource.close();
         system.deviceEventSource = null;
       }
+      if (system.compositingEventSource) {
+        system.compositingEventSource.close();
+        system.compositingEventSource = null;
+      }
 
       if (err.name === "AbortError") {
         autoUpdateConsole(system, "getServerStatus", "Timed out contacting launcher (8s)", "error");
@@ -2574,7 +2640,11 @@ function startAndCheckServers(system, onFail = null) {
             system.servers[1].protocolVersion = compProto;
             system.servers[1].lastStatus = system.servers[1].status;
             if (compData?.status === "Success") {
-              autoUpdateConsole(system, "compositing", `VR compositing server online — protocol v${compProto} (polling)`);
+              const compMode = compProto >= 2 ? 'v2' : compProto >= 1 ? 'SSE' : 'polling';
+              autoUpdateConsole(system, "compositing", `VR compositing server online — protocol v${compProto} (${compMode})`);
+              if (compProto >= 1 && !system.compositingEventSource) {
+                subscribeToCompositingEvents(system);
+              }
             }
             // Device SSE subscription is handled by getLauncherStatus → pingServerStatus inside revealUI
             revealUI();
@@ -2664,17 +2734,17 @@ function pingServerStatus(system, serverIndex, endpoint) {
         if (serverIndex === 0) {
           system.connected = true;
           activeSystems.add(system.name);
-
-          // Subscribe to device SSE if protocol supports it and we're not already subscribed
           if (serverProto >= 1 && !system.deviceEventSource) {
             subscribeToDeviceEvents(system);
           }
-
-          // Update with device data from the response - this refreshes device status
           updateSystemWithJsonData(system, data);
-
-          // Update the UI to show the new device states
           updateSystemUI(system);
+        }
+
+        if (serverIndex === 1) {
+          if (serverProto >= 1 && !system.compositingEventSource) {
+            subscribeToCompositingEvents(system);
+          }
         }
       } else {
         system.servers[serverIndex].status = 'error';
@@ -3151,27 +3221,60 @@ setInterval(() => {
       return;
     }
 
+    // Launcher v2+: zombie detection — no heartbeat for 90s means stale SSE
+    if (system.launcherEventSource && (system.launcherProtocolVersion ?? 0) >= 2) {
+      const silentMs = Date.now() - (system.lastSeen ?? 0);
+      if (silentMs > 90000) {
+        autoUpdateConsole(system, "getServerStatus", `[SSE v2] No launcher heartbeat in ${Math.round(silentMs / 1000)}s — closing stale connection`);
+        system.launcherEventSource.close();
+        system.launcherEventSource = null;
+      }
+    }
+
     // Ping running servers
     if (hasServers) {
       system.servers.forEach((srv, index) => {
-        if (srv.isRunning) {
-          // Skip device server ping if SSE is active and heard from recently
-          if (index === 0 && system.deviceEventSource) {
+        if (!srv.isRunning) return;
+
+        if (index === 0 && system.deviceEventSource) {
+          // Device SSE active — never poll
+          // v2+: close stale connection if no heartbeat in 90s
+          if ((srv.protocolVersion ?? 0) >= 2) {
             const silentMs = Date.now() - (srv.lastHeardAt ?? 0);
-            if (silentMs < 60000) {
-              srv.sseSilenceLogged = false; // reset flag when SSE is healthy
-              return;
-            }
-            if (!srv.sseSilenceLogged) {
-              autoUpdateConsole(system, "tracking", `[SSE] No data in ${Math.round(silentMs / 1000)}s — pinging to verify`);
-              srv.sseSilenceLogged = true;
+            if (silentMs > 90000) {
+              autoUpdateConsole(system, "tracking", `[SSE v2] No heartbeat in ${Math.round(silentMs / 1000)}s — closing stale connection`);
+              system.deviceEventSource.close();
+              system.deviceEventSource = null;
+              srv.status = 'error';
+              srv.lastStatus = 'error';
+              updateSystemUI(system);
             }
           }
-          const serverEndpoint = index === 0
-            ? getDeviceServerEndpoint(system)
-            : getCompositingServerEndpoint(system);
-          pingServerStatus(system, index, serverEndpoint);
+          return;
         }
+
+        if (index === 1 && system.compositingEventSource) {
+          // Compositor SSE active — never poll
+          // v2+: close stale connection if no heartbeat in 90s
+          if ((srv.protocolVersion ?? 0) >= 2) {
+            const silentMs = Date.now() - (srv.lastHeardAt ?? 0);
+            if (silentMs > 90000) {
+              autoUpdateConsole(system, "compositing", `[SSE v2] No heartbeat in ${Math.round(silentMs / 1000)}s — closing stale connection`);
+              system.compositingEventSource.close();
+              system.compositingEventSource = null;
+              srv.status = 'error';
+              srv.lastStatus = 'error';
+              updateSystemUI(system);
+            }
+          }
+          return;
+        }
+
+        // No SSE for this server — poll normally
+        const serverEndpoint = index === 0
+          ? getDeviceServerEndpoint(system)
+          : getCompositingServerEndpoint(system);
+        pingServerStatus(system, index, serverEndpoint);
       });
     }
   });
