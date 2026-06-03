@@ -375,11 +375,18 @@ function shutdownSystem(system) {
 
   const endpoint = getServerLauncherEndpoint(system);
 
-  fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "stopServers" }),
-  }, 3000)
+  // Close all browser-side connections to 8081/8082 before killing the server so the browser
+  // sends FIN/RST first. If we let the server send FIN, the server's port enters TIME_WAIT
+  // and the new process can't bind for ~60s.
+  abortSystemFetches(system);    // RST any in-flight polls
+  closeServerSSEs(system);       // browser FIN on SSE (8081); launcherEventSource stays open
+  drainHttpPool(system)          // RST idle keep-alive pool on 8081/8082
+    .then(() => new Promise(r => setTimeout(r, 300))) // grace window: wait for FIN/ACK
+    .then(() => fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ command: "stopServers" }),
+    }, 3000))
     .then((r) => r.json())
     .then((data) => {
       if (data?.status === "Success") {
@@ -1653,6 +1660,44 @@ function fetchWithTimeout(resource, options = {}, timeout = 5000, system = null)
   });
 }
 
+// Abort all in-flight tracked fetches for a system — sends TCP RST, no TIME_WAIT on either side
+function abortSystemFetches(system) {
+  if (!system.pendingControllers) return;
+  for (const ctrl of system.pendingControllers) ctrl.abort();
+  system.pendingControllers.clear();
+}
+
+// RST idle HTTP keep-alive pooled connections on 8081/8082 before shutdown.
+// Aborting synchronously before the request goes out causes the browser to RST the pooled TCP
+// connection rather than letting the server FIN it on exit (which would cause server TIME_WAIT).
+function drainHttpPool(system) {
+  const endpoints = [getDeviceServerEndpoint(system), getCompositingServerEndpoint(system)];
+  return Promise.allSettled(endpoints.map(ep => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    return fetch(ep, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ command: 'getServerStatus' }),
+      signal: ctrl.signal,
+    }).catch(() => {});
+  }));
+}
+
+// Close 8081/8082 SSE connections from browser side so the browser sends FIN first.
+// TIME_WAIT then lands on the browser's ephemeral port, not on the server's bound port.
+// Does NOT close launcherEventSource (8080) — launcher stays alive through shutdown.
+function closeServerSSEs(system) {
+  if (system.deviceEventSource) {
+    system.deviceEventSource.close();
+    system.deviceEventSource = null;
+  }
+  if (system.compositingEventSource) {
+    system.compositingEventSource.close();
+    system.compositingEventSource = null;
+  }
+}
+
 // Handles server response for commands
 function handleServerResponse(system, command, data) {
 	// Handls server response in our console
@@ -2033,9 +2078,8 @@ function restartServers(system) {
   closeServerSSEs(system);
   autoUpdateConsole(system, "restart", "Stopping servers for restart...");
 
-  // 300ms grace window: gives the browser's SSE FIN time to arrive at the server
-  // before we send stopServers, so the server doesn't initiate close first (→ server TIME_WAIT)
-  new Promise(r => setTimeout(r, 300))
+  drainHttpPool(system)
+    .then(() => new Promise(r => setTimeout(r, 300)))
     .then(() => fetchWithTimeout(getServerLauncherEndpoint(system), {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -2068,7 +2112,8 @@ function stopLauncherServers(system) {
 
   const endpoint = getServerLauncherEndpoint(system);
 
-  new Promise(r => setTimeout(r, 300))
+  drainHttpPool(system)
+    .then(() => new Promise(r => setTimeout(r, 300)))
     .then(() => fetchWithTimeout(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -2242,7 +2287,7 @@ function subscribeToDeviceEvents(system) {
     }
   });
 
-  es.addEventListener('heartbeat', () => {
+  es.addEventListener('stillAlive', () => {
     stampHeard();
   });
 
@@ -2290,7 +2335,7 @@ function subscribeToCompositingEvents(system) {
     autoUpdateConsole(system, "compositing", `[SSE] Compositing events connected (${mode})`);
   };
 
-  es.addEventListener('heartbeat', () => {
+  es.addEventListener('stillAlive', () => {
     stampHeard();
   });
 
@@ -2718,9 +2763,7 @@ function pingServerStatus(system, serverIndex, endpoint) {
 
         // Only log if this is a new status change
         if (system.servers[serverIndex].lastStatus !== 'online') {
-          const transport = serverIndex === 0
-            ? (serverProto >= 1 ? 'SSE' : 'polling')
-            : 'polling';
+          const transport = serverProto >= 1 ? 'SSE' : 'polling';
           autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} online — protocol v${serverProto} (${transport})`);
           system.servers[serverIndex].lastStatus = 'online';
         }
@@ -3238,11 +3281,11 @@ setInterval(() => {
 
         if (index === 0 && system.deviceEventSource) {
           // Device SSE active — never poll
-          // v2+: close stale connection if no heartbeat in 90s
+          // v2+: server sends stillAlive every 15s; close if silent for 45s (3 missed)
           if ((srv.protocolVersion ?? 0) >= 2) {
             const silentMs = Date.now() - (srv.lastHeardAt ?? 0);
-            if (silentMs > 90000) {
-              autoUpdateConsole(system, "tracking", `[SSE v2] No heartbeat in ${Math.round(silentMs / 1000)}s — closing stale connection`);
+            if (silentMs > 45000) {
+              autoUpdateConsole(system, "tracking", `[SSE v2] No stillAlive in ${Math.round(silentMs / 1000)}s — closing stale connection`);
               system.deviceEventSource.close();
               system.deviceEventSource = null;
               srv.status = 'error';
@@ -3255,11 +3298,11 @@ setInterval(() => {
 
         if (index === 1 && system.compositingEventSource) {
           // Compositor SSE active — never poll
-          // v2+: close stale connection if no heartbeat in 90s
+          // v2+: server sends stillAlive every 15s; close if silent for 45s (3 missed)
           if ((srv.protocolVersion ?? 0) >= 2) {
             const silentMs = Date.now() - (srv.lastHeardAt ?? 0);
-            if (silentMs > 90000) {
-              autoUpdateConsole(system, "compositing", `[SSE v2] No heartbeat in ${Math.round(silentMs / 1000)}s — closing stale connection`);
+            if (silentMs > 45000) {
+              autoUpdateConsole(system, "compositing", `[SSE v2] No stillAlive in ${Math.round(silentMs / 1000)}s — closing stale connection`);
               system.compositingEventSource.close();
               system.compositingEventSource = null;
               srv.status = 'error';
