@@ -2,7 +2,7 @@
 
 The **Vrui Management Interface** is a browser-based dashboard for managing VR systems running the [Vrui](https://vrui-vr.github.io/) software stack.
 
-![Dashboard Overview](images/dashboard-overview.png)
+![Dashboard Overview](../images/dashboard-overview.png)
 
 ## What You Can Do
 
@@ -34,9 +34,9 @@ Each system card shows one of three states:
 | **Disconnected** | Launcher alive but servers stopped — muted color |
 | **Unreachable** | Can't contact launcher — red |
 
-![Connected system card](images/system-card-connected.png)
-![Disconnected system card](images/system-card-disconnected.png)
-![Unreachable system card](images/system-card-unreachable.png)
+![Connected system card](../images/system-card-connected.png)
+![Disconnected system card](../images/system-card-disconnected.png)
+![Unreachable system card](../images/system-card-unreachable.png)
 
 ## Layout
 
@@ -60,13 +60,13 @@ Each system card shows one of three states:
 2. Enter a **name**, **IP address**, and **launcher port** (default: `8080`)
 3. Pick a color — appears in the color picker immediately
 
-![Add System dialog](images/add-system-dialog.png)
+![Add System dialog](../images/add-system-dialog.png)
 
 All configurations persist automatically via `localStorage`. Type `reset` in the console to clear everything and restore defaults.
 
 ## Sidebar
 
-![Sidebar](images/sidebar.png)
+![Sidebar](../images/sidebar.png)
 
 The sidebar shows connection details for the currently selected system:
 
