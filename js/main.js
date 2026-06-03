@@ -2301,9 +2301,8 @@ function subscribeToDeviceEvents(system) {
     autoUpdateConsole(system, "tracking", `[SSE] Device events disconnected`);
     es.close();
     system.deviceEventSource = null;
-    const proto = system.servers?.[0]?.protocolVersion ?? 0;
-    if (proto < 2 && system.servers?.[0]?.isRunning) {
-      // v1: server doesn't send heartbeats, so ping once to confirm it's still alive
+    if (system.servers?.[0]?.isRunning) {
+      // Ping to confirm actual server status — don't assume down just because SSE dropped
       pingServerStatus(system, 0, getDeviceServerEndpoint(system));
       return;
     }
@@ -2348,8 +2347,8 @@ function subscribeToCompositingEvents(system) {
     autoUpdateConsole(system, "compositing", `[SSE] Compositing events disconnected`);
     es.close();
     system.compositingEventSource = null;
-    const proto = system.servers?.[1]?.protocolVersion ?? 0;
-    if (proto < 2 && system.servers?.[1]?.isRunning) {
+    if (system.servers?.[1]?.isRunning) {
+      // Ping to confirm actual server status — don't assume down just because SSE dropped
       pingServerStatus(system, 1, getCompositingServerEndpoint(system));
       return;
     }
