@@ -9,7 +9,7 @@ The **Vrui Management Interface** is a browser-based dashboard for managing VR s
 - **Manage multiple VR systems** from one screen
 - **Monitor devices** in real time — battery, tracking, and connection status
 - **Control VR servers** — start, stop, and load environments remotely
-- **Interact with hardware** — ping devices with haptic feedback, power them off
+- **Interact with hardware** — ping devices with haptic feedback & power them off
 - **Send commands** via a live console with command history
 
 ## Quick Start
