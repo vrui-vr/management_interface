@@ -18,7 +18,6 @@ eventsExtension = "Events"
 const RIG_DEFAULT_COLORS = ['#3b82f6', '#f97316', '#22c55e', '#facc15', '#8b5cf6', '#ec4899'];
 
 const getServerStatusInterval = 3000;
-const pingResumeDelayAfterConnect = 5000; // ms to wait after connection before resuming regular pings
 
 let getStatusUpdates = true;   // global flag (default ON)
 let showEmptyEnvironmentDropdown = false; // show dropdown even when no environments are available
@@ -2587,13 +2586,12 @@ function startAndCheckServers(system, onFail = null) {
     const revealUI = () => {
       system.connected = true;
       system.startupPhase = null;
-      // isConnecting stays true here — keeps polling loop suppressed until delay expires
+      system.isConnecting = false;  // resume the status poll right away
       activeSystems.add(system.name);
       updateSystemUI(system);
       clearConsoleEntry(system, "startServers");
       clearConsoleEntry(system, "autoStart");
       getLauncherStatus(system);  // sets launcherAlive, opens launcher SSE, fetches version info
-      setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
     };
 
     // Phase 1: confirm tracking driver (device server, index 0)
