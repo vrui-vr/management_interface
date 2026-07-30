@@ -1720,7 +1720,7 @@ function sendHapticTick(system, deviceName, featureIndex) {
 
   const endpoint = getDeviceServerEndpoint(system);
 
-  fetch(endpoint, {
+  fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -1730,7 +1730,7 @@ function sendHapticTick(system, deviceName, featureIndex) {
       frequency: 100,
       amplitude: 255,
     }),
-  })
+  }, 5000, system)
     .then((r) => r.json())
     .then((data) => {
       handleServerResponse(system, "hapticTick", data);
@@ -1768,14 +1768,14 @@ function sendPowerOff(system, deviceName, featureIndex) {
 
   const endpoint = getDeviceServerEndpoint(system);
 
-  fetch(endpoint, {
+  fetchWithTimeout(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       command: "powerOff",
       powerFeatureIndex: featureIndex,
     }),
-  })
+  }, 5000, system)
     .then((r) => r.json())
     .then((data) => {
       handleServerResponse(system, "powerOff", data);
@@ -1906,79 +1906,6 @@ function updateSystemWithJsonData(system, jsonData) {
 	}
 
 	//console.log(JSON.stringify(system, null, 2));
-}
-
-// Calls to server about system status
-function getDeviceServerStatus(system) {
-  if (!system) return;
-
-  const endpoint = getDeviceServerEndpoint(system);
-
-  fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 3000) // 3000 ms timeout
-    .then((r) => r.json())
-    .then((data) => {
-      const i = allSystems.findIndex((d) => d.name === system.name);
-      if (i === -1) return;
-
-      updateSystemWithJsonData(allSystems[i], data);
-
-      // Mark as online
-      allSystems[i].lastSeen = Date.now();
-
-      // Add to activeSystems if success
-      if (data?.status === "Success") {
-        if (!activeSystems.has(system.name)) {
-          console.log(`${system.name} added to activeSystems`);
-          activeSystems.add(system.name);
-        }
-      }
-
-      updateSystemUI(allSystems[i]);
-
-      handleServerResponse(system, "getServerStatus", data);
-    })
-    .catch((err) => {
-      if (err.name === "AbortError") {
-        console.error(`Timeout contacting ${system.name}`);
-        autoUpdateConsole(system, "getServerStatus", "Timed out contacting device", "error");
-      } else {
-        console.error(`Failed to contact ${system.name} (${system.ip}:${system.deviceServerPort}):`, err);
-        autoUpdateConsole(system, "getServerStatus", "Failed to contact device — connection error", "error");
-      }
-    });
-}
-
-// Calls to compositing server about system status - DEPRECATED, use pingServerStatus instead
-function getCompositingServerStatus(system) {
-  if (!system) return;
-
-  const endpoint = getCompositingServerEndpoint(system);
-
-  fetchWithTimeout(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ command: "getServerStatus" }),
-  }, 3000)
-    .then((r) => r.json())
-    .then((data) => {
-      // Handle compositing-specific response
-      handleServerResponse(system, "getCompositingStatus", data);
-      
-      // Add any compositing-specific UI updates here
-    })
-    .catch((err) => {
-      if (err.name === "AbortError") {
-        console.error(`Timeout contacting compositing server on ${system.name}`);
-        autoUpdateConsole(system, "getCompositingStatus", "Timed out contacting compositing server", "error");
-      } else {
-        console.error(`Failed to contact compositing server on ${system.name}:`, err);
-        autoUpdateConsole(system, "getCompositingStatus", "Failed to contact compositing server", "error");
-      }
-    });
 }
 
 // Start VR Compositor and VRRunDeviceTracker
@@ -2356,7 +2283,7 @@ function uploadEnvironment(system, environmentFilePath) {
       command: "uploadEnvironment",
       environmentFilePath: environmentFilePath,
     }),
-  }, 5000)
+  }, 5000, system)
     .then((r) => r.json())
     .then((data) => {
       if (data?.status === "Success") {
@@ -2596,80 +2523,18 @@ function startAndCheckServers(system, onFail = null) {
       setTimeout(() => { system.isConnecting = false; }, pingResumeDelayAfterConnect);
     };
 
-    // Phase 1: confirm tracking driver (device server, index 0)
-    system.startupPhase = 'tracking';
-    updateSystemUI(system);
-
-    fetchWithTimeout(getDeviceServerEndpoint(system), {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ command: "getServerStatus" }),
-    }, 5000)
-      .then(r => r.json())
-      .then(deviceData => {
-        if (deviceData?.status !== "Success") {
-          failStartup("Tracking driver reported an error");
-          return;
-        }
-
-        // Store device data without revealing UI yet
-        updateSystemWithJsonData(system, deviceData);
-        const serverProto = deviceData.protocolVersion ?? 0;
-        system.servers[0].status = 'online';
-        system.servers[0].protocolVersion = serverProto;
-        system.servers[0].lastStatus = 'online';
-        system.servers[0].lastHeardAt = Date.now();
-        autoUpdateConsole(system, "tracking", `VR tracking driver online — protocol v${serverProto} (${serverProto >= 1 ? 'SSE' : 'polling'})`);
-
-        // Phase 2: confirm compositor (index 1)
-        system.startupPhase = 'compositing';
-        updateSystemUI(system);
-
-        fetchWithTimeout(getCompositingServerEndpoint(system), {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ command: "getServerStatus" }),
-        }, 5000)
-          .then(r => r.json())
-          .then(compData => {
-            const compProto = compData?.protocolVersion ?? 0;
-            system.servers[1].status = compData?.status === "Success" ? 'online' : 'error';
-            system.servers[1].protocolVersion = compProto;
-            system.servers[1].lastStatus = system.servers[1].status;
-            if (compData?.status === "Success") {
-              const compMode = compProto >= 2 ? 'v2' : compProto >= 1 ? 'SSE' : 'polling';
-              autoUpdateConsole(system, "compositing", `VR compositing server online — protocol v${compProto} (${compMode})`);
-              if (compProto >= 1 && !system.compositingEventSource) {
-                subscribeToCompositingEvents(system);
-              }
-            }
-            // Device SSE subscription is handled by getLauncherStatus → pingServerStatus inside revealUI
-            revealUI();
-          })
-          .catch(() => {
-            // Compositor unreachable — reveal UI anyway so user sees the error state
-            system.servers[1].status = 'offline';
-            system.servers[1].lastStatus = 'offline';
-            revealUI();
-          });
-      })
-      .catch(() => {
-        // Device server connection refused — check launcher once to detect instant crash
-        fetchWithTimeout(getServerLauncherEndpoint(system), {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ command: "getServerStatus" }),
-        }, 3000)
-          .then(r => r.json())
-          .then(data => {
-            if (data?.servers?.[0]?.isRunning === false) {
-              failStartup("Tracking driver failed to start — VR hardware may need to be replugged");
-            } else {
-              failStartup("Tracking driver did not respond");
-            }
-          })
-          .catch(() => failStartup("Tracking driver did not respond"));
-      });
+    // startServers blocks server-side until both servers are confirmed listening, so there is
+    // nothing left to verify with a separate request here. Hand off to the same status path
+    // the page uses when it finds the servers already running: getLauncherStatus() pings each
+    // running server via pingServerStatus(), which records protocolVersion, loads device data
+    // and subscribes to SSE.
+    //
+    // Those pings go through fetchWithTimeout(..., system), so their AbortControllers are
+    // registered in system.pendingControllers and abortSystemFetches() can actually cancel
+    // them. The bespoke status requests that used to live here omitted that argument, so they
+    // were untracked: nothing ever closed them, and the resulting idle keep-alive socket held
+    // the server's port open until the browser expired it (~2 min).
+    revealUI();
   });
 }
 
@@ -2764,6 +2629,13 @@ function pingServerStatus(system, serverIndex, endpoint) {
       console.error(`${serverName} failed:`, err.name, err.message);
 
       system.servers[serverIndex].status = 'offline';
+
+      // The system's "connected" state tracks the device server (index 0): it is the one
+      // that supplies device data. pingServerStatus sets connected = true when index 0
+      // answers, so clear it when index 0 stops answering — otherwise a system whose
+      // tracking driver died still reads as connected.
+      if (serverIndex === 0) system.connected = false;
+
       if (system.servers[serverIndex].lastStatus !== 'offline') {
         if (err.name === "AbortError") {
           autoUpdateConsole(system, serverIndex === 0 ? "tracking" : "compositing", `${system.servers[serverIndex].name} timed out (no response after 3s)`, "error");
@@ -3200,17 +3072,31 @@ setInterval(() => {
   if (!getStatusUpdates) return;
 
   allSystems.forEach((system) => {
-    if (!system.launcherAlive) return;
+    // Launcher is down: keep re-checking so the interface reconnects on its own once it is
+    // back. VRServerLauncher restarts itself on SIGHUP and can be restarted by hand, and
+    // without this the system is skipped forever — only a page reload would recover it.
+    // getServerStatus is a polling command, so the console entry updates in place rather
+    // than accumulating one error per attempt.
+    if (!system.launcherAlive) {
+      getLauncherStatus(system);
+      return;
+    }
     if (system.intentionallyShutdown) return; // servers stopped intentionally — wait for power button
     if (system.startupPhase === 'powering-off') return; // shutdown in progress — don't fire new pings
     if (system.isConnecting) return; // skip pings while connecting to servers
 
     const hasServers = system.servers && system.servers.length > 0;
     const anyRunning = hasServers && system.servers.some(srv => srv.isRunning);
+    // isRunning comes from the launcher and goes stale the moment a server dies, so also
+    // treat a server we cannot actually reach as a reason to re-check the launcher.
+    // Otherwise, if the launcher dies while its servers were up, isRunning stays true
+    // forever, this loop only ever pings the dead servers, and the launcher is never
+    // re-polled — so launcherAlive never flips and the reconnect above never engages.
+    const anyUnreachable = hasServers && system.servers.some(srv => srv.status === 'offline' || srv.status === 'error');
 
     // If launcher is alive but no servers are running, or some servers are still
     // reported as stopped, re-check launcher status so stale isRunning flags get refreshed
-    if (hasServers && (!anyRunning || !system.serversRunning)) {
+    if (hasServers && (!anyRunning || !system.serversRunning || anyUnreachable)) {
       // Skip if launcher SSE is active — it will push status changes to us
       if (!system.launcherEventSource) getLauncherStatus(system);
       return;
